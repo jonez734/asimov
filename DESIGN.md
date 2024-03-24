@@ -1,0 +1,21 @@
+- green screen
+- backlit
+- black light
+- holes in PVC for cables, gromets to prevent cable damage
+- hd cameras:
+  - overhead
+  - head shot
+  - side view
+  - tally light on each camera
+- computer:
+  - obs (open broadcast studio)
+  - plenty of USB ports, can be via 'multi-usb strip' (plug in? 5V?)
+  - plenty of RAM (for editing later)
+  - plenty of CPU
+  - plenty of GPU
+  - small box that can mute/unmute with a tally light when it is "on" usb? (tallyarbiter)
+  - bigger flat panel (hdmi) replaces 20" SVGA
+- plant:
+  - dedicated fuse/circuit for stage room
+- foot pedals for obs transitions. "usb 3 pedal foot switches" (or similar)
+- "open shot" (qt) for non-linear video editing
