@@ -1,6 +1,11 @@
+import time
+
 import cv2
+
 import numpy as np
+
 import glfw
+
 import OpenGL.GL as gl
 import OpenGL.GLU as glu
 import OpenGL.GLUT as glut  # For text rendering
@@ -9,21 +14,33 @@ import OpenGL.GLUT as glut  # For text rendering
 width, height = 640, 480
 texture_id = None
 
+rect_buffer = []
+DISPLAY_TIME = 2.0
+
 def detect_cards(frame):
-    """Detect playing cards and return rectangles (x, y, w, h)."""
-    rectangles = []
+    """Detect playing cards and store rectangles with timestamps"""
+    global rect_buffer
+    new_rectangles = []
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     edges = cv2.Canny(blur, 50, 150)
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    current_time = time.time()
 
     for cnt in contours:
         approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
         if len(approx) == 4:
             x, y, w, h = cv2.boundingRect(cnt)
             if cv2.contourArea(cnt) > 1000:
-                rectangles.append((x, y, w, h))
-    return rectangles
+                new_rectangles.append((x, y, w, h, current_time))
+    # Add new rectangles to the buffer
+    rect_buffer.extend(new_rectangles)
+
+    # Remove old rectangles
+    rect_buffer = [(x, y, w, h, t) for (x, y, w, h, t) in rect_buffer if current_time - t < DISPLAY_TIME]
+
+    return rect_buffer  # Return the updated list
 
 def create_texture():
     """Create an OpenGL texture for the webcam feed."""
@@ -89,7 +106,7 @@ def render_scene(frame, rectangles):
 
     # Draw detected rectangles
     gl.glColor4f(0, 0.5, 0, 0.5)  # Black for rectangles & text
-    for x, y, w, h in rectangles:
+    for x, y, w, h, _ in rect_buffer:
         draw_rectangle(x, y, w, h)
         draw_text(x + 5, y - 15, f"Area: {w*h}")
     gl.glColor4f(1.0, 1.0, 1.0, 1.0)
