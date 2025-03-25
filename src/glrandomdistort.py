@@ -7,8 +7,8 @@ import glfw
 
 # Global variables
 texture_id = None
-apply_filter = False
-next_filter_time = time.time() + random.uniform(2, 5)
+apply_distortion = False
+next_distortion_time = time.time() + random.uniform(2, 5)
 
 # OpenCV video capture
 cap = cv2.VideoCapture(0)
@@ -26,8 +26,8 @@ def update_texture(image):
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.shape[1], image.shape[0], 0, GL_RGB, GL_UNSIGNED_BYTE, image)
     glBindTexture(GL_TEXTURE_2D, 0)
 
-def apply_random_filter(image):
-    choice = random.choice(['desaturate', 'oversaturate', 'color_shift', 'contrast', 'whitenoise'])
+def apply_random_distortion(image):
+    choice = random.choice(['desaturate', 'oversaturate', 'color_shift', 'contrast', 'whitenoise', 'tearing'])
     if choice == 'desaturate':
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
@@ -45,6 +45,8 @@ def apply_random_filter(image):
         intensity = random.randint(32, 128)
         noise = np.random.randint(0, intensity, image.shape, dtype='uint8')
         image = cv2.add(image, noise)
+    elif choice == 'tearing':
+        image = tearing_effect(image)
     return image
 
 def render_quad():
@@ -62,8 +64,30 @@ def render_quad():
     glEnd()
     glDisable(GL_TEXTURE_2D)
 
+def tearing_effect(image):
+    rows, cols, _ = image.shape
+    num_slices = random.randint(3, 8)  # number of tearing "slices"
+    tear_image = image.copy()
+
+    for _ in range(num_slices):
+        y = random.randint(0, rows - 20)
+        h = random.randint(5, 20)  # height of tear band
+        shift = random.randint(-30, 30)  # how much to horizontally offset
+
+        # Shift the band horizontally
+        tear_image[y:y+h, :] = np.roll(tear_image[y:y+h, :], shift, axis=1)
+
+        # Add a thin black line above or below to simulate a gap
+        gap_position = y + h if (y + h) < rows else y - 1
+        gap_thickness = random.randint(1, 3)
+        gap_color = random.randint(0, 30)  # very dark gray instead of pure black
+        if 0 <= gap_position < rows - gap_thickness:
+            tear_image[gap_position:gap_position+gap_thickness, :] = gap_color
+
+    return tear_image
+
 def main():
-    global apply_filter, next_filter_time
+    global apply_distortion, next_distortion_time
 
     if not glfw.init():
         print("Could not initialize GLFW")
@@ -91,13 +115,13 @@ def main():
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Toggle filter randomly
-        if time.time() >= next_filter_time:
-            apply_filter = not apply_filter
-            next_filter_time = time.time() + random.uniform(2, 5)
+        # Toggle distortion randomly
+#        if time.time() >= next_distortion_time:
+#            apply_distortion = not apply_distortion
+#            next_distortion_time = time.time() + random.uniform(2, 5)
 
-        if apply_filter:
-            frame = apply_random_filter(frame)
+        if apply_distortion:
+            frame = apply_random_distortion(frame)
 
         frame = cv2.flip(frame, 0)
         update_texture(frame)
@@ -109,6 +133,10 @@ def main():
 
         if glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS:
             break
+        elif glfw.get_key(window, glfw.KEY_D) == glfw.PRESS:
+            apply_distortion = not apply_distortion
+            print(f"{apply_distortion=}")
+            #time.sleep(0.2) # debounce
 
     # Cleanup
     cap.release()
