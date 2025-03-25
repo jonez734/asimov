@@ -93,7 +93,7 @@ def main():
         print("Could not initialize GLFW")
         return
 
-    window = glfw.create_window(640, 480, "OpenCV + OpenGL + GLFW", None, None)
+    window = glfw.create_window(800, 600, "OpenCV + OpenGL + GLFW", None, None)
     if not window:
         glfw.terminate()
         print("Could not create GLFW window")
