@@ -27,7 +27,7 @@ def update_texture(image):
     glBindTexture(GL_TEXTURE_2D, 0)
 
 def apply_random_filter(image):
-    choice = random.choice(['desaturate', 'oversaturate', 'color_shift', 'contrast'])
+    choice = random.choice(['desaturate', 'oversaturate', 'color_shift', 'contrast', 'whitenoise'])
     if choice == 'desaturate':
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
@@ -41,6 +41,10 @@ def apply_random_filter(image):
     elif choice == 'contrast':
         alpha = random.uniform(0.5, 1.5)
         image = cv2.convertScaleAbs(image, alpha=alpha, beta=0)
+    elif choice == 'whitenoise':
+        intensity = random.randint(32, 128)
+        noise = np.random.randint(0, intensity, image.shape, dtype='uint8')
+        image = cv2.add(image, noise)
     return image
 
 def render_quad():
