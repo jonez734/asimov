@@ -95,6 +95,7 @@ def main():
         if apply_filter:
             frame = apply_random_filter(frame)
 
+        frame = cv2.flip(frame, 0)
         update_texture(frame)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
