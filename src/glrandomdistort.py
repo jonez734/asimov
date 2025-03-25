@@ -136,7 +136,7 @@ def main():
         elif glfw.get_key(window, glfw.KEY_D) == glfw.PRESS:
             apply_distortion = not apply_distortion
             print(f"{apply_distortion=}")
-            #time.sleep(0.2) # debounce
+            time.sleep(0.2) # debounce
 
     # Cleanup
     cap.release()
