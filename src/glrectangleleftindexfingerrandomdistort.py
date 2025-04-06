@@ -1,38 +1,104 @@
-import cv2
-import numpy as np
 import random
 import time
+import threading
+
+import cv2
+import numpy as np
+
 from OpenGL.GL import *
+
+from flask import Flask, Response
+
 import glfw
 
 from cvzone.HandTrackingModule import HandDetector
 
+import asimov.util
+
 # Global variables
-texture_id = None
+#texture_id = None
 apply_distortion = False
 next_distortion_time = time.time() + random.uniform(2, 5)
 
 # OpenCV video capture
-cap = cv2.VideoCapture(0)
+#cap = cv2.VideoCapture(0)
 detector = HandDetector(detectionCon=0.8, maxHands=2)
 
 MARGIN = 10
 
-def create_texture():
-    global texture_id
-    texture_id = glGenTextures(1)
-    glBindTexture(GL_TEXTURE_2D, texture_id)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-    glBindTexture(GL_TEXTURE_2D, 0)
+class VideoCaptureThread(threading.Thread):
+    def __init__(self, src=0, width=800, height=600):
+        super().__init__()
+        self.cap = cv2.VideoCapture(src, cv2.CAP_V4L2)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.running = True
+        self.frame = None
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self.update, daemon=True)
+        self.thread.start()
 
-def update_texture(image):
-    glBindTexture(GL_TEXTURE_2D, texture_id)
+    def update(self):
+        while self.running:
+            ret, frame = self.cap.read()
+            if ret:
+                with self.lock:
+                    self.frame = frame
+
+    def get_frame(self):
+        with self.lock:
+            return self.frame
+
+    def stop(self):
+        self.running = False
+        self.thread.join()
+        self.cap.release()
+
+class FlaskThread(threading.Thread):
+    app = Flask(__name__)
+
+    def __init__(self, vct):
+        self.running = True
+
+        self.vct = vct
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self.run, daemon=True)
+        self.thread.start()
+        self.app.add_url_rule('/video_feed', 'video_feed', self.video_feed)
+
+    def run(self):
+        self.app.run(host='0.0.0.0', port=5000, threaded=True, debug=True, use_reloader=False)
+
+    def generate_frames(self):
+        while self.running:
+            frame = self.vct.get_frame() # success, frame = cap.read()
+            if frame is None:
+                time.sleep(0.25)
+                continue
+
+            # Optional: Process frame with OpenGL (You can integrate PyOpenGL here)
+
+            ret, buffer = cv2.imencode('.jpg', frame)
+            if not ret:
+                continue
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+
+    def video_feed(self):
+        return Response(self.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+    def stop(self):
+        self.running = False
+#        self.thread.join()
+
+def update_texture(textureid, image):
+    glBindTexture(GL_TEXTURE_2D, textureid)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.shape[1], image.shape[0], 0, GL_RGB, GL_UNSIGNED_BYTE, image)
     glBindTexture(GL_TEXTURE_2D, 0)
 
 def apply_random_distortion(image):
     choice = random.choice(['desaturate', 'oversaturate', 'color_shift', 'contrast', 'whitenoise', 'tearing'])
+    print(f"{choice=}")
     if choice == 'desaturate':
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
@@ -111,21 +177,6 @@ def processframe(img):
     
     return img
 
-def render_quad():
-    glEnable(GL_TEXTURE_2D)
-    glBindTexture(GL_TEXTURE_2D, texture_id)
-    glBegin(GL_QUADS)
-    glTexCoord2f(0, 0)
-    glVertex2f(-1, -1)
-    glTexCoord2f(1, 0)
-    glVertex2f(1, -1)
-    glTexCoord2f(1, 1)
-    glVertex2f(1, 1)
-    glTexCoord2f(0, 1)
-    glVertex2f(-1, 1)
-    glEnd()
-    glDisable(GL_TEXTURE_2D)
-
 def tearing_effect(image):
     rows, cols, _ = image.shape
     num_slices = random.randint(3, 8)  # number of tearing "slices"
@@ -149,13 +200,20 @@ def tearing_effect(image):
     return tear_image
 
 def main():
-    global apply_distortion, next_distortion_time
+#    global apply_distortion, next_distortion_time
+    distortion_mode_enabled = False  # toggled with 'D' key
+    apply_distortion = False         # whether a distortion is currently being applied
+    distortion_duration = 1.0        # how long a distortion lasts
+    next_distortion_time = time.time() + random.uniform(5, 15)
+    apply_distortion_until = 0
+    distortion_start_time = 0
 
     if not glfw.init():
         print("Could not initialize GLFW")
         return
 
-    window = glfw.create_window(800, 600, "OpenCV + OpenGL + GLFW", None, None)
+    width, height = 1024, 768
+    window = glfw.create_window(width, height, "OpenCV + OpenGL + GLFW", None, None)
     if not window:
         glfw.terminate()
         print("Could not create GLFW window")
@@ -163,48 +221,72 @@ def main():
 
     glfw.make_context_current(window)
 
-    create_texture()
+    textureid = asimov.util.create_texture()
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     glOrtho(-1, 1, -1, 1, -1, 1)
     glMatrixMode(GL_MODELVIEW)
 
-    while not glfw.window_should_close(window):
-        ret, frame = cap.read()
-        if not ret:
-            print("Failed to capture frame")
-            break
+    # OpenCV Video Capture
+    vct = VideoCaptureThread(0, width, height)
 
+    # Start Flask in a separate thread
+    ft = FlaskThread(vct)
+
+    while not glfw.window_should_close(window):
+        frame = vct.get_frame() # ret, frame = cap.read()
+        if frame is None:
+#            time.sleep(0.1)
+            continue
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Toggle distortion randomly
 #        if time.time() >= next_distortion_time:
 #            apply_distortion = not apply_distortion
 #            next_distortion_time = time.time() + random.uniform(2, 5)
-
         
         frame = processframe(frame)
 
-        if apply_distortion:
-            frame = apply_random_distortion(frame)
 
         frame = cv2.flip(frame, 0)
-        update_texture(frame)
+
+        update_texture(textureid, frame)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        render_quad()
+
+        asimov.util.render_quad(textureid)
+
         glfw.swap_buffers(window)
         glfw.poll_events()
 
         if glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS:
             break
         elif glfw.get_key(window, glfw.KEY_D) == glfw.PRESS:
-            apply_distortion = not apply_distortion
-            print(f"{apply_distortion=}")
+            distortion_mode_enabled = not distortion_mode_enabled
+            print(f"{distortion_mode_enabled=}")
             time.sleep(0.2) # debounce
 
+        current_time = time.time()
+        if distortion_mode_enabled:
+            if not apply_distortion_flag and current_time >= next_distortion_time:
+                # Start distortion
+                apply_distortion_flag = True
+                distortion_start_time = current_time
+                distortion_duration = random.uniform(0.5, 1.5)
+                distortion_index = random.randint(0, 3)  # pick once
+#                apply_distortion(shader_program, distortion_index)  # <-- your function
+                print(f"Starting distortion {distortion_index}")
+            elif apply_distortion_flag and current_time >= distortion_start_time + distortion_duration:
+                # End distortion
+                apply_distortion_flag = False
+#                apply_distortion(shader_program, -1)  # disable all effects
+                next_distortion_time = current_time + random.uniform(5, 15)
+                print("Distortion ended")
+
     # Cleanup
-    cap.release()
+#    cap.release()
+    vct.stop()
+    ft.stop()
     glfw.destroy_window(window)
     glfw.terminate()
 
