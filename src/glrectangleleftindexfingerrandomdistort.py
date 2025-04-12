@@ -13,12 +13,11 @@ import glfw
 
 from cvzone.HandTrackingModule import HandDetector
 
-import asimov.util
+import asimov.util, asimov.distort
 
 # Global variables
 #texture_id = None
-apply_distortion = False
-next_distortion_time = time.time() + random.uniform(2, 5)
+#next_distortion_time = time.time() + random.uniform(2, 5)
 
 # OpenCV video capture
 #cap = cv2.VideoCapture(0)
@@ -64,7 +63,7 @@ class FlaskThread(threading.Thread):
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.thread.start()
-        self.app.add_url_rule('/video_feed', 'video_feed', self.video_feed)
+        self.app.add_url_rule('/video', 'video_feed', self.video_feed)
 
     def run(self):
         self.app.run(host='0.0.0.0', port=5000, threaded=True, debug=True, use_reloader=False)
@@ -91,34 +90,151 @@ class FlaskThread(threading.Thread):
         self.running = False
 #        self.thread.join()
 
-def update_texture(textureid, image):
-    glBindTexture(GL_TEXTURE_2D, textureid)
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.shape[1], image.shape[0], 0, GL_RGB, GL_UNSIGNED_BYTE, image)
-    glBindTexture(GL_TEXTURE_2D, 0)
+# moved to asimov.util
+#def update_texture(textureid, image):
+#    glBindTexture(GL_TEXTURE_2D, textureid)
+#    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.shape[1], image.shape[0], 0, GL_RGB, GL_UNSIGNED_BYTE, image)
+#    glBindTexture(GL_TEXTURE_2D, 0)
 
-def apply_random_distortion(image):
-    choice = random.choice(['desaturate', 'oversaturate', 'color_shift', 'contrast', 'whitenoise', 'tearing'])
-    print(f"{choice=}")
-    if choice == 'desaturate':
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-    elif choice == 'oversaturate':
-        hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-        hsv[..., 1] = np.clip(hsv[..., 1] * 2.0, 0, 255)
-        image = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-    elif choice == 'color_shift':
-        b, g, r = cv2.split(image)
-        image = cv2.merge([g, r, b])
-    elif choice == 'contrast':
-        alpha = random.uniform(0.5, 1.5)
-        image = cv2.convertScaleAbs(image, alpha=alpha, beta=0)
-    elif choice == 'whitenoise':
-        intensity = random.randint(32, 128)
-        noise = np.random.randint(0, intensity, image.shape, dtype='uint8')
-        image = cv2.add(image, noise)
-    elif choice == 'tearing':
-        image = tearing_effect(image)
-    return image
+def key_callback(window, key, scancode, action, mods):
+    global distortions_enabled
+    if key == glfw.KEY_D and action == glfw.PRESS:
+        distortions_enabled = not distortions_enabled
+        print(f"Distortions {'enabled' if distortions_enabled else 'disabled'}")
+
+def apply_texture_distortion(frame):
+    if not hasattr(apply_texture_distortion, "active"):
+        apply_texture_distortion.active = False
+        apply_texture_distortion.start_time = 0
+        apply_texture_distortion.duration = 1.5
+        apply_texture_distortion.next_time = time.time() + random.uniform(5, 10)
+        apply_texture_distortion.effect_name = None
+
+    current_time = time.time()
+
+    if apply_texture_distortion.active:
+        if current_time - apply_texture_distortion.start_time > apply_texture_distortion.duration:
+            apply_texture_distortion.active = False
+            apply_texture_distortion.next_time = current_time + random.uniform(4, 8)
+            apply_texture_distortion.effect_name = None
+            return frame
+
+        distorted = np.copy(frame)
+        t = current_time
+
+        effect = apply_texture_distortion.effect_name
+
+        if effect == 'desaturate':
+            distorted = cv2.cvtColor(distorted, cv2.COLOR_RGB2GRAY)
+            distorted = cv2.cvtColor(distorted, cv2.COLOR_GRAY2RGB)
+        elif effect == 'oversaturate':
+            hsv = cv2.cvtColor(distorted, cv2.COLOR_RGB2HSV)
+            hsv[..., 1] = np.clip(hsv[..., 1] * 2.0, 0, 255)
+            distorted = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+        elif effect == 'color_shift':
+            b, g, r = cv2.split(distorted)
+            distorted = cv2.merge([g, r, b])
+        elif effect == 'contrast':
+            alpha = random.uniform(0.5, 1.5)
+            distorted = cv2.convertScaleAbs(distorted, alpha=alpha, beta=0)
+        elif effect == 'whitenoise':
+            intensity = random.randint(32, 128)
+            noise = np.random.randint(0, intensity, distorted.shape, dtype='uint8')
+            distorted = cv2.add(distorted, noise)
+        elif effect == 'tearing':
+            distorted = tearing_effect(distorted)
+
+        elif effect == "horizontal_wave":
+            height, width = distorted.shape[:2]
+            distorted_float = distorted.astype(np.float32)
+            amplitude = 20
+            frequency = 20
+            phase = t * 5
+            y_indices_float = np.arange(height)[:, np.newaxis] / frequency
+            x_offsets_float = amplitude * np.sin(y_indices_float + phase)
+            shifted_frame = np.zeros_like(distorted_float)
+            for y in range(height):
+                offset_float = x_offsets_float[y, 0]
+                offset_int = int(offset_float)
+
+                for x in range(width):
+                    src_x = int(np.round(np.clip(x - offset_float, 0, width - 1)))
+                    shifted_frame[y, x] = distorted_float[y, src_x]
+            distorted = shifted_frame.astype(np.uint8)
+        elif effect == "vertical_wave":
+            height, width = distorted.shape[:2]
+            distorted_float = distorted.astype(np.float32)
+            amplitude = 20
+            frequency = 20
+            phase = t * 5
+            y_indices = np.arange(height)[:, np.newaxis]  # Shape (height, 1)
+            x_offsets = amplitude * np.sin(y_indices / frequency + phase)  # Shape (height, 1)
+            shifted_frame = np.zeros_like(distorted_float)
+            for y in range(height):
+                offset = int(x_offsets[y, 0])  # Get the offset for the current row
+                shifted_x = np.clip(np.arange(width) + offset, 0, width - 1)
+                shifted_frame[y, :] = distorted_float[y, shifted_x]
+            distorted = shifted_frame.astype(np.uint8)
+        elif effect == "diagonal_wave":
+            height, width = distorted.shape[:2]
+            distorted_float = distorted.astype(np.float32)
+            amplitude = 15
+            frequency = 15
+            phase = t * 5
+            row_indices, col_indices = np.indices((height, width)).astype(np.float32)
+            offset = amplitude * np.sin((row_indices + col_indices) / frequency + phase)
+            shifted_frame = np.zeros_like(distorted_float)
+            for i in range(height):
+                for j in range(width):
+                    offset_val = int(offset[i, j])
+                    new_row = np.clip(i + offset_val, 0, height - 1)
+                    new_col = np.clip(j + offset_val, 0, width - 1)
+                    shifted_frame[new_row, new_col] = distorted_float[i, j] # Note the assignment
+            distorted = shifted_frame.astype(np.uint8)
+        elif effect == "rgb_split":
+            offset = 0.01 * np.sin(t * 20)
+            distorted[:, 0] += offset
+        elif effect == "geometry_noise":
+            noise = (np.random.rand(*distorted.shape) - 0.5) * 0.005
+            distorted += noise
+        elif effect == "tear":
+            row = random.randint(0, distorted.shape[0] - 1)
+            offset = (random.random() - 0.5) * 0.05
+            distorted[row:, 0] += offset
+        elif effect == "texture_whitenoise":
+            height, width = frame.shape[:2]
+            channels = frame.shape[2] if len(frame.shape) == 3 else 1
+            random_noise = np.random.randint(0, 256, size=(height, width, channels), dtype=np.uint8)
+            alpha = 0.2 + 0.1 * np.sin(current_time * 5)  # Vary alpha over time
+            alpha = np.clip(alpha, 0.1, 0.3)  # Keep alpha within a reasonable range
+            frame = cv2.addWeighted(frame, 1 - alpha, random_noise, alpha, 0)
+        return distorted
+    else:
+        if current_time >= apply_texture_distortion.next_time:
+            apply_texture_distortion.active = True
+            apply_texture_distortion.start_time = current_time
+            apply_texture_distortion.duration = random.uniform(1.5, 3.0)
+
+            effect_list = [
+#                "tearing",
+#                "contrast",
+                "color_shift",
+#                "whitenoise",
+#                "horizontal_wave",
+#                "vertical_wave",
+#                "diagonal_wave",
+#                "rgb_split",
+#                "noise",
+#                "tear",
+#                "texture_whitenoise"
+            ]
+
+            apply_texture_distortion.effect_name = random.choice(effect_list)
+            print(f"Starting distortion: {apply_texture_distortion.effect_name}")
+            if apply_texture_distortion.effect_name == "texture_whitenoise":
+                apply_texture_distortion.white_noise_texture = None # Generate new noise each time
+
+    return frame
 
 def processframe(img):
     global detector
@@ -177,43 +293,35 @@ def processframe(img):
     
     return img
 
-def tearing_effect(image):
-    rows, cols, _ = image.shape
-    num_slices = random.randint(3, 8)  # number of tearing "slices"
-    tear_image = image.copy()
-
-    for _ in range(num_slices):
-        y = random.randint(0, rows - 20)
-        h = random.randint(5, 20)  # height of tear band
-        shift = random.randint(-30, 30)  # how much to horizontally offset
-
-        # Shift the band horizontally
-        tear_image[y:y+h, :] = np.roll(tear_image[y:y+h, :], shift, axis=1)
-
-        # Add a thin black line above or below to simulate a gap
-        gap_position = y + h if (y + h) < rows else y - 1
-        gap_thickness = random.randint(1, 3)
-        gap_color = random.randint(0, 30)  # very dark gray instead of pure black
-        if 0 <= gap_position < rows - gap_thickness:
-            tear_image[gap_position:gap_position+gap_thickness, :] = gap_color
-
-    return tear_image
-
 def main():
-#    global apply_distortion, next_distortion_time
     distortion_mode_enabled = False  # toggled with 'D' key
-    apply_distortion = False         # whether a distortion is currently being applied
-    distortion_duration = 1.0        # how long a distortion lasts
-    next_distortion_time = time.time() + random.uniform(5, 15)
-    apply_distortion_until = 0
-    distortion_start_time = 0
+##    apply_distortion = False         # whether a distortion is currently being applied
+##    distortion_duration = 1.0        # how long a distortion lasts
+##    next_distortion_time = time.time() + random.uniform(5, 15)
+##    apply_distortion_until = 0
+
+    original_vertices = np.array([
+        [-1.0, -1.0],
+        [ 1.0, -1.0],
+        [ 1.0,  1.0],
+        [-1.0,  1.0]
+    ], dtype=np.float32)
+
+    # Corresponding texture coordinates (same order)
+    tex_coords = np.array([
+        [0.0, 1.0],
+        [1.0, 1.0],
+        [1.0, 0.0],
+        [0.0, 0.0]
+    ], dtype=np.float32)
 
     if not glfw.init():
         print("Could not initialize GLFW")
-        return
+        raise RuntimeError("could not initialize GLFW")
 
-    width, height = 1024, 768
-    window = glfw.create_window(width, height, "OpenCV + OpenGL + GLFW", None, None)
+
+    width, height = (1024, 768)
+    window = glfw.create_window(width, height, "Project Asimov", None, None)
     if not window:
         glfw.terminate()
         print("Could not create GLFW window")
@@ -222,6 +330,7 @@ def main():
     glfw.make_context_current(window)
 
     textureid = asimov.util.create_texture()
+
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     glOrtho(-1, 1, -1, 1, -1, 1)
@@ -233,58 +342,41 @@ def main():
     # Start Flask in a separate thread
     ft = FlaskThread(vct)
 
+    last_toggle_time = 0
+    apply_texture_distortion = asimov.distort.WhiteNoise()
+
     while not glfw.window_should_close(window):
         frame = vct.get_frame() # ret, frame = cap.read()
         if frame is None:
-#            time.sleep(0.1)
             continue
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Toggle distortion randomly
-#        if time.time() >= next_distortion_time:
-#            apply_distortion = not apply_distortion
-#            next_distortion_time = time.time() + random.uniform(2, 5)
-        
         frame = processframe(frame)
-
 
         frame = cv2.flip(frame, 0)
 
-        update_texture(textureid, frame)
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        asimov.util.render_quad(textureid)
+        processed_frame = frame
+        current_time = time.time()
 
+        if distortion_mode_enabled:
+            # Only call distortion if it's active or due to start
+            if apply_texture_distortion.active or current_time >= apply_texture_distortion.next_time:
+                processed_frame = apply_texture_distortion(processed_frame)
+
+        asimov.util.update_texture(textureid, processed_frame)
+        asimov.util.render_quad(textureid)
         glfw.swap_buffers(window)
         glfw.poll_events()
 
         if glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS:
             break
-        elif glfw.get_key(window, glfw.KEY_D) == glfw.PRESS:
+        elif glfw.get_key(window, glfw.KEY_D) == glfw.PRESS and time.time() - last_toggle_time > 0.2:
             distortion_mode_enabled = not distortion_mode_enabled
             print(f"{distortion_mode_enabled=}")
-            time.sleep(0.2) # debounce
-
-        current_time = time.time()
-        if distortion_mode_enabled:
-            if not apply_distortion_flag and current_time >= next_distortion_time:
-                # Start distortion
-                apply_distortion_flag = True
-                distortion_start_time = current_time
-                distortion_duration = random.uniform(0.5, 1.5)
-                distortion_index = random.randint(0, 3)  # pick once
-#                apply_distortion(shader_program, distortion_index)  # <-- your function
-                print(f"Starting distortion {distortion_index}")
-            elif apply_distortion_flag and current_time >= distortion_start_time + distortion_duration:
-                # End distortion
-                apply_distortion_flag = False
-#                apply_distortion(shader_program, -1)  # disable all effects
-                next_distortion_time = current_time + random.uniform(5, 15)
-                print("Distortion ended")
+            last_toggle_time = time.time()
 
     # Cleanup
-#    cap.release()
     vct.stop()
     ft.stop()
     glfw.destroy_window(window)
