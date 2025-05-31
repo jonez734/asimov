@@ -3,7 +3,9 @@ import copy
 import time
 import threading
 
-from bbsengine6 import io
+from flask import Flask
+
+# from bbsengine6 import io
 
 import cv2
 
@@ -24,18 +26,83 @@ GREEN = (0, 204, 85)
 CONTOURCOLOR = GREEN
 VIDEODEVICE = 1
 
-import gi
-
-gi.require_version('Gtk', '3.0')
-gi.require_version('Gst', '1.0')
-gi.require_version('GstApp', '1.0')
-gi.require_version('GObject', '2.0')
-gi.require_version('GdkPixbuf', '2.0')
-
-from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, GObject
-from gi.repository import Gst, GstApp
+#import gi
+#
+#gi.require_version('Gtk', '3.0')
+#gi.require_version('Gst', '1.0')
+#gi.require_version('GstApp', '1.0')
+#gi.require_version('GObject', '2.0')
+#gi.require_version('GdkPixbuf', '2.0')
+#
+#from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, GObject
+#from gi.repository import Gst, GstApp
 
 from bbsengine6 import io
+
+class VideoCaptureThread(threading.Thread):
+    def __init__(self, src=0, width=800, height=600):
+        super().__init__()
+        self.cap = cv2.VideoCapture(src, cv2.CAP_V4L2)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.running = True
+        self.frame = None
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self.update, daemon=True)
+        self.thread.start()
+
+    def update(self):
+        while self.running:
+            ret, frame = self.cap.read()
+            if ret:
+                with self.lock:
+                    self.frame = frame
+
+    def get_frame(self):
+        with self.lock:
+            return self.frame
+
+    def stop(self):
+        self.running = False
+        self.thread.join()
+        self.cap.release()
+
+class FlaskThread(threading.Thread):
+    app = Flask(__name__)
+
+    def __init__(self, vct):
+        self.running = True
+
+        self.vct = vct
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self.run, daemon=True)
+        self.thread.start()
+        self.app.add_url_rule('/video', 'video_feed', self.video_feed)
+
+    def run(self):
+        self.app.run(host='0.0.0.0', port=5000, threaded=True, debug=True, use_reloader=False)
+
+    def generate_frames(self):
+        while self.running:
+            frame = self.vct.get_frame() # success, frame = cap.read()
+            if frame is None:
+                time.sleep(0.25)
+                continue
+
+            # Optional: Process frame with OpenGL (You can integrate PyOpenGL here)
+
+            ret, buffer = cv2.imencode('.jpg', frame)
+            if not ret:
+                continue
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+
+    def video_feed(self):
+        return Response(self.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+    def stop(self):
+        self.running = False
+#        self.thread.join()
 
 class Asimov(object):
     def __init__(self):
@@ -59,7 +126,6 @@ class Asimov(object):
         self.handHandler = handHandler()
         
         self.number_frames = 0
-
 
         # self.gst_str = f"appsrc name=source emit-signals=true format=buffers caps=video/x-raw,format=BGR,width={RESOLUTION[0]},height={RESOLUTION[1]},framerate={FPS}/1 ! queue max-size-buffers=4 ! videoconvert ! udpsink host=localhost port=5000" # autovideosink sync=1"
         self.gst_str = f"appsrc name=source emit-signals=true format=buffers ! jpegdec ! videoconvert ! x264enc ! rtph264pay ! udpsink port=5000"
