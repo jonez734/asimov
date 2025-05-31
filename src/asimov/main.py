@@ -15,6 +15,8 @@ from cvzone.HandTrackingModule import HandDetector
 
 import asimov.util, asimov.distort
 
+from asimov.lib import VideoCaptureThread, FlaskThread
+
 # Global variables
 #texture_id = None
 #next_distortion_time = time.time() + random.uniform(2, 5)
@@ -24,71 +26,6 @@ import asimov.util, asimov.distort
 detector = HandDetector(detectionCon=0.8, maxHands=2)
 
 MARGIN = 10
-
-class VideoCaptureThread(threading.Thread):
-    def __init__(self, src=0, width=800, height=600):
-        super().__init__()
-        self.cap = cv2.VideoCapture(src, cv2.CAP_V4L2)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        self.running = True
-        self.frame = None
-        self.lock = threading.Lock()
-        self.thread = threading.Thread(target=self.update, daemon=True)
-        self.thread.start()
-
-    def update(self):
-        while self.running:
-            ret, frame = self.cap.read()
-            if ret:
-                with self.lock:
-                    self.frame = frame
-
-    def get_frame(self):
-        with self.lock:
-            return self.frame
-
-    def stop(self):
-        self.running = False
-        self.thread.join()
-        self.cap.release()
-
-class FlaskThread(threading.Thread):
-    app = Flask(__name__)
-
-    def __init__(self, vct):
-        self.running = True
-
-        self.vct = vct
-        self.lock = threading.Lock()
-        self.thread = threading.Thread(target=self.run, daemon=True)
-        self.thread.start()
-        self.app.add_url_rule('/video', 'video_feed', self.video_feed)
-
-    def run(self):
-        self.app.run(host='0.0.0.0', port=5000, threaded=True, debug=True, use_reloader=False)
-
-    def generate_frames(self):
-        while self.running:
-            frame = self.vct.get_frame() # success, frame = cap.read()
-            if frame is None:
-                time.sleep(0.25)
-                continue
-
-            # Optional: Process frame with OpenGL (You can integrate PyOpenGL here)
-
-            ret, buffer = cv2.imencode('.jpg', frame)
-            if not ret:
-                continue
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-
-    def video_feed(self):
-        return Response(self.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-    def stop(self):
-        self.running = False
-#        self.thread.join()
 
 # moved to asimov.util
 #def update_texture(textureid, image):
@@ -293,7 +230,7 @@ def processframe(img):
     
     return img
 
-def main():
+def main(args, **kwargs):
     distortion_mode_enabled = False  # toggled with 'D' key
 ##    apply_distortion = False         # whether a distortion is currently being applied
 ##    distortion_duration = 1.0        # how long a distortion lasts
@@ -343,7 +280,7 @@ def main():
     ft = FlaskThread(vct)
 
     last_toggle_time = 0
-    apply_texture_distortion = asimov.distort.WhiteNoise()
+    apply_texture_distortion = asimov.distort.TearingEffect()
 
     while not glfw.window_should_close(window):
         frame = vct.get_frame() # ret, frame = cap.read()
@@ -382,5 +319,11 @@ def main():
     glfw.destroy_window(window)
     glfw.terminate()
 
-if __name__ == '__main__':
-    main()
+def init(args, **kwargs):
+    return True
+
+def access(args, op, **kwargs):
+    return True
+
+def buildargs(args, **kwargs):
+    return None
