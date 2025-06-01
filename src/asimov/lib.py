@@ -386,3 +386,8 @@ class handHandler(object):
 			if fingers == [0, 1, 0, 0, 0] or fingers == [1, 1, 0, 0, 0]:
 				io.echo("index finger up")
 		return image
+
+def runmodule(args, modulepath):
+    from bbsengine6 import module
+
+    return module.run(args, f"asimov.{modulepath}")
