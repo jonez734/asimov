@@ -106,8 +106,8 @@ while True:
     for poly in updated_polygons:
         touching = False
         if left_index_tip:
-            dist = cv2.pointPolygonTest(poly, left_index_tip, False)
-            if dist >= -MARGIN:
+            dist = cv2.pointPolygonTest(poly, left_index_tip, measureDist=True)
+            if dist >= 0:
                 touching = True
 
         color = (0, 255, 0) if touching else (255, 0, 0)
