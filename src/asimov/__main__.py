@@ -1,11 +1,9 @@
 import argparse
 import time, locale
 
-from bbsengine6 import io, module, screen
+from bbsengine6 import io
 
-#from . import lib
-
-import asimov.main
+from . import lib as libasimov
 
 def buildargs(args=None, **kw:dict):
     parser = argparse.ArgumentParser("asimov")
@@ -24,13 +22,13 @@ if __name__ == "__main__":
 #    pool = database.getpool(args)
 #    session.start(args, pool=pool)
 
-    screen.init()
+#    screen.init()
 
     locale.setlocale(locale.LC_ALL, "")
     time.tzset()
 
     try:
-        asimov.main.main(args) # module.run(args, "main") # main(args) # lib.runsubmodule(args, "main") # module.main(args)
+        libasimov.runmodule(args, "main") # asimov.main.main(args) # module.run(args, "main") # main(args) # lib.runsubmodule(args, "main") # module.main(args)
     except KeyboardInterrupt:
         io.echo("{/all}*INTR*")
     except EOFError:

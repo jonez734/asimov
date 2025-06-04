@@ -10,8 +10,15 @@ class Distortion:
         self.next_time = time.time() + random.uniform(5, 15)
         self.intensity = 0.0
         self.name = "NEEDINFO"
+    def update(self):
+        pass
+
+    def apply(self, frame):
+        raise NotImplementedError("Subclasses of Distortion must define apply() method")
+
     def __call__(self, frame):
-        return frame
+        self.update()
+        return self.apply(frame)
 
 def tear(image):
     rows, cols, _ = image.shape
@@ -77,6 +84,39 @@ class WhiteNoise(Distortion):
         distorted = cv2.addWeighted(frame_f32, 1.0, noise, alpha, 0)
         return np.clip(distorted, 0, 255).astype(np.uint8)
 
-    def __call__(self, frame):
-        self.update()
-        return self.apply(frame)
+class TearingEffect(Distortion):
+    def __init__(self, max_offset=30, speed=2.0):
+        super().__init__()
+        self.max_offset = max_offset
+        self.speed = speed
+        self.start_time = time.time()
+
+    def update(self):
+        """Update internal state based on time."""
+        # Optional: preload values for animation or parameter change
+        pass
+
+    def apply(self, frame):
+        rows, cols, _ = frame.shape
+        elapsed = time.time() - self.start_time
+        rng = random.Random(int(elapsed * self.speed))  # time-based seed
+
+        num_slices = rng.randint(3, 8)
+        tear_image = frame.copy()
+
+        for _ in range(num_slices):
+            y = rng.randint(0, rows - 20)
+            h = rng.randint(5, 20)
+            shift = rng.randint(-self.max_offset, self.max_offset)
+
+            # Shift the band horizontally
+            tear_image[y:y+h, :] = np.roll(tear_image[y:y+h, :], shift, axis=1)
+
+            # Add a thin dark line (gap)
+            gap_position = y + h if (y + h) < rows else y - 1
+            gap_thickness = rng.randint(1, 3)
+            gap_color = rng.randint(0, 30)
+            if 0 <= gap_position < rows - gap_thickness:
+                tear_image[gap_position:gap_position+gap_thickness, :] = gap_color
+
+        return tear_image
