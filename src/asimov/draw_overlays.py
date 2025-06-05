@@ -8,7 +8,7 @@ def process(frame, context):
     index_tip = context.get("index_tip", None)
 
     MARGIN = 0  # touch margin in pixels
-    print(f"{index_tip=}")
+    # print(f"{index_tip=}")
     if index_tip:
         cv2.circle(frame, index_tip, 8, (0, 255, 255), -1)
 

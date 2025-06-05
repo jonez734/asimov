@@ -64,8 +64,6 @@ def main(args, **kwargs):
 
         if results.multi_hand_landmarks and results.multi_handedness:
             for hand_landmarks, hand_info in zip(results.multi_hand_landmarks, results.multi_handedness):
-                label = hand_info.classification[0].label  # 'Left' or 'Right'
-                print(f"{label=}")
 
                 index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
                 #index_tip_x = int((1 - index_tip.x) * w)
@@ -73,6 +71,7 @@ def main(args, **kwargs):
                 index_tip_x = int(index_tip.x*w)
                 index_tip_y = int(index_tip.y*h)
 
+                label = hand_info.classification[0].label  # 'Left' or 'Right'
                 # Track left hand fingertip only
                 #if label == "Left":
                 context["index_tip"] = (index_tip_x, index_tip_y)
