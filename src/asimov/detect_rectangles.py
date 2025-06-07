@@ -2,7 +2,7 @@ import cv2
 import time
 import numpy as np
 
-REFRESH_INTERVAL = 2.5  # seconds
+REFRESH_INTERVAL = 1.5  # seconds
 
 last_refresh_time = 0
 
@@ -17,7 +17,7 @@ def process(frame, context):
     last_refresh_time = now
 
     img_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    img_blur = cv2.GaussianBlur(img_gray, (5, 5), 1)
+    img_blur = img_gray # cv2.GaussianBlur(img_gray, (5, 5), 1)
     img_canny = cv2.Canny(img_blur, 50, 150)
     cv2.imshow("img_canny", img_canny)
     contours, _ = cv2.findContours(img_canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -40,13 +40,13 @@ def process(frame, context):
                 x, y, w, h = cv2.boundingRect(approx)
                 aspect_ratio = float(w)/h
                 # Adjust these thresholds as needed for your specific use case
-                #if 0.5 < aspect_ratio < 2.0 and cv2.isContourConvex(approx):
-                rect = {
-                    "polygon": approx.reshape((4, 2)),
-                    "last_seen": now,
-                    "touching": False
-                }
-                rectangles.append(rect)
+                if 0.6 < aspect_ratio < 1.0 and cv2.isContourConvex(approx):
+                    rect = {
+                        "polygon": approx.reshape((4, 2)),
+                        "last_seen": now,
+                        "touching": False
+                    }
+                    rectangles.append(rect)
 
     context["rectangles"] = rectangles
     return frame, context
