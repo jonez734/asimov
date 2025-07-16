@@ -1,8 +1,11 @@
 # asimov/net.py
 import socket
 import struct
+import threading
 import cv2
 import numpy as np
+
+from bbsengine6 import io
 
 # Packet types
 PACKET_TYPE_PING = 1
@@ -10,9 +13,20 @@ PACKET_TYPE_PONG = 2
 PACKET_TYPE_EOS = 3
 PACKET_TYPE_FRAME = 4
 
-# New header format with frame_id (4 bytes)
-HEADER_FORMAT = "!BIHHH"  # packet_type (1), frame_id (4), chunk_id (2), total_chunks (2), payload_size (2)
+MAX_PACKET_SIZE = 1500
+
+PACKET_TYPE = { PACKET_TYPE_PING: "PING", PACKET_TYPE_PONG: "PONG", PACKET_TYPE_EOS: "EOS", PACKET_TYPE_FRAME: "FRAME" }
+
+HEADER_FORMAT = "!BIHHH"  # network order: packet_type (1), frame_id (4), chunk_id (2), total_chunks (2), payload_size (2)
 HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+
+PACKET_LABEL = { PACKET_TYPE_PING: "PING", PACKET_TYPE_PONG: "PONG", PACKET_TYPE_EOS: "EOS", PACKET_TYPE_FRAME: "FRAME" }
+
+def respond_to_ping(sender_addr):
+    io.echo(f"[net] PONG: {sender_addr=}")
+    responder = UDPSender(sender_addr[0], sender_addr[1])
+    responder.send_pong()
+    responder.close()
 
 def encode_packet(packet_type, frame_id, chunk_id, total_chunks, payload):
     """
@@ -20,7 +34,6 @@ def encode_packet(packet_type, frame_id, chunk_id, total_chunks, payload):
     """
     header = struct.pack(HEADER_FORMAT, packet_type, frame_id, chunk_id, total_chunks, len(payload))
     return header + payload
-
 
 def decode_packet(data):
     """
@@ -33,7 +46,7 @@ def decode_packet(data):
 
 def send_ping_and_wait_for_pong(sender, timeout=1.0, retry=3, packetsize=1500):
     """
-    Sends a PING to the destination set in the UDPSender and waits for a PONG reply.
+    Sends a PING using UDPSender and waits for a PONG.
 
     Parameters:
         sender (UDPSender): The configured UDPSender instance.
@@ -44,47 +57,66 @@ def send_ping_and_wait_for_pong(sender, timeout=1.0, retry=3, packetsize=1500):
     Returns:
         bool: True if a PONG is received within the retry limit, False otherwise.
     """
+
+    # Save current timeout
+    original_timeout = sender.sock.gettimeout()
     sender.sock.settimeout(timeout)
 
     try:
-        print(f"asimov.net.100: {sender.addr=}")
         for attempt in range(retry):
-            # Send the PING packet
-            packet = encode_packet(PACKET_TYPE_PING, frame_id=0, chunk_id=0, total_chunks=1, payload=b'')
-            sender.sock.sendto(packet, sender.addr)
+            print(f"asimov.net.100: attempt {attempt+1}, sending PING to {sender.addr}")
+            sender.send_ping()
 
             try:
-                # Wait for a reply on the same socket
                 data, src = sender.sock.recvfrom(packetsize)
-                print(f"{data=} {src=}")
+                print(f"asimov.net.110: received {data=} from {src=}")
                 packet_type, *_ = decode_packet(data)
                 if packet_type == PACKET_TYPE_PONG:
                     return True
             except socket.timeout:
-                continue  # retry
-
+                print(f"asimov.net.120: timeout waiting for PONG (attempt {attempt+1})")
+                continue
     finally:
-        sender.sock.settimeout(None)  # reset to blocking mode
+        # Restore original timeout
+        sender.sock.settimeout(original_timeout)
 
     return False
 
 class UDPSender:
-    def __init__(self, host, port, packetsize=1500, bind_port=None):
-        self.addr = (host, port)
+    def __init__(self, remote_host, remote_port, local_port=None):
+        self.addr = (remote_host, remote_port)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        if bind_port is not None:
-            self.sock.bind(("0.0.0.0", bind_port))
-        self.packetsize = packetsize
+        self.local_port = local_port
+        if local_port is not None:
+            self.sock.bind(("0.0.0.0", local_port))
+        print(f"asimov.net.UDPSender.100: {self.addr=}")
+
+    def __str__(self):
+        return f"UDPSender: {self.addr=} {self.local_port=}"
+
+    def receive(self, packetsize=MAX_PACKET_SIZE):
+        print("[net] receive() called")
+        return self.sock.recvfrom(packetsize)
+
+    def send(self, packet):
+        return self.sock.sendto(packet, self.addr)
 
     def send_ping(self):
-        self.sock.sendto(encode_packet(PACKET_TYPE_PING, 0, 0, 1, b''), self.addr)
+        print(f"sending ping...")
+        # self.sock.sendto(encode_packet(PACKET_TYPE_PING, 0, 0, 1, b''), self.addr)
+        packet = encode_packet(PACKET_TYPE_PING, 0, 0, 1, b'')
+        self.send(packet)
 
     def send_pong(self):
-        self.sock.sendto(encode_packet(PACKET_TYPE_PONG, 0, 0, 1, b''), self.addr)
+        print(f"[net] PONG")
+        packet = encode_packet(PACKET_TYPE_PONG, 0, 0, 1, b'')
+        count = self.send(packet)
 
     def send_eos(self):
-        self.sock.sendto(encode_packet(PACKET_TYPE_EOS, 0, 0, 1, b''), self.addr)
+        packet = encode_packet(PACKET_TYPE_EOS, 0, 0, 1, b'')
+        count = self.send(packet)
+        print(f"send_eos {count=}")
+        # self.sock.sendto(encode_packet(PACKET_TYPE_EOS, 0, 0, 1, b''), self.addr)
 
     def send_frame(self, frame):
         encoded, buffer = cv2.imencode(".jpg", frame)
@@ -106,38 +138,27 @@ class UDPSender:
         """Close the underlying UDP socket."""
         self.sock.close()
 
+
 class UDPReceiver:
-    def __init__(self, port: int, *, bind_ip: str = '0.0.0.0', packetsize: int = 1500):
-        self.bind_ip = bind_ip
-        self.port = port
-##        self.addr = (bind_ip, port)
+    def __init__(self, host, port, packetsize=1500, blocking=True):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((self.bind_ip, self.port))
-        self.buffer = {}  # key: (src, frame_id), value: list of chunks
+        self.addr = (host, port)
+        self.sock.bind(self.addr)
+        self.sock.setblocking(blocking)
         self.packetsize = packetsize
+        self.buffer = {}  # Optional: for frame reassembly
+        self.host = host
+        self.port = port
 
-    def receive(self):
-        data, src = self.sock.recvfrom(self.packetsize)
-        packet_type, frame_id, chunk_id, total_chunks, payload = decode_packet(data)
-
-        if packet_type in (PACKET_TYPE_PING, PACKET_TYPE_PONG, PACKET_TYPE_EOS):
-            return packet_type, src, None
-
-        elif packet_type == PACKET_TYPE_FRAME:
-            key = (src, frame_id)
-            if key not in self.buffer:
-                self.buffer[key] = [None] * total_chunks
-
-            self.buffer[key][chunk_id] = payload
-
-            if all(chunk is not None for chunk in self.buffer[key]):
-                full_data = b''.join(self.buffer.pop(key))
-                frame = cv2.imdecode(np.frombuffer(full_data, dtype=np.uint8), cv2.IMREAD_COLOR)
-                return PACKET_TYPE_FRAME, src, frame
-
-        return None, None, None
+    def receive(self, packet_size=MAX_PACKET_SIZE):
+        try:
+            data, addr = self.sock.recvfrom(packet_size)
+            return decode_packet(data)+(addr,)
+##            packet_type, frame_id, chunk_id, total_chunks, payload = decode_packet(data)
+##            return packet_type, frame_id, chunk_id, payload, addr
+        except BlockingIOError:
+            return None
 
     def close(self):
-        """Close the underlying UDP socket."""
         self.sock.close()
