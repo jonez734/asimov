@@ -1,16 +1,18 @@
 import sys
 import copy
 import time
+import struct
 import threading
 
-from flask import Flask
-
-# from bbsengine6 import io
+import numpy
 
 import cv2
 
-from cvzone.FPS import FPS as cvzoneFPS
-from cvzone.HandTrackingModule import HandDetector
+from asimov.net import Packet
+from bbsengine6 import io
+
+# from cvzone.FPS import FPS as cvzoneFPS
+# from cvzone.HandTrackingModule import HandDetector
 
 RESOLUTION = (640, 480)
 #RESOLUTION = (1280, 720)
@@ -36,8 +38,6 @@ VIDEODEVICE = 1
 #
 #from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, GObject
 #from gi.repository import Gst, GstApp
-
-from bbsengine6 import io
 
 class VideoCaptureThread(threading.Thread):
     def __init__(self, src=0, width=800, height=600):
@@ -66,43 +66,6 @@ class VideoCaptureThread(threading.Thread):
         self.running = False
         self.thread.join()
         self.cap.release()
-
-class FlaskThread(threading.Thread):
-    app = Flask(__name__)
-
-    def __init__(self, vct):
-        self.running = True
-
-        self.vct = vct
-        self.lock = threading.Lock()
-        self.thread = threading.Thread(target=self.run, daemon=True)
-        self.thread.start()
-        self.app.add_url_rule('/video', 'video_feed', self.video_feed)
-
-    def run(self):
-        self.app.run(host='0.0.0.0', port=5000, threaded=True, debug=True, use_reloader=False)
-
-    def generate_frames(self):
-        while self.running:
-            frame = self.vct.get_frame() # success, frame = cap.read()
-            if frame is None:
-                time.sleep(0.25)
-                continue
-
-            # Optional: Process frame with OpenGL (You can integrate PyOpenGL here)
-
-            ret, buffer = cv2.imencode('.jpg', frame)
-            if not ret:
-                continue
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-
-    def video_feed(self):
-        return Response(self.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-    def stop(self):
-        self.running = False
-#        self.thread.join()
 
 class Asimov(object):
     def __init__(self):
@@ -387,7 +350,11 @@ class handHandler(object):
 				io.echo("index finger up")
 		return image
 
-def runmodule(args, modulepath):
+def runmodule(args, modulepath, **kwargs):
     from bbsengine6 import module
 
-    return module.run(args, f"asimov.{modulepath}")
+    return module.run(args, f"asimov.{modulepath}", **kwargs)
+
+def loadmodule(args, modulepath, **kwargs):
+    from bbsengine6 import module
+    return module.load(args, f"asimov.{modulepath}", **kwargs)
