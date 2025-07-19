@@ -317,6 +317,11 @@ class UDPSender:
 
         block_side_len = max_block_side_len
 
+        # --- SENDER DEBUG PRINTS START ---
+        print(f"SENDER DEBUG (send_frame): Current frame shape: {width}x{height}x{depth}")
+        print(f"SENDER DEBUG (send_frame): Using max_block_side_len: {max_block_side_len}")
+        # --- SENDER DEBUG PRINTS END ---
+
         # Calculate number of blocks needed in X and Y directions
         num_blocks_x = math.ceil(width / block_side_len)
         num_blocks_y = math.ceil(height / block_side_len)
@@ -413,19 +418,95 @@ class UDPReceiver:
         print(f"Registered handler for packet type {PACKET_TYPE_MAP.get(packet_type, str(packet_type))}")
 
     def _handle_frame_packet(self, frame_packet: FramePacket, sender_address: tuple):
-        """Default handler for PONG packets (receiver might get them)."""
-        print(f"Handling FRAME {repr(self)} rom {sender_address}")
-        if len(current_frame_info['received_blocks']) == current_frame_info['total_blocks']:
-            # All blocks for this frame have arrived!
-            # Now, check if this is a newer frame than what was last displayed
-            if frame_id > self.last_displayed_frame_id:
+        # print(f"Handling FRAME (ID: {frame_packet.frame_id}, Block: {frame_packet.block_id}) from {sender_address}") # More detailed print
+
+        frame_id = frame_packet.frame_id
+        block_id = frame_packet.block_id
+        total_blocks = frame_packet.total_blocks_in_frame
+        width = frame_packet.width
+        height = frame_packet.height
+        depth = frame_packet.depth
+        block_data_bytes = frame_packet.block_data
+
+        nominal_block_side_len = self.nominal_block_side_len
+
+        # Initialize or update frame buffer for the current frame_id
+        if frame_id not in self.frame_buffers:
+            self.frame_buffers[frame_id] = {
+                'ndarray': np.zeros((height, width, depth), dtype=np.uint8),
+                'received_blocks': set(),
+                'total_blocks': total_blocks,
+                'last_received_time': time.time(),
+                'width': width, 'height': height, 'depth': depth
+            }
+
+        current_frame_info = self.frame_buffers[frame_id]
+
+        # Handle metadata mismatch (e.g., if resolution changes mid-stream)
+        if current_frame_info['total_blocks'] != total_blocks or \
+           current_frame_info['width'] != width or \
+           current_frame_info['height'] != height or \
+           current_frame_info['depth'] != depth:
+            print(f"Warning: Metadata mismatch for frame {frame_id}. Re-initializing buffer.")
+            self.frame_buffers[frame_id] = {
+                'ndarray': np.zeros((height, width, depth), dtype=np.uint8),
+                'received_blocks': set(),
+                'total_blocks': total_blocks,
+                'last_received_time': time.time(),
+                'width': width, 'height': height, 'depth': depth
+            }
+            current_frame_info = self.frame_buffers[frame_id]
+
+        if block_id in current_frame_info['received_blocks']:
+            return # Block already received, ignore duplicate
+
+        # Calculate block position within the frame
+        num_blocks_x = math.ceil(width / nominal_block_side_len)
+        # num_blocks_y = math.ceil(height / nominal_block_side_len) # Not directly needed for indexing, but good for context
+
+        x_idx = block_id % num_blocks_x
+        y_idx = block_id // num_blocks_x
+
+        x_start = x_idx * nominal_block_side_len
+        y_start = y_idx * nominal_block_side_len
+        x_end = min(x_start + nominal_block_side_len, width)
+        y_end = min(y_start + nominal_block_side_len, height)
+
+        # --- DEBUG PRINTS START ---
+        print(f"DEBUG: Frame {frame_id}, Block {block_id}:")
+        print(f"  Dims from packet: W={width}, H={height}, D={depth}")
+        print(f"  Receiver nominal_block_side_len: {nominal_block_side_len}")
+        print(f"  Calculated num_blocks_x: {num_blocks_x}")
+        print(f"  Calculated x_idx={x_idx}, y_idx={y_idx}")
+        print(f"  Calculated block area: [{y_start}:{y_end}, {x_start}:{x_end}]")
+        print(f"  Calculated block actual dimensions: height={y_end - y_start}, width={x_end - x_start}, depth={depth}")
+        # --- DEBUG PRINTS END ---
+        expected_block_bytes_len = (y_end - y_start) * (x_end - x_start) * depth
+        if len(block_data_bytes) != expected_block_bytes_len:
+            print(f"Error: Block {block_id} for frame {frame_id} has unexpected data length. Expected {expected_block_bytes_len}, got {len(block_data_bytes)}.")
+            return
+
+        try:
+            # Reshape based on actual block dimensions (y_end - y_start, x_end - x_start)
+            block_np_array = np.frombuffer(block_data_bytes, dtype=np.uint8).reshape((y_end - y_start, x_end - x_start, depth))
+            current_frame_info['ndarray'][y_start:y_end, x_start:x_end, :] = block_np_array
+            current_frame_info['received_blocks'].add(block_id)
+            current_frame_info['last_received_time'] = time.time()
+        except ValueError as e:
+            print(f"Error reshaping block data for frame {frame_id}, block {block_id}: {e}")
+            return
+
+        # Check if all blocks for the current frame have been received
+        if len(current_frame_info['received_blocks']) == total_blocks:
+            print(f"Complete frame {frame_id} received with {total_blocks} blocks.")
+            if frame_id > self.last_displayed_frame_id: # Only display newer frames
                 self._display_frame(current_frame_info['ndarray'], frame_id)
-                self.last_displayed_frame_id = frame_id # Update the last displayed ID
-            # Delete the frame buffer entry as it's complete and handled
-            del self.frame_buffers[frame_id]
+                self.last_displayed_frame_id = frame_id
+            del self.frame_buffers[frame_id] # Clean up buffer for complete frame
+
     def _display_frame(self, frame_ndarray: np.ndarray, frame_id: int):
         # import cv2 # You might want this here if not global, or at the top of the file
-        cv2.imshow(f'Received Frame (ID: {frame_id})', frame_ndarray)
+        cv2.imshow(f'cap', frame_ndarray)
 
     def _cleanup_frame_buffers(self):
         current_time = time.time()
