@@ -3,7 +3,11 @@ import socket
 import argparse
 import time
 
-from asimov.net import encode_packet, decode_packet, PING, PONG, NetError, UDPReceiver
+import cv2
+import numpy as np
+
+# Import UDPSender from net
+from asimov.net import UDPReceiver
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="UDP PING/PONG Receiver")
