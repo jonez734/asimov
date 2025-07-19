@@ -1,9 +1,12 @@
 # net.py
+import math
 import struct
 import socket
 import time
 from typing import Dict, Any, Type, Callable, Optional
 from abc import ABC, abstractmethod
+import numpy as np
+import cv2
 
 # --- Packet Type Constants ---
 PING = 1
@@ -75,7 +78,6 @@ class PingPacket(Packet):
         return (f"PingPacket(sequence={self.sequence}, "
                 f"timestamp={self.timestamp:.6f}, type={self.packet_type})")
 
-
 class PongPacket(Packet):
     packet_type = PONG
     # Format string for struct: ! = network byte order, I = unsigned int, d = double (float)
@@ -128,23 +130,93 @@ class RawBytesPacket(Packet):
     def __repr__(self) -> str:
         return f"RawBytesPacket(data_len={len(self.raw_data)}, type={self.packet_type})"
 
+# --- Specific Packet Implementation: FramePacket ---
+FRAME = 3
+
+class FramePacket(Packet):
+    packet_type = FRAME
+    # Header format for frame data:
+    # ! = network byte order
+    # I = unsigned int (frame_id)
+    # I = unsigned int (block_id)
+    # I = unsigned int (total_blocks_in_frame)
+    # I = unsigned int (width)
+    # I = unsigned int (height)
+    # B = unsigned char (depth, usually 3)
+    # Total header size = 4*5 + 1 = 21 bytes
+    FRAME_HEADER_FORMAT = '!IIIIIB'
+    FRAME_HEADER_SIZE = struct.calcsize(FRAME_HEADER_FORMAT)
+
+    def __init__(self, frame_id: int, block_id: int, total_blocks_in_frame: int,
+                 width: int, height: int, depth: int, block_data: bytes):
+        super().__init__()
+        self.frame_id = frame_id
+        self.block_id = block_id
+        self.total_blocks_in_frame = total_blocks_in_frame
+        self.width = width
+        self.height = height
+        self.depth = depth
+        self.block_data = block_data # Raw bytes of the block slice
+
+    def to_payload_bytes(self) -> bytes:
+        """Packs frame metadata and raw block data into bytes."""
+        header_bytes = struct.pack(self.FRAME_HEADER_FORMAT,
+                                   self.frame_id,
+                                   self.block_id,
+                                   self.total_blocks_in_frame,
+                                   self.width,
+                                   self.height,
+                                   self.depth)
+        return header_bytes + self.block_data
+
+    @classmethod
+    def from_payload_bytes(cls, payload_data: bytes) -> 'FramePacket':
+        """Unpacks bytes into frame metadata and raw block data."""
+        if len(payload_data) < cls.FRAME_HEADER_SIZE:
+            raise NetError(f"Incomplete FramePacket header. Expected at least {cls.FRAME_HEADER_SIZE}, got {len(payload_data)}.")
+
+        header_values = struct.unpack_from(cls.FRAME_HEADER_FORMAT, payload_data, 0)
+        frame_id, block_id, total_blocks_in_frame, width, height, depth = header_values
+
+        block_data = payload_data[cls.FRAME_HEADER_SIZE:]
+
+        if len(block_data) == 0 and total_blocks_in_frame > 0:
+             print(f"Warning: FramePacket block_data is empty for block {block_id} of frame {frame_id}. Is this expected?")
+
+        return cls(frame_id=frame_id, block_id=block_id,
+                   total_blocks_in_frame=total_blocks_in_frame,
+                   width=width, height=height, depth=depth,
+                   block_data=block_data)
+
+    def __repr__(self) -> str:
+        return (f"FramePacket(frame_id={self.frame_id}, block_id={self.block_id}/"
+                f"{self.total_blocks_in_frame}, size={self.width}x{self.height}x{self.depth}, "
+                f"block_data_len={len(self.block_data)} bytes, type={self.packet_type})")
+
+
 # --- Packet Registry for Clean Decoding ---
 _packet_registry: Dict[int, Type[Packet]] = {}
 
 def register_packet_type(packet_class: Type[Packet]):
     """Registers a packet class with its type for decoding."""
+    print(f"net.register_packet_type({packet_class})")
     if not issubclass(packet_class, Packet):
         raise TypeError("packet_class must be a subclass of Packet")
     if packet_class.packet_type == 0:
         raise ValueError(f"Packet class {packet_class.__name__} must define a non-zero 'packet_type'.")
-    if packet_class.packet_type in _packet_registry:
-        print(f"Warning: Overwriting packet type {packet_class.packet_type} in registry.")
+    is_overwriting = packet_class.packet_type in _packet_registry
+    if is_overwriting:
+        print(f"Warning: Overwriting packet type {packet_class.packet_type} ({_packet_registry[packet_class.packet_type].__name__}) with {packet_class.__name__} in global registry.")
     _packet_registry[packet_class.packet_type] = packet_class
+    print(f"{_packet_registry=}")
+    if not is_overwriting: # Only print for new registrations
+        print(f"Registered packet type {packet_class.packet_type}: {packet_class.__name__}")
+
 
 # Register our current packets
 register_packet_type(PingPacket)
 register_packet_type(PongPacket)
-
+register_packet_type(FramePacket)
 
 # --- Encoding/Decoding Functions (Now use Packet objects' to/from_payload_bytes) ---
 
@@ -192,65 +264,146 @@ def decode_packet(data: bytes) -> Packet:
     packet_class = _packet_registry[packet_type]
     return packet_class.from_payload_bytes(payload_data)
 
-
-# --- UDPSender Class (Minimal changes, uses Packet objects) ---
 class UDPSender:
     def __init__(self, target_host: str, target_port: int, bind_port: int = 0):
         self.target_host = target_host
         self.target_port = target_port
         self.bind_port = bind_port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.settimeout(0.1) # Timeout for listen_for_response
         if self.bind_port != 0:
             self.sock.bind(('', self.bind_port))
         print(f"UDP Sender initialized. Sending to {target_host}:{target_port}")
         if self.bind_port != 0:
             print(f"Bound to local port: {self.sock.getsockname()[1]}")
 
+        self.current_frame_id = 0
+        self.previous_frame = None
+
     def send_packet(self, packet_obj: Packet):
-        """Generic method to send any Packet object."""
+        # Use the global encode_packet function
         encoded_packet = encode_packet(packet_obj)
-        self.sock.sendto(encoded_packet, (self.target_host, self.target_port))
-        print(f"Sent {packet_obj.__class__.__name__} to {self.target_host}:{self.target_port}: {packet_obj}")
+        try:
+            self.sock.sendto(encoded_packet, (self.target_host, self.target_port))
+        except OSError as e:
+            print(f"Error sending packet: {e}")
 
     def send_ping(self, sequence_number: int):
-        """Helper for sending PINGs using the new PingPacket."""
         ping_packet = PingPacket(sequence=sequence_number, timestamp=time.time())
         self.send_packet(ping_packet)
 
-    def listen_for_response(self, timeout: float = 5.0) -> Optional[Packet]:
-        self.sock.settimeout(timeout)
+    def send_frame(self, frame: np.ndarray, max_block_side_len: int = 64):
+        """
+        Splits a video frame into smaller blocks, creates FramePackets for changed blocks,
+        and sends them via UDP. Implements basic differencing to reduce bandwidth.
+
+        Args:
+            frame (np.ndarray): The NumPy array representing the video frame (H, W, C).
+            max_block_side_len (int): The maximum side length (in pixels) for each
+                                      square block. Actual block size might be smaller
+                                      at the edges of the frame.
+        """
+        if frame.dtype != np.uint8:
+            print("Warning: Frame is not uint8. Converting.")
+            frame = frame.astype(np.uint8)
+
+        height, width, depth = frame.shape
+        if depth != 3:
+            print(f"Warning: Frame depth is {depth}, expected 3 (RGB).")
+
+        if max_block_side_len <= 0:
+            max_block_side_len = 1
+            print("Warning: max_block_side_len must be positive. Using 1.")
+
+        block_side_len = max_block_side_len
+
+        # Calculate number of blocks needed in X and Y directions
+        num_blocks_x = math.ceil(width / block_side_len)
+        num_blocks_y = math.ceil(height / block_side_len)
+        total_blocks = num_blocks_x * num_blocks_y
+
+        self.current_frame_id += 1 # Increment frame ID for each new frame sent
+
+        blocks_sent_count = 0
+        for y_idx in range(num_blocks_y):
+            for x_idx in range(num_blocks_x):
+                block_id = y_idx * num_blocks_x + x_idx # Unique ID for each block within the frame
+
+                # Determine the coordinates for the current block
+                x_start = x_idx * block_side_len
+                y_start = y_idx * block_side_len
+                x_end = min(x_start + block_side_len, width)  # Ensure x_end doesn't exceed frame width
+                y_end = min(y_start + block_side_len, height) # Ensure y_end doesn't exceed frame height
+
+                current_block = frame[y_start:y_end, x_start:x_end, :]
+
+                block_changed = True
+                # Basic differencing: Compare with the corresponding block from the previous frame
+                if self.previous_frame is not None and self.previous_frame.shape == frame.shape:
+                    previous_block = self.previous_frame[y_start:y_end, x_start:x_end, :]
+                    if np.array_equal(current_block, previous_block): # Check if blocks are identical
+                        block_changed = False
+
+                if block_changed:
+                    block_data_bytes = current_block.tobytes()
+
+                    frame_packet = FramePacket(
+                        frame_id=self.current_frame_id,
+                        block_id=block_id,
+                        total_blocks_in_frame=total_blocks,
+                        width=width,
+                        height=height,
+                        depth=depth,
+                        block_data=block_data_bytes
+                    )
+                    self.send_packet(frame_packet) # Send the created FramePacket
+                    blocks_sent_count += 1
+
+        # Store a copy of the current frame for differencing in the next iteration
+        self.previous_frame = frame.copy()
+
+    def listen_for_response(self, timeout: float = 0.1) -> Optional[Packet]:
         try:
-            data, addr = self.sock.recvfrom(4096)  # Buffer size
-            decoded_packet = decode_packet(data)
-            print(f"Received {decoded_packet.__class__.__name__} from {addr}: {decoded_packet}")
+            self.sock.settimeout(timeout)
+            data, addr = self.sock.recvfrom(65535)
+            decoded_packet = decode_packet(data) # Use global decode_packet
             return decoded_packet
         except socket.timeout:
-            print(f"No response received within {timeout} seconds.")
             return None
         except NetError as e:
-            print(f"Error decoding received packet: {e}")
+            print(f"Error decoding received packet by sender: {e}")
             return None
         except Exception as e:
-            print(f"An unexpected error occurred while listening: {e}")
+            print(f"An unexpected error occurred while sender listening: {e}")
             return None
 
     def close(self):
-        self.sock.close()
-        print("UDP Sender closed.")
+        if self.sock:
+            self.sock.close()
+            self.sock = None
 
 # --- UDPReceiver Class (Uses Packet objects and a Handler Dispatcher) ---
 class UDPReceiver:
     def __init__(self, listen_host: str, listen_port: int):
         self.listen_host = listen_host
         self.listen_port = listen_port
+
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((self.listen_host, self.listen_port))
+        self.sock.settimeout(0.01)
+
         print(f"UDP Receiver listening on {self.listen_host}:{self.listen_port}")
         self._packet_handlers: Dict[int, Callable[[Packet, tuple], None]] = {}
 
         # Register default handlers (can be overridden or extended)
         self.register_packet_handler(PING, self._handle_ping_packet)
         self.register_packet_handler(PONG, self._handle_pong_packet) # Receiver might get PONGs in some scenarios too
+        self.register_packet_handler(FRAME, self._handle_frame_packet)
+
+        self.frame_buffers: Dict[int, Dict[str, Any]] = {}
+        self.frame_timeout_sec: float = 2.0 # How long to wait for all blocks of a frame
+        self.nominal_block_side_len: int = 64 # Must match sender's block size
+        self.last_displayed_frame_id: int = -1 # Track the last displayed frame ID
 
     def register_packet_handler(self, packet_type: int, handler_func: Callable[[Packet, tuple], None]):
         """Registers a function to handle a specific packet type."""
@@ -259,26 +412,57 @@ class UDPReceiver:
         self._packet_handlers[packet_type] = handler_func
         print(f"Registered handler for packet type {PACKET_TYPE_MAP.get(packet_type, str(packet_type))}")
 
+    def _handle_frame_packet(self, frame_packet: FramePacket, sender_address: tuple):
+        """Default handler for PONG packets (receiver might get them)."""
+        print(f"Handling FRAME {repr(self)} rom {sender_address}")
+        if len(current_frame_info['received_blocks']) == current_frame_info['total_blocks']:
+            # All blocks for this frame have arrived!
+            # Now, check if this is a newer frame than what was last displayed
+            if frame_id > self.last_displayed_frame_id:
+                self._display_frame(current_frame_info['ndarray'], frame_id)
+                self.last_displayed_frame_id = frame_id # Update the last displayed ID
+            # Delete the frame buffer entry as it's complete and handled
+            del self.frame_buffers[frame_id]
+    def _display_frame(self, frame_ndarray: np.ndarray, frame_id: int):
+        # import cv2 # You might want this here if not global, or at the top of the file
+        cv2.imshow(f'Received Frame (ID: {frame_id})', frame_ndarray)
+
+    def _cleanup_frame_buffers(self):
+        current_time = time.time()
+        frames_to_remove = []
+        for frame_id, info in self.frame_buffers.items():
+            if current_time - info['last_received_time'] > self.frame_timeout_sec:
+                frames_to_remove.append(frame_id)
+
+        for frame_id in frames_to_remove:
+            print(f"Timeout: Purging incomplete frame {frame_id}.")
+            del self.frame_buffers[frame_id]
+
     def start_listening(self):
         while True:
             try:
-                data, addr = self.sock.recvfrom(4096)  # Buffer size
+                data, addr = self.sock.recvfrom(65535)  # Buffer size
                 print(f"Received raw data from {addr}")
                 try:
                     decoded_packet = decode_packet(data)
                     print(f"Decoded {decoded_packet.__class__.__name__} from {addr}: {decoded_packet}")
 
                     handler = self._packet_handlers.get(decoded_packet.packet_type)
-                    if handler:
+                    if callable(handler):
                         handler(decoded_packet, addr)
                     else:
                         print(f"No handler registered for packet type: {decoded_packet.packet_type}")
-
                 except NetError as e:
                     print(f"Error decoding received packet from {addr}: {e}")
                 except Exception as e:
                     print(f"An unexpected error occurred during packet processing from {addr}: {e}")
 
+            except socket.timeout as e:
+                # This block is executed if no data is received within the timeout period
+                # print("Socket timeout: No data received.") # Optional debug print
+                self._cleanup_frame_buffers() # Clean up old incomplete frames
+                cv2.waitKey(1)
+                continue
             except KeyboardInterrupt:
                 print("\nReceiver stopped by user.")
                 break
