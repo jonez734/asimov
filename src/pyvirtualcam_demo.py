@@ -6,7 +6,7 @@ import mediapipe as mp
 
 # Constants
 MARGIN = 20  # pixels
-
+TITLE = "Asimov v202505.0"
 # Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
@@ -44,7 +44,7 @@ def draw_rectangles(frame, rectangles):
         cv2.polylines(frame, [poly_np], True, color, 2)
     return frame
 
-def detect_index_finger_tips(frame):
+def detect_index_finger_tip(frame):
     global index_finger_tip
 
     results = hands.process(frame)
@@ -75,7 +75,7 @@ if not ret:
 height, width = frame.shape[:2]
 
 # Start the virtual camera
-with pyvirtualcam.Camera(width=width, height=height, fps=30) as cam:
+with pyvirtualcam.Camera(width=width, height=height, fps=30, print_fps=True) as cam:
     print(f'Virtual camera running: {cam.device}')
     while True:
         ret, frame = cap.read()
@@ -85,14 +85,15 @@ with pyvirtualcam.Camera(width=width, height=height, fps=30) as cam:
         frame = cv2.flip(frame, 1)
 
         # Optional: draw something on the frame
-        cv2.putText(frame, "asimov demo v202505.0", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+        cv2.putText(frame, TITLE, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
 
-        frame = detect_index_finger_tips(frame)
+        frame = detect_index_finger_tip(frame)
         rectangles = detect_rectangles(frame)
         frame = draw_rectangles(frame, rectangles)
         
+##!        frame = cv2.cvtColor(frame, cv2.
 
-        cv2.imshow("asimov demo", frame)
+        cv2.imshow(TITLE, frame)
 
         # Send frame to virtual camera
         cam.send(frame)
@@ -100,6 +101,8 @@ with pyvirtualcam.Camera(width=width, height=height, fps=30) as cam:
         ch = cv2.waitKey(1) & 0xFF
         if ch == ord("q") or ch == 27:
             break
+        elif ch == ord("d"):
+            distortions = True - distortions
 
         # Wait until next frame is due
         cam.sleep_until_next_frame()
