@@ -1,3 +1,9 @@
+import time
+import locale
+import argparse
+
+from bbsengine6 import io
+
 import cv2
 import pyvirtualcam
 import numpy as np
@@ -7,11 +13,68 @@ import mediapipe as mp
 # Constants
 MARGIN = 20  # pixels
 TITLE = "Asimov v202505.0"
+
 # Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
 
+from cvzone.HandTrackingModule import HandDetector
+
+# Create hand detector instance
+detector = HandDetector(detectionCon=0.8, maxHands=2)
+
 index_finger_tip = None
+
+# Initialize MediaPipe Face Mesh
+mp_face_mesh = mp.solutions.face_mesh
+face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True)
+
+# Eye landmark indices (same as before)
+LEFT_EYE_IDX = [33, 133, 159, 145, 160, 158, 153, 144]
+RIGHT_EYE_IDX = [362, 263, 386, 374, 385, 380, 373, 390]
+
+def draw_eye_privacy_bars(frame):
+    results = face_mesh.process(frame)
+
+    if results.multi_face_landmarks:
+        for face_landmarks in results.multi_face_landmarks:
+            ih, iw, _ = frame.shape
+
+            # Get eye coordinates
+            left_eye_points = [(int(face_landmarks.landmark[i].x * iw), int(face_landmarks.landmark[i].y * ih)) for i in LEFT_EYE_IDX]
+            right_eye_points = [(int(face_landmarks.landmark[i].x * iw), int(face_landmarks.landmark[i].y * ih)) for i in RIGHT_EYE_IDX]
+
+            # Combine all eye points
+            all_eye_points = left_eye_points + right_eye_points
+            all_eye_points_np = np.array(all_eye_points)
+
+            # Get bounding rectangle around both eyes
+            x, y, w, h = cv2.boundingRect(all_eye_points_np)
+
+            # Make the rectangle a bit taller to give that "witness protection" look
+            y -= int(0.2 * h)
+            h += int(0.4 * h)
+
+            # Draw the blue rectangle (privacy bar)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), thickness=-1)
+    return frame
+
+def detect_index_finger_tip(frame):
+    global index_finger_tip, detector
+
+    # Detect hands and get list of hands and image with drawing
+    hands, frame = detector.findHands(frame, draw=False)
+    index_finger_tip = None
+
+    if hands:
+        for hand in hands:
+            fingers = detector.fingersUp(hand)
+            if fingers == [0, 1, 0, 0, 0]:  # Only index finger is up
+                # Get index finger tip position (landmark 8)
+                index_finger_tip = tuple(hand['lmList'][8][:2])  # x, y
+                cv2.circle(frame, index_finger_tip, 8, (0, 255, 255), -1)
+
+    return frame
 
 def detect_rectangles(frame):
     detected = []
@@ -36,7 +99,7 @@ def draw_rectangles(frame, rectangles):
         poly_np = np.array(polygon, dtype=np.int32).reshape((-1, 1, 2))
         touching = False
         if index_finger_tip:
-            dist = cv2.pointPolygonTest(poly_np, finger_tip, False)
+            dist = cv2.pointPolygonTest(poly_np, index_finger_tip, False)
             if dist >= -MARGIN:
                 touching = True
 
@@ -44,65 +107,98 @@ def draw_rectangles(frame, rectangles):
         cv2.polylines(frame, [poly_np], True, color, 2)
     return frame
 
-def detect_index_finger_tip(frame):
-    global index_finger_tip
-
-    results = hands.process(frame)
-    index_finger_tip = None
-
-    if results.multi_hand_landmarks:
-        for hand_landmarks in results.multi_hand_landmarks:
-            h, w, _ = frame.shape
-            x = int(hand_landmarks.landmark[8].x * w)  # Index finger tip
-            y = int(hand_landmarks.landmark[8].y * h)
-            index_finger_tip = (x, y)
-            cv2.circle(frame, index_finger_tip, 8, (0, 255, 255), -1)
-
-    return frame
-
-# Open the real webcam
-cap = cv2.VideoCapture(0)
-
-# Make sure the webcam opens correctly
-if not cap.isOpened():
-    raise RuntimeError("Could not open webcam")
-
-# Get the frame size
-ret, frame = cap.read()
-if not ret:
-    raise RuntimeError("Failed to read frame from webcam")
-
-height, width = frame.shape[:2]
-
-# Start the virtual camera
-with pyvirtualcam.Camera(width=width, height=height, fps=30, print_fps=True) as cam:
-    print(f'Virtual camera running: {cam.device}')
+def camera_ready(cap, timeout=5):
+    start_time = time.time()
     while True:
         ret, frame = cap.read()
+        if frame is not None:
+            return True  # Camera gave a valid frame
+        print("waiting...")
+        if time.time() - start_time >= timeout:
+            print("camera_ready(): timeout")
+            return False  # Timeout reached, return failure
+        time.sleep(0.1)  # Avoid busy waiting
+
+def main(args, **kwargs):
+    try:
+        # Open the real webcam
+        cap = cv2.VideoCapture(0)
+
+        # Make sure the webcam opens correctly
+        if not cap.isOpened():
+            raise RuntimeError("Could not open webcam")
+
+        if camera_ready(cap) is False:
+            raise RuntimeError("Camera is not ready")
+
+        # Get the frame size
+        ret, frame = cap.read()
         if not ret:
-            break
+            raise RuntimeError("Failed to read frame from webcam")
 
-        frame = cv2.flip(frame, 1)
+        height, width, _ = frame.shape
 
-        # Optional: draw something on the frame
-        cv2.putText(frame, TITLE, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+        # Start the virtual camera
+        with pyvirtualcam.Camera(width=width, height=height, fps=30, print_fps=True) as cam:
+            print(f'Virtual camera running: {cam.device}')
+            while True:
+                ret, frame = cap.read()
+                if frame is None:
+                    continue
 
-        frame = detect_index_finger_tip(frame)
-        rectangles = detect_rectangles(frame)
-        frame = draw_rectangles(frame, rectangles)
-        
-##!        frame = cv2.cvtColor(frame, cv2.
+                height, width = frame.shape[:2]
 
-        cv2.imshow(TITLE, frame)
+                if not ret:
+                    break
 
-        # Send frame to virtual camera
-        cam.send(frame)
+                frame = cv2.flip(frame, 1)
 
-        ch = cv2.waitKey(1) & 0xFF
-        if ch == ord("q") or ch == 27:
-            break
-        elif ch == ord("d"):
-            distortions = True - distortions
+                # Optional: draw something on the frame
+                cv2.putText(frame, TITLE, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
 
-        # Wait until next frame is due
-        cam.sleep_until_next_frame()
+                frame = detect_index_finger_tip(frame)
+                rectangles = detect_rectangles(frame)
+                frame = draw_rectangles(frame, rectangles)
+                frame = draw_eye_privacy_bars(frame)
+
+                cv2.imshow(TITLE, frame)
+
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                # Send frame to virtual camera
+                cam.send(frame)
+
+                ch = cv2.waitKey(10) & 0xFF
+                if ch == ord("q") or ch == 27:
+                    break
+                elif ch == ord("d"):
+                    distortions = True - distortions
+
+                # Wait until next frame is due
+                cam.sleep_until_next_frame()
+    finally:
+        cap.release()
+
+def buildargs(args=None, **kw:dict):
+    parser = argparse.ArgumentParser("asimov")
+    parser.add_argument("--verbose", action="store_true", dest="verbose")
+    parser.add_argument("--debug", action="store_true", dest="debug")
+
+#    defaults = {"databasename": "zoid6", "databasehost":"localhost", "databaseuser": None, "databaseport":5432, "databasepassword":None}
+#    database.buildargs(parser, defaults, suppress=True)
+
+    return parser
+
+if __name__ == "__main__":
+    locale.setlocale(locale.LC_ALL, "")
+    time.tzset()
+    args = buildargs()
+
+    try:
+        main(args)
+    except KeyboardInterrupt:
+        io.echo("{/all}*INTR*")
+    except EOFError:
+        io.echo("{/all}*EOF*")
+    finally:
+        io.echo("{decsc}{curpos:%d,0}{el}{decrc}{reset}{/all}" % (io.getterminalheight()))
