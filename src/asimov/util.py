@@ -249,42 +249,91 @@ def calculate_total_blocks_in_frame(frame_width, frame_height, block_size):
     rows = ceil(frame_height / block_size)
     return cols * rows
 
-
-import cv2
-import numpy as np
-
 def draw_text(img, x, y, text,
               color=(255, 255, 255), alpha=1.0,
               shadow_offset=1, shadow_color=(0, 0, 0), shadow_alpha=1.0,
               thickness=1, font_scale=0.5,
               font=cv2.FONT_HERSHEY_SIMPLEX):
     """
-    Draw text with a shadow effect on an image using OpenCV with alpha blending.
+    Draw text with a shadow effect using OpenCV, supporting BGR and BGRA images.
 
     Parameters:
         img (np.ndarray): Image to draw on (BGR or BGRA).
         x, y (int): Coordinates of the text baseline.
         text (str): Text string to draw.
-        color (tuple): Text color (B, G, R).
+        color (tuple): Text color (B, G, R) or (B, G, R, A) if alpha channel included.
         alpha (float): Opacity of main text (0.0 to 1.0).
-        shadow_offset (int): Offset for the shadow in pixels.
-        shadow_color (tuple): Shadow color (B, G, R).
+        shadow_offset (int or tuple): Offset for the shadow in pixels.
+                                      If int, offset applies to both x and y (right/down if positive, left/up if negative).
+                                      If 0, no shadow is drawn.
+                                      If tuple (x_offset, y_offset), offset applies separately on x and y.
+        shadow_color (tuple): Shadow color (B, G, R) or (B, G, R, A).
         shadow_alpha (float): Opacity of shadow (0.0 to 1.0).
         thickness (int): Thickness of the text stroke.
         font_scale (float): Scale factor for the text size.
         font (int): OpenCV font type.
     """
-    overlay = img.copy()
+    is_rgba = (img.shape[2] == 4)
 
-    # Draw shadow
-    cv2.putText(overlay, text, (x + shadow_offset, y + shadow_offset),
-                font, font_scale, shadow_color, thickness, cv2.LINE_AA)
-    img[:] = cv2.addWeighted(overlay, shadow_alpha, img, 1 - shadow_alpha, 0)
+    # Normalize shadow_offset to tuple (x_off, y_off)
+    if isinstance(shadow_offset, int):
+        x_off = shadow_offset
+        y_off = shadow_offset
+    else:
+        x_off, y_off = shadow_offset
+
+    # Draw shadow only if offset != (0,0)
+    if x_off != 0 or y_off != 0:
+        overlay = np.zeros_like(img, dtype=np.uint8)
+        cv2.putText(overlay, text, (x + x_off, y + y_off),
+                    font, font_scale, shadow_color[:3], thickness, cv2.LINE_AA)
+        if is_rgba:
+            overlay[:, :, 3] = np.where(
+                cv2.cvtColor(overlay[:, :, :3], cv2.COLOR_BGR2GRAY) > 0,
+                int(shadow_alpha * 255), 0
+            )
+            mask = overlay[:, :, 3] > 0
+            img[mask] = overlay[mask]
+        else:
+            img[:] = cv2.addWeighted(overlay, shadow_alpha, img, 1 - shadow_alpha, 0)
 
     # Draw main text
-    overlay = img.copy()
-    cv2.putText(overlay, text, (x, y),
-                font, font_scale, color, thickness, cv2.LINE_AA)
-    img[:] = cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
+    text_layer = np.zeros_like(img, dtype=np.uint8)
+    cv2.putText(text_layer, text, (x, y),
+                font, font_scale, color[:3], thickness, cv2.LINE_AA)
+    if is_rgba:
+        text_layer[:, :, 3] = np.where(
+            cv2.cvtColor(text_layer[:, :, :3], cv2.COLOR_BGR2GRAY) > 0,
+            int(alpha * 255), 0
+        )
+        mask = text_layer[:, :, 3] > 0
+        img[mask] = text_layer[mask]
+    else:
+        img[:] = cv2.addWeighted(text_layer, alpha, img, 1 - alpha, 0)
 
     return img
+
+def get_bottom_right_position(frame, text, font, font_scale, thickness, padding=10):
+    """
+    Calculate (x, y) starting position to draw text in the lower-right corner with padding.
+
+    Parameters:
+        frame (np.ndarray): The image/frame to draw on.
+        text (str): Text string to measure.
+        font (int): OpenCV font type (e.g., cv2.FONT_HERSHEY_SIMPLEX).
+        font_scale (float): Font scale.
+        thickness (int): Thickness of text.
+        padding (int): Padding from the edges in pixels.
+
+    Returns:
+        (x, y) tuple: Coordinates for cv2.putText baseline start point.
+    """
+    text_size, baseline = cv2.getTextSize(text, font, font_scale, thickness)
+    text_width, text_height = text_size
+
+    frame_height, frame_width = frame.shape[:2]
+
+    x = frame_width - text_width - padding
+    y = frame_height - baseline - padding
+
+    return x, y
