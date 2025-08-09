@@ -1,5 +1,5 @@
 import time
-import locale
+# import locale
 import argparse
 
 from bbsengine6 import io
@@ -13,6 +13,9 @@ import mediapipe as mp
 # Constants
 MARGIN = 20  # pixels
 TITLE = "Asimov v202505.0"
+CAP_HEIGHT = 480
+CAP_WIDTH = 640
+CAP_FPS = 30
 
 # Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
@@ -131,6 +134,22 @@ def main(args, **kwargs):
         if camera_ready(cap) is False:
             raise RuntimeError("Camera is not ready")
 
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAP_WIDTH)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAP_HEIGHT)
+        if cap.set(cv2.CAP_PROP_FPS, CAP_FPS) is False:
+            io.echo(f"could not set FPS to {conf.FPS}")
+
+        io.echo(f"Capture process started. Capturing at {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))} @ {int(cap.get(cv2.CAP_PROP_FPS))} FPS")
+
+        actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        print(f"Actual Resolution: {actual_width}x{actual_height}")
+
+        cap.set(cv2.CAP_PROP_FPS, 30)
+
+        actual_fps = cap.get(cv2.CAP_PROP_FPS)
+        print(f"Actual FPS: {actual_fps}")
+
         # Get the frame size
         ret, frame = cap.read()
         if not ret:
@@ -190,7 +209,7 @@ def buildargs(args=None, **kw:dict):
     return parser
 
 if __name__ == "__main__":
-    locale.setlocale(locale.LC_ALL, "")
+#    locale.setlocale(locale.LC_ALL, "")
     time.tzset()
     args = buildargs()
 
