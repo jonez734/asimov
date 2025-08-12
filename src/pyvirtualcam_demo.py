@@ -10,6 +10,8 @@ import numpy as np
 
 import mediapipe as mp
 
+from asimov.util import draw_text, get_bottom_right_position
+
 # Constants
 MARGIN = 20  # pixels
 TITLE = "Asimov v202505.0"
@@ -132,34 +134,26 @@ def main(args, **kwargs):
             raise RuntimeError("Could not open webcam")
 
         if camera_ready(cap) is False:
-            raise RuntimeError("Camera is not ready")
+            raise RuntimeError("Camera is not ready after 5s")
 
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAP_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAP_HEIGHT)
         if cap.set(cv2.CAP_PROP_FPS, CAP_FPS) is False:
             io.echo(f"could not set FPS to {conf.FPS}")
 
-        io.echo(f"Capture process started. Capturing at {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))} @ {int(cap.get(cv2.CAP_PROP_FPS))} FPS")
-
         actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        print(f"Actual Resolution: {actual_width}x{actual_height}")
-
-        cap.set(cv2.CAP_PROP_FPS, 30)
-
         actual_fps = cap.get(cv2.CAP_PROP_FPS)
-        print(f"Actual FPS: {actual_fps}")
+
 
         # Get the frame size
         ret, frame = cap.read()
         if not ret:
             raise RuntimeError("Failed to read frame from webcam")
 
-        height, width, _ = frame.shape
-
         # Start the virtual camera
-        with pyvirtualcam.Camera(width=width, height=height, fps=30, print_fps=True) as cam:
-            print(f'Virtual camera running: {cam.device}')
+        with pyvirtualcam.Camera(width=actual_width, height=actual_height, fps=actual_fps, print_fps=False) as cam:
+            io.echo(f"{{labelcolor}}Capture: {{valuecolor}}{cam.device} {actual_width}{{labelcolor}}x{{valuecolor}}{actual_height} {{labelcolor}}@ {{valuecolor}}{actual_fps} {{labelcolor}}fps{{/all}}")
             while True:
                 ret, frame = cap.read()
                 if frame is None:
@@ -172,15 +166,16 @@ def main(args, **kwargs):
 
                 frame = cv2.flip(frame, 1)
 
-                # Optional: draw something on the frame
-                cv2.putText(frame, TITLE, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+                # cv2.putText(frame, TITLE, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+##                (x, y) = get_bottom_right_position(frame, TITLE, cv2.FONT_HERSHEY_SIMPLEX)
+                frame = draw_text(frame, 10, 15, TITLE, font_scale=0.45, alpha=0.75, shadow_alpha=0.75, shadow_offset=2)
 
                 frame = detect_index_finger_tip(frame)
                 rectangles = detect_rectangles(frame)
                 frame = draw_rectangles(frame, rectangles)
                 frame = draw_eye_privacy_bars(frame)
 
-                cv2.imshow(TITLE, frame)
+                cv2.imshow(TITLE, frame) # BGR
 
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
