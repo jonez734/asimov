@@ -18,6 +18,8 @@ Features:
 import os
 import re
 import sys
+import time
+import select
 
 import tty, termios # get_cursor_position()
 
@@ -67,14 +69,14 @@ class Token:
         return f"Token({', '.join(parts)})"
 
 # Runtime variables dictionary
-_vars = {}
+_runtime_vars = {}
 
 def set_var(name, value):
     """Set a runtime variable for use in {var:<name>} or {<name>} commands."""
-    _vars[name] = value
+    _runtime_vars[name] = value
 
 def get_var(name, default=None):
-    return _vars.get(name, default)
+    return _runtime_vars.get(name, default)
 
 _current_stream = sys.stdout
 def set_stream(stream):
@@ -185,7 +187,7 @@ def set_palette(palette_name):
         _current_palette = c64_palette
 
 def get_palette(name=DEFAULT_PALETTE_NAME):
-    print(f"get_palette.100: {name=}")
+##    print(f"get_palette.100: {name=}")
     if name == "c64":
         return c64_palette
     elif name == "ansi":
@@ -286,11 +288,19 @@ command_patterns = [
     ("VAR",      r'\{var:(?P<name>\w+)\}'),
 ]
 
-# compile a single regex with named groups for commands
-compiled_commands = []
-for name, pat in command_patterns:
-    compiled_pattern = re.compile(pat, re.IGNORECASE)
-    compiled_commands.append((name, compiled_pattern))
+_command_handlers = {
+    # cursor movements (repeat n)
+    ("cup", r'cup|cursorup'),
+    ("cud", r'cud|cursordown'),
+    ("cuf", r'cuf|cursorforward|cursorleft'),
+    ("cub", r'cub|cursorright|cursorback|cursorbackward'),
+    ("acs", r'acs'),
+    ("f6",  r'f6'),
+
+    # runtime variables
+    ("var", r'var'),
+}
+_compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers]
 
 _whitespace_re = re.compile(r'(\s+)')
 _word_re = re.compile(r'[^\s{}]+')
@@ -333,7 +343,7 @@ def get_terminal_width():
 # DSR (Device Status Report)
 # --------------------------
 
-def read_terminal_response(terminator: str, timeout: float = 0.5) -> str | None:
+def _read_terminal_response(terminator: str) -> str | None:
     """
     Reads characters from the terminal until the specified terminator is received
     or the timeout expires.
@@ -350,19 +360,28 @@ def read_terminal_response(terminator: str, timeout: float = 0.5) -> str | None:
     try:
         tty.setcbreak(fd)  # set raw/cbreak mode to read characters immediately
         response = ""
-        start_time = time.time()
-
         while True:
-            if select.select([sys.stdin], [], [], 0)[0]:
-                ch = sys.stdin.read(1)
-                response += ch
-                if ch == terminator:
-                    return response
-            if (time.time() - start_time) > timeout:
-                # Timeout reached without receiving terminator
-                return None
+            ch = sys.stdin.read(1)
+            response += ch
+            if ch == terminator:
+                return response
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+def get_dsr(function:str):
+    if function == "status": # DSR
+        code = "5"
+        terminator = "n"
+    elif function == "cursor":
+        code = "6"
+        terminator = "R"
+
+    try:
+        sys.stdout.write(f"{ESC}[{code}n")
+        sys.stdout.flush()
+        return _read_terminal_response(terminator)
+    finally:
+        pass
 
 def get_cursor_position():
     """Query the terminal for current cursor position:
@@ -370,26 +389,11 @@ Cursor Position (CPR / DECURSORPOS)
     Query: ESC [ 6 n
     Response: ESC [ <row> ; <col> R
 """
-    # Save terminal settings
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setcbreak(fd)
-        sys.stdout.write(f"{ESC}[6n")  # DSR to query cursor
-        sys.stdout.flush()
-
-        # Read response ESC [ row ; col R
-        response = read_terminal_response("R")
-        if response.startswith(f"{ESC}[") and response.endswith("R"):
-            parts = response[2:-1].split(";")
-            row, col = int(parts[0]), int(parts[1])
-            return row, col
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-
-### Example usage
-##row, col = get_cursor_position()
-##print(f"Cursor is at row={row}, col={col}")
+    response = get_dsr("cursor")
+    if response and response.startswith(f"{ESC}[") and response.endswith("R"):
+        parts = response[2:-1].split(";")
+        row, col = int(parts[0]), int(parts[1])
+        return row, col
 
 def get_terminal_status():
     """Device Status (DECTST / terminal readiness)
@@ -398,6 +402,12 @@ def get_terminal_status():
 
     Response: ESC [ 0 n → OK, ESC [ 3 n → error
 """
+
+    response = send_dsr("status")
+    if response and response.startswith(f"{ESC}[") and response.endswith("R"):
+        parts = response[2:-1].split(";")
+        row, col = int(parts[0]), int(parts[1])
+        return row, col
 
     # Save terminal settings
     fd = sys.stdin.fileno()
@@ -449,10 +459,17 @@ def tokenize(text):
             name = m.group("name").lower()
             params = m.group("params") or ""
             args, kwargs = parse_command_params(name, params)
+
+##            print(f"tokenize.200: {name=} {args=} {m.group(0)=}")
+
             tok = Token(kind="COMMAND", value=name, args=tuple(args), kwargs=kwargs, raw=m.group(0))
             yield from _handle_command(tok)
             pos += m.end()
             continue
+
+#        m = re.match(_compiled_command_handlers[1], m.group("name").lower())
+#        if m:
+#            tok = Token(_compiled_command_handler[0], raw=m.group(0))
 
         # word
         m = re.match(_word_re, text[pos:])
@@ -530,8 +547,9 @@ def _handle_acs(token):
     )
 
 def _handle_var(token):
+##    print(f"_handle_var.100: {token=}")
     var_name = token.args[0] if token.args else token.value
-    var_val = _vars.get(var_name, "")
+    var_val = _runtime_vars.get(var_name, "")
     # recursively tokenize the value of the variable
     for t in tokenize(var_val):
         yield t
@@ -548,6 +566,7 @@ def _handle_rgb(token):
 def _handle_curpos(token):
     y = int(token.args[0]) if token.args else 1
     x = int(token.args[1]) if len(token.args) > 1 else 1
+    print("curpos")
     token.text = f"{ESC}[{y};{x}H"
     yield token
     
@@ -558,15 +577,16 @@ def _handle_f6(token):
     token.text = "\n"*repeat
     token.kind = "F6"
     yield token
+    return
 
 def _handle_home(token):
     token.text = f"{ESC}[H"
     yield token
+    return
 
 def _handle_ed(token):
     mode = int(token.args[0]) if token.args else 0
     yield Token("ERASEDISPLAY", args=(mode,), text=f"{ESC}[")
-
 
 def _handle_cuu(token):
     repeat = token.args[0] or 1
@@ -596,6 +616,29 @@ def _handle_cub(token):
     token.text = f"{ESC}[{repeat}D"
     yield token
 
+# save/restore terminal attributes
+@dataclass
+class TerminalState():
+    cursor_row = 1
+    cursor_col = 1
+    wordwrap  = True
+
+_terminal_states = []
+_wordwrap = True
+
+def _handle_decsc(token):
+    (row, col) = get_cursor_position()
+    state = TerminalState()
+    state.cursor_row = row
+    state.cursor_col = col
+    state.wordwrap = _wordwrap
+    _terminal_states.append(state)
+
+def _handle_decrc(token):
+    state = _terminal_states.pop()
+    yield Token("CURPOS", args=(state.cursor_row, state.cursor_col), raw=token.raw, text=f"{ESC}[{row};{col}H")
+    yield Token("WORDWRAP", raw=token.raw, text=f"[WORDWRAP: {_wordwrap}]")
+
 PARAM_SPLIT_RE = re.compile(r"[:,]")
 def parse_command_params(name, params):
     args = [] # [name,]
@@ -612,20 +655,47 @@ def parse_command_params(name, params):
             args.append(part)
     return args, kwargs
 
+def _handle_unknown(token):
+    token.text = f"{token.kind=}: no registered handler"
+    yield token
+
+def handler_dispatch(token):
+    """Yield from the appropriate handler given a token."""
+
+##    print(f"handler_dispatch.100: {token=}")
+
+    cmd = token.value.lower()
+
+    for kind, regex in _compiled_command_handlers:
+##        print(f"handler_dispatch.140: {cmd=}")
+        if regex.fullmatch(cmd):
+            handler_name = f"_handle_{cmd}"
+##            print(f"handler_dispatch.160: {handler_name=}")
+            handler = globals().get(handler_name)
+            if callable(handler):
+#                print(f"handler_dispatch.140: {handler=}")
+#                token.kind = token.value
+#                print(f"handler_dispatch.120: {token=}")
+                # yield from the generator
+                yield from handler(token)
+                return True
+            break
+    # fallback
+#    yield from _handle_unknown(token)
+    return False
+
 def _handle_command(token, palette=None, vars=None):
     """
     Processes a single command token and yields one or more Tokens.
     
     Args:
         token: Token of kind COMMAND from tokenize()
-        _vars: optional dict of runtime variables
+        _runtime_vars: optional dict of runtime variables
     Yields:
         Token instances (WORD, WHITESPACE, F6, etc.)
     """
-    if vars is None:
-        vars = {}
-
-##    print(f"_handle_command.220: {token=}")
+##    if _runtime_vars is None:
+##        _runtime_vars = {}
 
     # command name is lowercase
     cmd = token.value.lower()
@@ -635,25 +705,40 @@ def _handle_command(token, palette=None, vars=None):
 
     # Palette color
     if cmd in get_current_palette():
+        token.kind = "COLOR"
         token.text = get_palette_entry(cmd)
         yield token
         return
 
-    # handle runtime variables
-    if cmd == "var" and token.args:
-        yield from _handle_var(token)
-
-    if cmd in _vars:
+    if cmd in _runtime_vars:
         yield from _handle_var(token)
         return
 
+##    print(f"_handle_command.100: calling handler_dispatch {token=}")
+    yield from handler_dispatch(token)
+    return
+
+    # save/restore cursor position, wordwrap bool
+    if cmd == "decsc" and not args:
+        _handle_decsc(token)
+        return
+
+    if cmd == "decrc" and not args:
+        _handle_decrc(token)
+        return
+
+    # handle runtime variables
+    if cmd == "var" and args:
+        yield from _handle_var(token)
+
+
     # alternate character set
-    if cmd == "acs" and token.args:
+    if cmd == "acs" and args:
         yield from _handle_acs(token)
         return
 
     # RGB
-    if cmd == "rgb" and token.args:
+    if cmd == "rgb" and args:
         yield from _handle_rgb(token)
         return
 
@@ -665,7 +750,7 @@ def _handle_command(token, palette=None, vars=None):
 
     # reset attributes
     if cmd == "reset":
-        yield Token("RESET", None, (), False)
+        _handle_reset(token)
         return
 
     # CURPOS
@@ -741,12 +826,12 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
     Generator that yields tokens for rendering.
     Handles WORD, WHITESPACE, F6 (hard newline), attributes, and commands.
     """
-    global _vars
+    global _runtime_vars
 
     if width is None:
         width = get_terminal_width()  # default or queried width
     palette = palette or c64_palette
-    _vars = _vars or {}
+    _runtime_vars = _runtime_vars or {}
 
     x = 0  # current horizontal position
     for tok in tokenize(text):
