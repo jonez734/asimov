@@ -222,7 +222,7 @@ _current_palette = get_palette(DEFAULT_PALETTE_NAME).copy()
 # ----------------------------
 # ACS characters
 # ----------------------------
-acs_map = {
+_acs_map = {
     "ulcorner":    "\u250C", # ┌
     "urcorner":    "\u2510", # ┐
     "llcorner":    "\u2514", # └
@@ -290,16 +290,20 @@ command_patterns = [
 
 _command_handlers = {
     # cursor movements (repeat n)
-    ("cup", r'cup|cursorup'),
+    ("cuu", r'cup|cuu|cursorup'),
     ("cud", r'cud|cursordown'),
     ("cuf", r'cuf|cursorforward|cursorleft'),
     ("cub", r'cub|cursorright|cursorback|cursorbackward'),
+    ("decsc", r'decsc|savecursor'),
+    ("decrc", r'decrc|restorecursor'),
+
     ("acs", r'acs'),
     ("f6",  r'f6'),
 
     # runtime variables
     ("var", r'var'),
 }
+
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers]
 
 _whitespace_re = re.compile(r'(\s+)')
@@ -529,7 +533,7 @@ def _handle_acs(token):
     name = token.args[0]
     repeat = int(token.args[1]) if len(token.args) > 1 else 1
 ##    print(f"_handle_acs.100: {name=} {repeat=}")
-    char = acs_map.get(name, "?")
+    char = _acs_map.get(name, "?")
 ##    print(f"_handle_acs.120: {token=} {char=}")
     # Yield a single ACS token with repeat in kwargs
     token.text = char * repeat
@@ -586,34 +590,36 @@ def _handle_home(token):
 
 def _handle_ed(token):
     mode = int(token.args[0]) if token.args else 0
-    yield Token("ERASEDISPLAY", args=(mode,), text=f"{ESC}[")
+    yield Token("ERASEDISPLAY", args=(mode,), text=f"erasedisplay")
 
 def _handle_cuu(token):
+##    print(f"_handle_cuu.100: {token.args=}")
     repeat = token.args[0] or 1
-    token.kind = "CURSOR"
+##    token.kind = "CURSOR"
     token.repeat = repeat
     token.text = f"{ESC}[{repeat}A"
     yield token
 
 def _handle_cud(token):
     repeat = token.args[0] or 1
-    token.kind = "CURSOR"
+##    token.kind = "CURSOR"
     token.repeat = repeat
     token.text = f"{ESC}[{repeat}B"
     yield token
 
 def _handle_cuf(token):
     repeat = int(token.args[0]) or 1
-    token.kind = "CURSOR"
+##    token.kind = "CURSOR"
     token.repeat = repeat
     token.text = f"{ESC}[{repeat}C"
     yield token
 
 def _handle_cub(token):
     repeat = int(token.args[0]) or 1
-    token.kind = "CURSOR"
+##    token.kind = "CURSOR"
     token.repeat = repeat
     token.text = f"{ESC}[{repeat}D"
+##    print(f"_handle_cub: {token=}")
     yield token
 
 # save/restore terminal attributes
@@ -713,6 +719,10 @@ def _handle_command(token, palette=None, vars=None):
     if cmd in _runtime_vars:
         yield from _handle_var(token)
         return
+
+#    if cmd in _acs_map:
+#        yield from _handle_acs(token)
+#        return
 
 ##    print(f"_handle_command.100: calling handler_dispatch {token=}")
     yield from handler_dispatch(token)
@@ -873,8 +883,11 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
                 if tok.value.lower().startswith("{cha") or tok.value.lower().startswith("{curpos"):
                     # simple heuristic: reset x if absolute positioning
                     x = 0
+        elif tok.kind == "CURSOR":
+            print(f"cursor_control {tok.value=} ", end="")
         else:
             # unknown token, yield as-is
+            print("as-is", end="")
             yield tok
 
 def echo(text, *, palette=None, width=None, wordwrap=True, raw=False, flush=True, end=""):
