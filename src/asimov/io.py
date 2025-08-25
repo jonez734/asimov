@@ -294,6 +294,7 @@ _command_handlers = {
     ("cud", r'cud|cursordown'),
     ("cuf", r'cuf|cursorforward|cursorleft'),
     ("cub", r'cub|cursorright|cursorback|cursorbackward'),
+
     ("decsc", r'decsc|savecursor'),
     ("decrc", r'decrc|restorecursor'),
 
@@ -517,17 +518,17 @@ def _handle_whitespace(token):
     i = 0
     while i < len(run):
         ch = run[i]
-        count = 1
-        while i + count < len(run) and run[i + count] == ch:
-            count += 1
+        repeat = 1
+        while i + repeat < len(run) and run[i + repeat] == ch:
+            repeat += 1
         yield Token(
             kind="WHITESPACE",
             value=ch,           # the character itself (' ', '\t', or '\n')
-            repeat=count,       # how many times it repeats
-            text=ch * count,    # string that will be written
-            raw=ch * count
+            repeat=repeat,       # how many times it repeats
+            text=ch * repeat,    # string that will be written
+            raw=ch * repeat
         )
-        i += count
+        i += repeat
 
 def _handle_acs(token):
     name = token.args[0]
@@ -628,21 +629,26 @@ class TerminalState():
     cursor_row = 1
     cursor_col = 1
     wordwrap  = True
+    color = True
 
 _terminal_states = []
 _wordwrap = True
+_color = True
 
 def _handle_decsc(token):
     (row, col) = get_cursor_position()
+##    print(f"_handle_decsc.100: {token=}")
     state = TerminalState()
     state.cursor_row = row
     state.cursor_col = col
     state.wordwrap = _wordwrap
+    state.color = _color
     _terminal_states.append(state)
+    return iter(())
 
 def _handle_decrc(token):
     state = _terminal_states.pop()
-    yield Token("CURPOS", args=(state.cursor_row, state.cursor_col), raw=token.raw, text=f"{ESC}[{row};{col}H")
+    yield Token("CURPOS", args=(state.cursor_row, state.cursor_col), raw=token.raw, text=f"{ESC}[{state.cursor_row};{state.cursor_col}H")
     yield Token("WORDWRAP", raw=token.raw, text=f"[WORDWRAP: {_wordwrap}]")
 
 PARAM_SPLIT_RE = re.compile(r"[:,]")
@@ -673,18 +679,22 @@ def handler_dispatch(token):
     cmd = token.value.lower()
 
     for kind, regex in _compiled_command_handlers:
-##        print(f"handler_dispatch.140: {cmd=}")
         if regex.fullmatch(cmd):
             handler_name = f"_handle_{cmd}"
-##            print(f"handler_dispatch.160: {handler_name=}")
+##            print(f"handler_dispatch.200: {handler_name=}")
             handler = globals().get(handler_name)
+            if handler is None:
+                yield token
+                return
+
             if callable(handler):
-#                print(f"handler_dispatch.140: {handler=}")
-#                token.kind = token.value
-#                print(f"handler_dispatch.120: {token=}")
-                # yield from the generator
-                yield from handler(token)
-                return True
+                result = handler(token)
+                if result is None:
+                    return
+
+                if hasattr(result, "__iter__") and not isinstance(result, str):
+                    yield from result
+                    return
             break
     # fallback
 #    yield from _handle_unknown(token)
@@ -887,7 +897,7 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
             print(f"cursor_control {tok.value=} ", end="")
         else:
             # unknown token, yield as-is
-            print("as-is", end="")
+##            print("as-is", end="")
             yield tok
 
 def echo(text, *, palette=None, width=None, wordwrap=True, raw=False, flush=True, end=""):
