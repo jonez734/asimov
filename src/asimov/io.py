@@ -23,14 +23,13 @@ import select
 
 import tty, termios # get_cursor_position()
 
-## from collections import namedtuple
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Iterator
 
 DEFAULT_PALETTE_NAME = "c64"
 
-CSI   = "\x9B" # 8-bit equiv of ESC[
-ESC   = "\x1B" # ESC[ is used by 7-bit terminals
+ESC   = "\x1B"
+CSI   = "\x9B" # use {ESC}[ for 7-bit version
 BELL  = "\007"
 
 # ----------------------------
@@ -42,6 +41,7 @@ BELL  = "\007"
 # args: positional args (list)
 # kwargs: keyword args (dict)
 # raw: original matched string
+# text: whatever is to be output by _write_token()
 
 @dataclass
 class Token:
@@ -94,8 +94,8 @@ def rgb(prefix, spec):
         r, g, b = [int(x) for x in spec.split(",")]
     else:
         raise ValueError(f"Invalid RGB spec: {spec}")
-    result = f"\033[{prefix};2;{r};{g};{b}m"
-##    print(f"rgb.100: {result=}")
+    result = f"{CSI}{prefix};2;{r};{g};{b}m"
+#    print(f"rgb.100: {repr(result)=}")
     return result
 
 def _parse_rgb(argstr: str) -> Token:
@@ -137,25 +137,25 @@ def _parse_acs(args:str):
 
 # ANSI palette (foreground)
 ansi_palette = {
-    "black":   f"{ESC}[30m",
-    "red":     f"{ESC}[31m",
-    "green":   f"{ESC}[32m",
-    "yellow":  f"{ESC}[33m",
-    "blue":    f"{ESC}[34m",
-    "magenta": f"{ESC}[35m",
-    "cyan":    f"{ESC}[36m",
-    "white":   f"{ESC}[37m",
+    "black":   f"{CSI}30m",
+    "red":     f"{CSI}31m",
+    "green":   f"{CSI}32m",
+    "yellow":  f"{CSI}33m",
+    "blue":    f"{CSI}34m",
+    "magenta": f"{CSI}35m",
+    "cyan":    f"{CSI}36m",
+    "white":   f"{CSI}37m",
     # Light colors
-    "lightblack":   f"{ESC}[90m",
-    "lightred":     f"{ESC}[91m",
-    "lightgreen":   f"{ESC}[92m",
-    "lightyellow":  f"{ESC}[93m",
-    "lightblue":    f"{ESC}[94m",
-    "lightmagenta": f"{ESC}[95m",
-    "lightcyan":    f"{ESC}[96m",
-    "lightwhite":   f"{ESC}[97m",
+    "lightblack":   f"{CSI}90m",
+    "lightred":     f"{CSI}91m",
+    "lightgreen":   f"{CSI}92m",
+    "lightyellow":  f"{CSI}93m",
+    "lightblue":    f"{CSI}94m",
+    "lightmagenta": f"{CSI}95m",
+    "lightcyan":    f"{CSI}96m",
+    "lightwhite":   f"{CSI}97m",
     # Reset
-    "reset":        f"{ESC}[0m",
+    "reset":        f"{CSI}0m",
 }
 
 # C64 palette
@@ -176,7 +176,7 @@ c64_palette = {
     "lightgreen":  rgb(38, "170,255,102"),
     "lightblue":   rgb(38, "0,136,255"),
     "lightgray":   rgb(38, "187,187,187"),
-    "reset":       f"{ESC}[0m",
+    "reset":       f"{CSI}0m",
 }
 
 def set_palette(palette_name):
@@ -290,34 +290,40 @@ command_patterns = [
 
 _command_handlers = {
     # cursor movements (repeat n)
-    ("cuu", r'cup|cuu|cursorup'),
-    ("cud", r'cud|cursordown'),
-    ("cuf", r'cuf|cursorforward|cursorleft'),
-    ("cub", r'cub|cursorright|cursorback|cursorbackward'),
+    ("cuu",    r'cup|cuu|cursorup'),
+    ("cud",    r'cud|cursordown'),
+    ("cuf",    r'cuf|cursorforward|cursorleft'),
+    ("cub",    r'cub|cursorright|cursorback|cursorbackward'),
+    ("curpos", r'curpos'),
 
-    ("decsc", r'decsc|savecursor'),
-    ("decrc", r'decrc|restorecursor'),
+    ("decsc",  r'decsc|savecursor'),
+    ("decrc",  r'decrc|restorecursor'),
+
+    ("decstbm", r'decstbm'),
 
     ("acs", r'acs'),
     ("f6",  r'f6'),
 
     # runtime variables
     ("var", r'var'),
+    ("attr", r'attr'),
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers]
 
 _whitespace_re = re.compile(r'(\s+)')
 _word_re = re.compile(r'[^\s{}]+')
-_command_re = re.compile(r"""
-    \{
-    (?P<name>[a-zA-Z_][a-zA-Z0-9_-]*)  # command name: first char letter/_ , rest letters/digits/_/-
-    (?:                                # optional args block
-        [:,]                           # args sep "," or ":"
-        (?P<params>[^}]*)              # everything up to the closing brace
-    )?
-    \}
-""", re.VERBOSE | re.IGNORECASE)
+##_command_re = re.compile(r"""
+##    \{
+##    (?P<name>/?[a-zA-Z_][a-zA-Z0-9_-]*)  # command name: first char letter/_ , rest letters/digits/_/-
+##    (?:                                # optional args block
+##        [:,]                           # args sep "," or ":"
+##        (?P<params>[^}]*)              # everything up to the closing brace
+##    )?
+##    \}
+##""", re.VERBOSE | re.IGNORECASE)
+
+_command_re = re.compile(r"\{(?P<name>/?[a-zA-Z_][a-zA-Z0-9_]*)(?::?(?P<params>[^}]*))\}", re.IGNORECASE)
 
 # ----------------------------
 # Aliases / command expansion
@@ -381,12 +387,9 @@ def get_dsr(function:str):
         code = "6"
         terminator = "R"
 
-    try:
-        sys.stdout.write(f"{ESC}[{code}n")
-        sys.stdout.flush()
-        return _read_terminal_response(terminator)
-    finally:
-        pass
+    sys.stdout.write(f"{CSI}{code}n")
+    sys.stdout.flush()
+    return _read_terminal_response(terminator)
 
 def get_cursor_position():
     """Query the terminal for current cursor position:
@@ -395,7 +398,7 @@ Cursor Position (CPR / DECURSORPOS)
     Response: ESC [ <row> ; <col> R
 """
     response = get_dsr("cursor")
-    if response and response.startswith(f"{ESC}[") and response.endswith("R"):
+    if response and response.startswith(f"{CSI}") and response.endswith("R"):
         parts = response[2:-1].split(";")
         row, col = int(parts[0]), int(parts[1])
         return row, col
@@ -409,7 +412,7 @@ def get_terminal_status():
 """
 
     response = send_dsr("status")
-    if response and response.startswith(f"{ESC}[") and response.endswith("R"):
+    if response and response.startswith(f"{CSI}") and response.endswith("R"):
         parts = response[2:-1].split(";")
         row, col = int(parts[0]), int(parts[1])
         return row, col
@@ -419,12 +422,12 @@ def get_terminal_status():
     old_settings = termios.tcgetattr(fd)
     try:
         tty.setcbreak(fd)
-        sys.stdout.write(f"{ESC}[0n")  # DSR to query status
+        sys.stdout.write(f"{CSI}0n")  # DSR to query status
         sys.stdout.flush()
 
         # Read response ESC [ row ; col R
         response = read_terminal_response("R")
-        if response.startswith(f"{ESC}[") and response.endswith("n"):
+        if response.startswith(f"{CSI}") and response.endswith("n"):
             part = int(response[2])
             if part == 0:
                 return True
@@ -488,7 +491,7 @@ def tokenize(text):
             continue
 
         run = text[pos:]
-        yield Token("WORD", value=run, text=run)
+        yield Token("UNKNOWN", value=run, text=run)
         pos += len(text[pos:])
 
 # ----------------------------
@@ -508,12 +511,12 @@ def _handle_whitespace(token):
         Token(kind="WHITESPACE", value="\n", repeat=3, text="\n\n\n")
     """
     run = token.value
-    if run == "\n":
-        token.kind = "F6"
-        token.repeat = 1
-        token.text = "\n"
-        yield token
-        return
+#    if run == "\n":
+#        token.kind = "F6"
+#        token.repeat = 1
+#        token.text = "\n"
+#        yield token
+#        return
 
     i = 0
     while i < len(run):
@@ -569,11 +572,15 @@ def _handle_rgb(token):
     return
 
 def _handle_curpos(token):
+    global _cursor_col, _cursor_row
+
+##    print(f"_handle_curpos.100: foo")
     y = int(token.args[0]) if token.args else 1
     x = int(token.args[1]) if len(token.args) > 1 else 1
-    print("curpos")
-    token.text = f"{ESC}[{y};{x}H"
+    token.text = f"{CSI}{y};{x}H"
     yield token
+    _cursor_col = x
+    _cursor_row = y
     
 def _handle_f6(token):
     repeat = int(token.args[0]) if token.args else 1
@@ -585,7 +592,7 @@ def _handle_f6(token):
     return
 
 def _handle_home(token):
-    token.text = f"{ESC}[H"
+    token.text = f"{CSI}H"
     yield token
     return
 
@@ -598,42 +605,103 @@ def _handle_cuu(token):
     repeat = token.args[0] or 1
 ##    token.kind = "CURSOR"
     token.repeat = repeat
-    token.text = f"{ESC}[{repeat}A"
+    token.text = f"{CSI}{repeat}A"
     yield token
 
 def _handle_cud(token):
     repeat = token.args[0] or 1
 ##    token.kind = "CURSOR"
-    token.repeat = repeat
-    token.text = f"{ESC}[{repeat}B"
+    token.repeat = 1
+    token.text = f"{CSI}{repeat}B"
+#    print(f"_handle_cud.100: {token=}")
     yield token
+    return
 
 def _handle_cuf(token):
     repeat = int(token.args[0]) or 1
 ##    token.kind = "CURSOR"
     token.repeat = repeat
-    token.text = f"{ESC}[{repeat}C"
+    token.text = f"{CSI}{repeat}C"
     yield token
 
 def _handle_cub(token):
     repeat = int(token.args[0]) or 1
-##    token.kind = "CURSOR"
-    token.repeat = repeat
-    token.text = f"{ESC}[{repeat}D"
-##    print(f"_handle_cub: {token=}")
+    print(f"_handle_cub.100: {token=}")
+    token.repeat = 1
+    token.text = f"{CSI}{repeat}D"
+    yield token
+    return
+
+def _handle_decstbm(token):
+    t = token.args[0]
+    b = token.args[1]
+    token.repeat = 1
+    token.text = f"{CSI}{t};{b}r"
     yield token
 
-# save/restore terminal attributes
+@dataclass
+class Attr:
+    start: str
+    end: str
+    state: bool = field(default=None)
+
+# Global stack of active attributes
+## ATTR_STACK: list[Attr] = []
+
+ANSI_ATTRS = {
+    "bold": Attr(start=f"{CSI}1m", end=f"{CSI}22m"),
+    "italic": Attr(start=f"{CSI}3m", end=f"{CSI}23m"),
+    "underline": Attr(start=f"{CSI}4m", end=f"{CSI}24m"),
+    "strike": Attr(start=f"{CSI}9m", end=f"{CSI}29m"),
+    "code": Attr(start=f"{CSI}7m", end=f"{CSI}27m"),  # inverse
+    "inverse": Attr(start=f"{CSI}7m", end=f"{CSI}27m"),  # inverse
+}
+
+## ATTR_RE = re.compile(r"(/?\w+)")
+
+def _handle_attr(token: Token):
+    """
+    Mutate a Token containing {attr} or {/attr} to emit corresponding ANSI sequence(s).
+    Each ANSI sequence is yielded as a separate Token.
+    """
+
+##    print(f"_handle_attr.100: {token.kind=} {token.value=}")
+
+    name = token.value.lstrip("/")
+    attr = ANSI_ATTRS.get(name)
+
+    # closing {/bold}
+    if token.value.startswith("/"):
+        # closing attribute
+        attr.state = False
+        token.kind = "ATTR"
+        token.text = attr.end
+        yield token
+        return
+
+    # opening attribute {bold}
+    attr.state = True
+    token.kind = "ATTR"
+    token.text = attr.start
+    yield token
+    return
+    
+
+# save/restore cursor attributes
 @dataclass
 class TerminalState():
     cursor_row = 1
     cursor_col = 1
     wordwrap  = True
-    color = True
+    has_color = True
+    hidden = False
 
 _terminal_states = []
 _wordwrap = True
 _color = True
+_acs = False
+_cursor_row = 1
+_cursor_col = 1
 
 def _handle_decsc(token):
     (row, col) = get_cursor_position()
@@ -648,7 +716,7 @@ def _handle_decsc(token):
 
 def _handle_decrc(token):
     state = _terminal_states.pop()
-    yield Token("CURPOS", args=(state.cursor_row, state.cursor_col), raw=token.raw, text=f"{ESC}[{state.cursor_row};{state.cursor_col}H")
+    yield Token("CURPOS", args=(state.cursor_row, state.cursor_col), raw=token.raw, text=f"{CSI}{state.cursor_row};{state.cursor_col}H")
     yield Token("WORDWRAP", raw=token.raw, text=f"[WORDWRAP: {_wordwrap}]")
 
 PARAM_SPLIT_RE = re.compile(r"[:,]")
@@ -674,19 +742,12 @@ def _handle_unknown(token):
 def handler_dispatch(token):
     """Yield from the appropriate handler given a token."""
 
-##    print(f"handler_dispatch.100: {token=}")
-
     cmd = token.value.lower()
 
     for kind, regex in _compiled_command_handlers:
         if regex.fullmatch(cmd):
             handler_name = f"_handle_{cmd}"
-##            print(f"handler_dispatch.200: {handler_name=}")
             handler = globals().get(handler_name)
-            if handler is None:
-                yield token
-                return
-
             if callable(handler):
                 result = handler(token)
                 if result is None:
@@ -695,9 +756,9 @@ def handler_dispatch(token):
                 if hasattr(result, "__iter__") and not isinstance(result, str):
                     yield from result
                     return
-            break
-    # fallback
-#    yield from _handle_unknown(token)
+                break
+    token.text = str(token.raw)
+    yield token
     return False
 
 def _handle_command(token, palette=None, vars=None):
@@ -730,6 +791,11 @@ def _handle_command(token, palette=None, vars=None):
         yield from _handle_var(token)
         return
 
+    if cmd.lstrip('/') in ANSI_ATTRS:
+#        print(f"_handle_command.300: {cmd=}")
+        yield from _handle_attr(token)
+        return
+
 #    if cmd in _acs_map:
 #        yield from _handle_acs(token)
 #        return
@@ -737,15 +803,6 @@ def _handle_command(token, palette=None, vars=None):
 ##    print(f"_handle_command.100: calling handler_dispatch {token=}")
     yield from handler_dispatch(token)
     return
-
-    # save/restore cursor position, wordwrap bool
-    if cmd == "decsc" and not args:
-        _handle_decsc(token)
-        return
-
-    if cmd == "decrc" and not args:
-        _handle_decrc(token)
-        return
 
     # handle runtime variables
     if cmd == "var" and args:
@@ -770,7 +827,7 @@ def _handle_command(token, palette=None, vars=None):
 
     # reset attributes
     if cmd == "reset":
-        _handle_reset(token)
+        yield from _handle_reset(token)
         return
 
     # CURPOS
@@ -797,28 +854,6 @@ def _handle_command(token, palette=None, vars=None):
         yield Token("CHA", args=(col,))
         return
 
-    # cursor movements
-    if cmd in ("cup", "cursorup"):
-        n = int(token.args[0]) if token.args else 1
-        yield Token("CUP", None, (n,), False)
-        return
-
-    if cmd in ("cud", "cursordown"):
-        n = int(token.args[0]) if token.args else 1
-        yield Token("CUD", None, (n,), False)
-        return
-
-    if cmd in ("cuf", "cursorforward", "cursorright"):
-        yield from _handle_cuf(token)
-#        n = int(token.args[0]) if token.args else 1
-#        yield Token("CUF", None, (n,), False)
-        return
-
-    if cmd in ("cub", "cursorback", "cursorbackward", "cursorleft"):
-        n = int(token.args[0]) if token.args else 1
-        yield Token("CUB", None, (n,), False)
-        return
-
     # unknown commands
 ##    yield Token("UKNOWN", value=token.raw, args=(), kwargs={}, text=token.raw)
 
@@ -832,11 +867,14 @@ def _write_token(token: Token, flush: bool=True, stream=None):
     if stream is None:
         stream = sys.stdout
 
-#    stream.write(str(token))
-#    text = token.text or token.value or "??"
-    stream.write(str(token.text))
+    if type(token) == str:
+        stream.write(f"STR:{repr(token)}")
+    else:
+        stream.write(str(token.text))
+
     if flush:
         stream.flush()
+    return
 
 # ----------------------------
 # echo() and echo_file()
@@ -846,65 +884,41 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
     Generator that yields tokens for rendering.
     Handles WORD, WHITESPACE, F6 (hard newline), attributes, and commands.
     """
-    global _runtime_vars
+    global _runtime_vars, _cursor_col
 
     if width is None:
         width = get_terminal_width()  # default or queried width
     palette = palette or c64_palette
     _runtime_vars = _runtime_vars or {}
 
-    x = 0  # current horizontal position
-    for tok in tokenize(text):
+##    x = 0  # current horizontal position
+    for token in tokenize(text):
 ##        print(f"echo_iter.100: {tok=}")
-        if tok.kind == "COMMAND":
+        if token.kind == "COMMAND":
             if raw:
-                yield tok.raw
+                yield token
                 continue
-            yield from _handle_command(tok)
+            yield from _handle_command(token)
+        elif token.kind in ("WORD", "WHITESPACE"):
+            word_len = len(token.text)
 
-        elif tok.kind == "F6":
-            repeat = tok.args[0] if tok.args else 1
-            yield Token(kind=tok.kind, text="\n"*int(repeat))
-            x = 0
-
-        elif tok.kind in ("WORD", "WHITESPACE"):
-            word_len = len(tok.value)
-            
-            if wordwrap and x + word_len > width:
+            if wordwrap and _cursor_col + word_len > width:
                 # insert hard newline before this word/space
-                yield Token(kind="F6", value="{f6}", args=[1], raw="{f6}", text="\n")
-                x = 0
-            x += word_len
-            yield tok
-
-        elif tok.kind == "COMMAND":
-            yield from _handle_command(tok)
-            # handle F6 separately
-            print(f"echo_iter.100: {tok.value=}")
-            if tok.value.lower().startswith("{f6"):
-                yield Token(kind="F6", value="{f6}", args=[repeat], raw=tok.raw, text="\n"*int(repeat), repeat=repeat)
-                x = 0
-            else:
-                # all other commands yield as-is
-                # recursive expansion for aliases/compound commands
-                for sub_tok in _handle_command(tok, palette=palette, vars=vars):
-                    yield sub_tok
-                # update x if command affects cursor horizontally
-                if tok.value.lower().startswith("{cha") or tok.value.lower().startswith("{curpos"):
-                    # simple heuristic: reset x if absolute positioning
-                    x = 0
-        elif tok.kind == "CURSOR":
+                yield Token(kind="F6", raw="{f6}", text="\n")
+                _cursor_col = 0
+            _cursor_col += word_len
+            yield token
+        elif token.kind == "CURSOR":
             print(f"cursor_control {tok.value=} ", end="")
         else:
             # unknown token, yield as-is
-##            print("as-is", end="")
-            yield tok
+            yield token
 
 def echo(text, *, palette=None, width=None, wordwrap=True, raw=False, flush=True, end=""):
     """
     Print text to stdout, interpreting inline commands unless raw=True.
     width: override detected terminal width if not None
-    wordwrap: enable/disable line wrapping
+    wordwrap: enable/disable word wrapping
     raw: if True, commands are treated as literal text
     flush: if True, flush after writing
     """
