@@ -132,9 +132,6 @@ def _parse_rgb(argstr: str) -> Token:
 
     return Token(kind="COMMAND", value="rgb", args=(), kwargs={"r": r, "g": g, "b": b})
 
-def _parse_acs(args:str):
-    pass
-
 # ANSI palette (foreground)
 ansi_palette = {
     "black":   f"{CSI}30m",
@@ -307,6 +304,9 @@ _command_handlers = {
     # runtime variables
     ("var", r'var'),
     ("attr", r'attr'),
+
+    # rgb color
+    ("rgb", r'rgb'),
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers]
@@ -511,27 +511,35 @@ def _handle_whitespace(token):
         Token(kind="WHITESPACE", value="\n", repeat=3, text="\n\n\n")
     """
     run = token.value
-#    if run == "\n":
-#        token.kind = "WHITESPACE"
-#        token.text = ""
-#        token.repeat = 1
-#        yield token
-#        return
-
     i = 0
     while i < len(run):
         ch = run[i]
         repeat = 1
         while i + repeat < len(run) and run[i + repeat] == ch:
             repeat += 1
-        yield Token(
-            kind="WHITESPACE",
+        yield Token("WHITESPACE",
             value=ch,           # the character itself (' ', '\t', or '\n')
             repeat=repeat,       # how many times it repeats
             text=ch * repeat,    # string that will be written
             raw=ch * repeat
         )
         i += repeat
+
+def _handle_decsc(token):
+    (row, col) = get_cursor_position()
+##    print(f"_handle_decsc.100: {token=}")
+    state = TerminalState()
+    state.cursor_row = row
+    state.cursor_col = col
+    state.wordwrap = _wordwrap
+    state.color = _color
+    _terminal_states.append(state)
+    return iter(())
+
+def _handle_decrc(token):
+    state = _terminal_states.pop()
+    yield Token("CURPOS", args=(state.cursor_row, state.cursor_col), raw=token.raw, text=f"{CSI}{state.cursor_row};{state.cursor_col}H")
+    yield Token("WORDWRAP", raw=token.raw, text=f"[WORDWRAP: {_wordwrap}]")
 
 def _handle_acs(token):
 ##    print(f"_handle_acs.200: {token=}")
@@ -586,12 +594,17 @@ def _handle_curpos(token):
     _cursor_row = y
     
 def _handle_f6(token):
+    global _cursor_col
+
     repeat = int(token.args[0]) if token.args else 1
-##    print(f"_handle_f6.100: {token.args=} {repeat=}")
     token.repeat = repeat
     token.text = "\n"*repeat
     token.kind = "F6"
+
     yield token
+
+    _cursor_col = 0
+
     return
 
 def _handle_home(token):
@@ -705,22 +718,9 @@ _color = True
 _acs = False
 _cursor_row = 1
 _cursor_col = 1
+_raw = False
 
-def _handle_decsc(token):
-    (row, col) = get_cursor_position()
-##    print(f"_handle_decsc.100: {token=}")
-    state = TerminalState()
-    state.cursor_row = row
-    state.cursor_col = col
-    state.wordwrap = _wordwrap
-    state.color = _color
-    _terminal_states.append(state)
-    return iter(())
-
-def _handle_decrc(token):
-    state = _terminal_states.pop()
-    yield Token("CURPOS", args=(state.cursor_row, state.cursor_col), raw=token.raw, text=f"{CSI}{state.cursor_row};{state.cursor_col}H")
-    yield Token("WORDWRAP", raw=token.raw, text=f"[WORDWRAP: {_wordwrap}]")
+_previous_token = Token("UNKNOWN")
 
 PARAM_SPLIT_RE = re.compile(r"[:,]")
 def parse_command_params(name, params):
@@ -891,7 +891,7 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
     Generator that yields tokens for rendering.
     Handles WORD, WHITESPACE, F6 (hard newline), attributes, and commands.
     """
-    global _runtime_vars, _cursor_col, _raw, _wordwrap
+    global _runtime_vars, _cursor_col, _raw, _wordwrap, _previous_token
     
     _raw = raw
 
@@ -903,31 +903,32 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
     palette = palette or c64_palette
     _runtime_vars = _runtime_vars or {}
 
-##    x = 0  # current horizontal position
     for token in tokenize(text):
-#        print(f"echo_iter.100: {token=}")
         if token.kind == "COMMAND":
-##            if raw:
-##                yield token
-##                continue
             yield from _handle_command(token)
-        elif token.kind in ("WORD", "WHITESPACE"):
+        elif token.kind == "WORD": # in ("WORD", "WHITESPACE"):
 #            print(f"ping")
             word_len = len(token.text)
 
-            if _wordwrap and _cursor_col + word_len > width - 2:
+            if _wordwrap and _cursor_col + word_len > width - 1:
                 # insert hard newline before this word/space
-                print(f"({_cursor_col})", end="")
                 yield Token("F6", raw="{f6}", text="*\n")
                 _cursor_col = 0
+
             _cursor_col += word_len
             yield token
+        elif token.kind == "WHITESPACE":
+            if _previous_token.kind == "F6" and token.text == " ":
+                print("!!!!", end="")
+                continue
+            yield token
         elif token.kind == "F6":
-            _cursor_col = 0
-
+            yield from _handle_f6(token)
         else:
             # unknown token, yield as-is
             yield token
+
+        _previous_token = token
 
 def echo(text, *, palette=None, width=None, wordwrap=True, raw=False, flush=True, end=""):
     """
