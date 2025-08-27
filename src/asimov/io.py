@@ -449,7 +449,7 @@ def tokenize(text):
         m = _whitespace_re.match(text, pos)
         if m:
             # emit a single WHITESPACE token
-            tok = Token(
+            token = Token(
                 kind="WHITESPACE",
                 value=m.group(1),       # optional semantic info
                 repeat=len(m.group(0)), # total length of run
@@ -457,7 +457,7 @@ def tokenize(text):
                 raw=m.group(0)
             )
 ##            print(f"tokenize.100: {tok=}")
-            yield from _handle_whitespace(tok)
+            yield from _handle_whitespace(token)
             pos = m.end()
             continue
 
@@ -512,9 +512,9 @@ def _handle_whitespace(token):
     """
     run = token.value
 #    if run == "\n":
-#        token.kind = "F6"
+#        token.kind = "WHITESPACE"
+#        token.text = ""
 #        token.repeat = 1
-#        token.text = "\n"
 #        yield token
 #        return
 
@@ -534,14 +534,17 @@ def _handle_whitespace(token):
         i += repeat
 
 def _handle_acs(token):
-    name = token.args[0]
-    repeat = int(token.args[1]) if len(token.args) > 1 else 1
-##    print(f"_handle_acs.100: {name=} {repeat=}")
-    char = _acs_map.get(name, "?")
-##    print(f"_handle_acs.120: {token=} {char=}")
-    # Yield a single ACS token with repeat in kwargs
-    token.text = char * repeat
+##    print(f"_handle_acs.200: {token=}")
+    if token.value == "acs":
+        name = token.args[0]
+        repeat = int(token.args[1]) if len(token.args) > 1 else 1
+    else:
+        token.value in _acs_map
+        name = token.value
+        repeat = int(token.args[0]) if token.args else 1
+
     token.kind = "ACS"
+    token.text = _acs_map.get(name, "?")*repeat
     yield token
     return
 
@@ -792,13 +795,12 @@ def _handle_command(token, palette=None, vars=None):
         return
 
     if cmd.lstrip('/') in ANSI_ATTRS:
-#        print(f"_handle_command.300: {cmd=}")
         yield from _handle_attr(token)
         return
 
-#    if cmd in _acs_map:
-#        yield from _handle_acs(token)
-#        return
+    if cmd in _acs_map:
+        yield from _handle_acs(token)
+        return
 
 ##    print(f"_handle_command.100: calling handler_dispatch {token=}")
     yield from handler_dispatch(token)
@@ -864,13 +866,18 @@ def _write_token(token: Token, flush: bool=True, stream=None):
     - F6: hard newline
     - COMMANDS: processed via _handle_command()
     """
+    global _raw
+
     if stream is None:
         stream = sys.stdout
 
     if type(token) == str:
         stream.write(f"STR:{repr(token)}")
     else:
-        stream.write(str(token.text))
+        if not _raw:
+            stream.write(str(token.text))
+        else:
+            stream.write(str(token.raw))
 
     if flush:
         stream.flush()
@@ -884,32 +891,40 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
     Generator that yields tokens for rendering.
     Handles WORD, WHITESPACE, F6 (hard newline), attributes, and commands.
     """
-    global _runtime_vars, _cursor_col
+    global _runtime_vars, _cursor_col, _raw, _wordwrap
+    
+    _raw = raw
 
     if width is None:
         width = get_terminal_width()  # default or queried width
+    
+    width = 80
+
     palette = palette or c64_palette
     _runtime_vars = _runtime_vars or {}
 
 ##    x = 0  # current horizontal position
     for token in tokenize(text):
-##        print(f"echo_iter.100: {tok=}")
+#        print(f"echo_iter.100: {token=}")
         if token.kind == "COMMAND":
-            if raw:
-                yield token
-                continue
+##            if raw:
+##                yield token
+##                continue
             yield from _handle_command(token)
         elif token.kind in ("WORD", "WHITESPACE"):
+#            print(f"ping")
             word_len = len(token.text)
 
-            if wordwrap and _cursor_col + word_len > width:
+            if _wordwrap and _cursor_col + word_len > width - 2:
                 # insert hard newline before this word/space
-                yield Token(kind="F6", raw="{f6}", text="\n")
+                print(f"({_cursor_col})", end="")
+                yield Token("F6", raw="{f6}", text="*\n")
                 _cursor_col = 0
             _cursor_col += word_len
             yield token
-        elif token.kind == "CURSOR":
-            print(f"cursor_control {tok.value=} ", end="")
+        elif token.kind == "F6":
+            _cursor_col = 0
+
         else:
             # unknown token, yield as-is
             yield token
@@ -922,6 +937,10 @@ def echo(text, *, palette=None, width=None, wordwrap=True, raw=False, flush=True
     raw: if True, commands are treated as literal text
     flush: if True, flush after writing
     """
+    global _raw
+    
+    _raw = raw
+
     for token in echo_iter(text, width=width, wordwrap=wordwrap, raw=raw, palette=palette):
         _write_token(token, flush=flush)
 
