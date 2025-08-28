@@ -71,6 +71,9 @@ class Token:
 # Runtime variables dictionary
 _runtime_vars = {}
 
+_runtime_vars.update({"cls": "{erasedisplay:2}{home}"})
+##? _runtime_vars.update("/all", "{reset}")
+
 def set_var(name, value):
     """Set a runtime variable for use in {var:<name>} or {<name>} commands."""
     _runtime_vars[name] = value
@@ -94,6 +97,7 @@ def rgb(prefix, spec):
         r, g, b = [int(x) for x in spec.split(",")]
     else:
         raise ValueError(f"Invalid RGB spec: {spec}")
+
     result = f"{CSI}{prefix};2;{r};{g};{b}m"
 #    print(f"rgb.100: {repr(result)=}")
     return result
@@ -212,7 +216,7 @@ def make_bg(palette):
     return bg
 
 c64_palette.update(make_bg(c64_palette))
-ansi_palette.update(make_bg(ansi_palette))
+#ansi_palette.update(make_bg(ansi_palette))
 
 _current_palette = get_palette(DEFAULT_PALETTE_NAME).copy()
 
@@ -220,6 +224,47 @@ _current_palette = get_palette(DEFAULT_PALETTE_NAME).copy()
 # ACS characters
 # ----------------------------
 _acs_map = {
+    # Box drawing
+    "ulcorner": "l",    # ┌
+    "urcorner": "k",    # ┐
+    "llcorner": "m",    # └
+    "lrcorner": "j",    # ┘
+    "hline":    "q",    # ─
+    "vline":    "x",    # │
+    "ttee":     "w",    # ┬
+    "btee":     "v",    # ┴
+    "ltee":     "u",    # ┤
+    "rtee":     "t",    # ├
+    "plus":     "n",    # ┼
+
+    # Other symbols
+    "diamond":      "`",  # ◆
+    "checkerboard": "a",  # ▒
+    "ht":           "b",  # HT symbol
+    "ff":           "c",  # FF symbol
+    "cr":           "d",  # CR symbol
+    "lf":           "e",  # LF symbol
+    "degree":       "f",  # °
+    "pluminus":     "g",  # ±
+    "board":        "h",  # board of squares
+    "lantern":      "i",  # lantern / scan line / bell symbol
+    "scan1":        "o",  # scan line 1
+    "scan3":        "p",  # scan line 3
+    "scan7":        "r",  # scan line 7
+    "scan9":        "s",  # scan line 9
+    "lequal":       "y",  # ≤
+    "gequal":       "z",  # ≥
+    "pi":           "{",  # π
+    "nequal":       "|",  # ≠
+    "sterling":     "}",  # £
+    "bullet":       "~",  # • / ≈
+
+    # Extras sometimes present in DEC tables
+    "notdef":       "^",  # undefined glyph
+    "space":        "_",  # blank space
+}
+
+_unicode = {
     "ulcorner":    "\u250C", # ┌
     "urcorner":    "\u2510", # ┐
     "llcorner":    "\u2514", # └
@@ -305,8 +350,8 @@ _command_handlers = {
     ("var", r'var'),
     ("attr", r'attr'),
 
-    # rgb color
-    ("rgb", r'rgb'),
+#    # rgb color
+#    ("rgb", r'rgb'),
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers]
@@ -498,10 +543,17 @@ def tokenize(text):
 # token handlers
 # ----------------------------
 def _handle_word(token):
+    global _acs
+
     token.text = token.value
     token.raw = token.value
     token.repeat = 1
     
+
+    if _acs:
+        _acs = False
+        yield Token("CONTROL", text=f"{ESC}(B")
+
     yield token
 
 def _handle_whitespace(token):
@@ -510,6 +562,12 @@ def _handle_whitespace(token):
     For example, a run of 3 newlines becomes:
         Token(kind="WHITESPACE", value="\n", repeat=3, text="\n\n\n")
     """
+    global _acs
+
+    if _acs:
+        _acs = False
+        yield Token("CONTROL", text=f"{ESC}(B")
+
     run = token.value
     i = 0
     while i < len(run):
@@ -542,6 +600,8 @@ def _handle_decrc(token):
     yield Token("WORDWRAP", raw=token.raw, text=f"[WORDWRAP: {_wordwrap}]")
 
 def _handle_acs(token):
+    global _acs
+
 ##    print(f"_handle_acs.200: {token=}")
     if token.value == "acs":
         name = token.args[0]
@@ -551,6 +611,11 @@ def _handle_acs(token):
         name = token.value
         repeat = int(token.args[0]) if token.args else 1
 
+    if not _acs:
+        _acs = True
+        yield Token("CONTROL", text=f"{ESC}(0")
+    else:
+        _acs = False
     token.kind = "ACS"
     token.text = _acs_map.get(name, "?")*repeat
     yield token
@@ -579,6 +644,7 @@ def _handle_rgb(token):
     fgbg = token.args[0] if len(token.args) > 1 else "fg"
     token.text = rgb(fgbg, spec)
     token.kind = "COLOR"
+##    print(f"_handle_rgb.100: {token=}")
     yield token
     return
 
@@ -777,11 +843,17 @@ def _handle_command(token, palette=None, vars=None):
 ##    if _runtime_vars is None:
 ##        _runtime_vars = {}
 
+    global _acs
+
     # command name is lowercase
     cmd = token.value.lower()
     args = token.args
     kwargs = token.kwargs
     raw  = token.raw
+
+    if _acs:
+        _acs = False
+        yield Token("CONTROL", text=f"{ESC}(B")
 
     # Palette color
     if cmd in get_current_palette():
@@ -919,7 +991,6 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
             yield token
         elif token.kind == "WHITESPACE":
             if _previous_token.kind == "F6" and token.text == " ":
-                print("!!!!", end="")
                 continue
             yield token
         elif token.kind == "F6":
