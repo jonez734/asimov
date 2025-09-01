@@ -29,7 +29,8 @@ from typing import List, Dict, Optional, Iterator
 DEFAULT_PALETTE_NAME = "c64"
 
 ESC   = "\x1B"
-CSI   = "\x9B" # use {ESC}[ for 7-bit version
+CSI   = "\x9B"
+# CSI   = "\x1B[" # "\x9B" # use {ESC}[ for 7-bit version
 BELL  = "\007"
 
 # ----------------------------
@@ -89,16 +90,14 @@ def set_stream(stream):
 # ----------------------------
 # ANSI / C64 color palettes
 # ----------------------------
-def rgb(prefix, spec):
-    """Return ANSI SGR sequence for foreground (38) or background (48). Spec can be #RRGGBB or r,g,b"""
-    if isinstance(spec, str) and spec.startswith("#") and len(spec) == 7:
-        r, g, b = int(spec[1:3], 16), int(spec[3:5], 16), int(spec[5:7], 16)
-    elif isinstance(spec, str) and "," in spec:
-        r, g, b = [int(x) for x in spec.split(",")]
+def rgb(fgbg, triplet):
+    """Return ANSI SGR sequence for foreground (38) or background (48). Spec can be #RRGGBB or (r,g,b)"""
+    if isinstance(triplet, str) and triplet.startswith("#") and len(triplet) == 7:
+        r, g, b = int(triplet[1:3], 16), int(triplet[3:5], 16), int(triplet[5:7], 16)
     else:
-        raise ValueError(f"Invalid RGB spec: {spec}")
+        raise ValueError(f"Invalid RGB spec: {triplet=}")
 
-    result = f"{CSI}{prefix};2;{r};{g};{b}m"
+    result = f"{CSI}{fgbg};2;{r};{g};{b}m"
 #    print(f"rgb.100: {repr(result)=}")
     return result
 
@@ -156,28 +155,27 @@ ansi_palette = {
     "lightcyan":    f"{CSI}96m",
     "lightwhite":   f"{CSI}97m",
     # Reset
-    "reset":        f"{CSI}0m",
+##    "reset":        f"{CSI}0m",
 }
 
 # C64 palette
 c64_palette = {
-    "black":       rgb(38, "0,0,0"),
-    "white":       rgb(38, "255,255,255"),
-    "red":         rgb(38, "136,0,0"),
-    "cyan":        rgb(38, "170,255,238"),
-    "purple":      rgb(38, "204,68,204"),
-    "green":       rgb(38, "0,204,85"),
-    "blue":        rgb(38, "0,0,170"),
-    "yellow":      rgb(38, "238,238,119"),
-    "orange":      rgb(38, "221,136,85"),
-    "brown":       rgb(38, "102,68,0"),
-    "lightred":    rgb(38, "255,119,119"),
-    "lightcyan":   rgb(38, "51,255,255"),
-    "lightpurple": rgb(38, "255,119,255"),
-    "lightgreen":  rgb(38, "170,255,102"),
-    "lightblue":   rgb(38, "0,136,255"),
-    "lightgray":   rgb(38, "187,187,187"),
-    "reset":       f"{CSI}0m",
+    'black': rgb(38, "#000000"),
+    'white': rgb(38, "#ffffff"),
+    'red': rgb(38, "#880000"),
+    'cyan': rgb(38, "#aaffee"),
+    'purple': rgb(38, "#cc44cc"),
+    'green': rgb(38, "#00cc55"),
+    'blue': rgb(38, "#0000aa"),
+    'yellow': rgb(38, "#eeee77"),
+    'orange': rgb(38, "#dd8855"),
+    'brown': rgb(38, "#664400"),
+    'lightred': rgb(38, "#ff7777"),
+    'lightcyan': rgb(38, "#33ffff"),
+    'lightpurple': rgb(38, "#ff77ff"),
+    'lightgreen': rgb(38, "#aaff66"),
+    'lightblue': rgb(38, "#0088ff"),
+    'lightgray': rgb(38, "#bbbbbb")
 }
 
 def set_palette(palette_name):
@@ -211,8 +209,7 @@ def get_palette_entry(name):
 def make_bg(palette):
     bg = {}
     for k, v in palette.items():
-        if k != "reset":
-            bg[f"bg{k}"] = v.replace("38", "48")
+        bg[f"bg{k}"] = v.replace("38", "48")
     return bg
 
 c64_palette.update(make_bg(c64_palette))
@@ -350,8 +347,11 @@ _command_handlers = {
     ("var", r'var'),
     ("attr", r'attr'),
 
-#    # rgb color
-#    ("rgb", r'rgb'),
+    # rgb color
+    ("rgb", r'rgb'),
+
+    # reset attributes and color
+    ("reset", r'reset'),
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers]
@@ -543,14 +543,14 @@ def tokenize(text):
 # token handlers
 # ----------------------------
 def _handle_word(token):
-    global _acs
+    global _acs, _raw
 
     token.text = token.value
     token.raw = token.value
     token.repeat = 1
     
 
-    if _acs:
+    if _acs and not _raw:
         _acs = False
         yield Token("CONTROL", text=f"{ESC}(B")
 
@@ -562,11 +562,12 @@ def _handle_whitespace(token):
     For example, a run of 3 newlines becomes:
         Token(kind="WHITESPACE", value="\n", repeat=3, text="\n\n\n")
     """
-    global _acs
+    global _acs, _raw
 
     if _acs:
         _acs = False
-        yield Token("CONTROL", text=f"{ESC}(B")
+        if not _raw:
+            yield Token("CONTROL", text=f"{ESC}(B")
 
     run = token.value
     i = 0
@@ -595,12 +596,17 @@ def _handle_decsc(token):
     return iter(())
 
 def _handle_decrc(token):
+    global _color, _cursor_col, _cursor_row, _wordwrap
     state = _terminal_states.pop()
     yield Token("CURPOS", args=(state.cursor_row, state.cursor_col), raw=token.raw, text=f"{CSI}{state.cursor_row};{state.cursor_col}H")
     yield Token("WORDWRAP", raw=token.raw, text=f"[WORDWRAP: {_wordwrap}]")
+    _color = state.color
+    _cursor_row = state.cursor_row
+    _cursor_col = state.cursor_col
+    _wordwrap = state.wordwrap
 
 def _handle_acs(token):
-    global _acs
+    global _acs, _raw
 
 ##    print(f"_handle_acs.200: {token=}")
     if token.value == "acs":
@@ -613,22 +619,16 @@ def _handle_acs(token):
 
     if not _acs:
         _acs = True
-        yield Token("CONTROL", text=f"{ESC}(0")
+        if not _raw:
+            yield Token("CONTROL", text=f"{ESC}(0")
     else:
         _acs = False
+
     token.kind = "ACS"
     token.text = _acs_map.get(name, "?")*repeat
+
     yield token
     return
-
-    yield Token(
-        kind="ACS",
-        value=char,
-        args=[],
-        kwargs={"repeat": repeat},
-        raw=token.raw,
-        text=char * repeat
-    )
 
 def _handle_var(token):
 ##    print(f"_handle_var.100: {token=}")
@@ -640,12 +640,18 @@ def _handle_var(token):
     return
 
 def _handle_rgb(token):
-    spec = token.args[-1]  # last argument is color spec
-    fgbg = token.args[0] if len(token.args) > 1 else "fg"
-    token.text = rgb(fgbg, spec)
-    token.kind = "COLOR"
-##    print(f"_handle_rgb.100: {token=}")
-    yield token
+    print(f"_handle_rgb.100: {token=}")
+    if len(token.args) == 2:
+        mode = 38 if token.args[0] == "fg" else 48
+        token.text = rgb(mode, token.args[1])
+        yield token
+        return
+    elif len(token.args) == 1:
+        token.text = rgb(38, token.args[0])
+        yield token
+        return
+
+    raise ValueError("Argument Error")
     return
 
 def _handle_curpos(token):
@@ -719,6 +725,11 @@ def _handle_decstbm(token):
     b = token.args[1]
     token.repeat = 1
     token.text = f"{CSI}{t};{b}r"
+    yield token
+
+def _handle_reset(token):
+    token.repeat = 1
+    token.text = f"{ESC}[0m"
     yield token
 
 @dataclass
@@ -856,7 +867,7 @@ def _handle_command(token, palette=None, vars=None):
         yield Token("CONTROL", text=f"{ESC}(B")
 
     # Palette color
-    if cmd in get_current_palette():
+    if cmd.lstrip('/') in get_current_palette():
         token.kind = "COLOR"
         token.text = get_palette_entry(cmd)
         yield token
@@ -949,7 +960,10 @@ def _write_token(token: Token, flush: bool=True, stream=None):
         if not _raw:
             stream.write(str(token.text))
         else:
-            stream.write(str(token.raw))
+            buf = token.raw or token.text
+
+            if buf is not None:
+                stream.write(buf)
 
     if flush:
         stream.flush()
@@ -970,8 +984,6 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
     if width is None:
         width = get_terminal_width()  # default or queried width
     
-    width = 80
-
     palette = palette or c64_palette
     _runtime_vars = _runtime_vars or {}
 
