@@ -149,5 +149,22 @@ def scheduler():
     duration = random.uniform(1.0, 4.0)
     start(g.name, duration)
 
-for g in ['desaturate', 'oversaturate', 'color_shift', 'contrast', 'whitenoise', 'tearing']:
+def _glitch_vertical_hold(frame):
+    """Simulate vertical hold loss by rolling the image up or down."""
+    h, w, c = frame.shape
+
+    # Pick a random vertical shift (somewhere within ~1/3 of the frame height)
+    shift = random.randint(-h // 3, h // 3)
+
+    # Use numpy.roll to wrap vertically
+    glitched = np.roll(frame, shift, axis=0)
+
+    # Optional: add a little jitter/noise to mimic instability
+    if random.random() < 0.3:  # 30% chance
+        jitter = random.randint(-5, 5)
+        glitched = np.roll(glitched, jitter, axis=0)
+
+    return glitched
+
+for g in ['desaturate', 'oversaturate', 'color_shift', 'contrast', 'whitenoise', 'tearing', 'vertical_hold']:
     register(g)
