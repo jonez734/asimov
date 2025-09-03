@@ -11,11 +11,11 @@ import numpy as np
 import mediapipe as mp
 
 from asimov.util import draw_text, get_bottom_right_position, get_device_by_label
-from asimov import conf
+from asimov import conf, glitch
 
 # Constants
 MARGIN = 20  # pixels
-TITLE = "Asimov v202505.0"
+TITLE = "Project Asimov v202508.0"
 CAP_HEIGHT = 480
 CAP_WIDTH = 640
 CAP_FPS = 30
@@ -120,12 +120,9 @@ def overlay_rectangles(frame):
 def overlay_watermark(frame):
     return draw_text(frame, 10, 15, TITLE, color=(255, 255, 255), font_scale=0.50, alpha=0.75, shadow_alpha=0.75, shadow_offset=2)
 
-GLITCHES = [
-    { "enabled": True, "running": True, "label": "whitenoise", "func": None },
-]
-
 def overlay_glitches(frame):
-    return frame
+    glitch.scheduler()
+    return glitch.apply(frame)
 
 def camera_ready(cap, timeout=5):
     start_time = time.time()
@@ -140,11 +137,12 @@ def camera_ready(cap, timeout=5):
         time.sleep(0.1)  # Avoid busy waiting
 
 OVERLAYS = [
-            { "key": "w", "enabled":True, "running":True,  "label": "watermark", "func": overlay_watermark},
-            { "key": "e", "enabled":True, "running":True,  "label": "eyes",      "func": overlay_eyes},
             { "key": "f", "enabled":True, "running":True,  "label": "fingertip", "func": overlay_fingertip},
             { "key": "r", "enabled":True, "running":True,  "label": "rects",     "func": overlay_rectangles},
-            { "key": "g", "enabled":True, "running":False, "label": "glitches",  "func": None},
+            { "key": "g", "enabled":True, "running":False, "label": "glitches",  "func": overlay_glitches},
+            { "key": "w", "enabled":True, "running":True,  "label": "watermark", "func": overlay_watermark},
+            { "key": "e", "enabled":True, "running":True,  "label": "eyes",      "func": overlay_eyes},
+
         ]
 
 def apply_overlays(frame):
