@@ -10,7 +10,8 @@ import numpy as np
 
 import mediapipe as mp
 
-from asimov.util import draw_text, get_bottom_right_position
+from asimov.util import draw_text, get_bottom_right_position, get_device_by_label
+from asimov import conf
 
 # Constants
 MARGIN = 20  # pixels
@@ -38,7 +39,7 @@ face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refi
 LEFT_EYE_IDX = [33, 133, 159, 145, 160, 158, 153, 144]
 RIGHT_EYE_IDX = [362, 263, 386, 374, 385, 380, 373, 390]
 
-def draw_eye_privacy_bars(frame):
+def overlay_eyes(frame):
     results = face_mesh.process(frame)
 
     if results.multi_face_landmarks:
@@ -64,7 +65,7 @@ def draw_eye_privacy_bars(frame):
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), thickness=-1)
     return frame
 
-def detect_index_finger_tip(frame):
+def overlay_fingertip(frame):
     global index_finger_tip, detector
 
     # Detect hands and get list of hands and image with drawing
@@ -112,6 +113,20 @@ def draw_rectangles(frame, rectangles):
         cv2.polylines(frame, [poly_np], True, color, 2)
     return frame
 
+def overlay_rectangles(frame):
+    rectangles = detect_rectangles(frame)
+    return draw_rectangles(frame, rectangles)
+
+def overlay_watermark(frame):
+    return draw_text(frame, 10, 15, TITLE, color=(255, 255, 255), font_scale=0.50, alpha=0.75, shadow_alpha=0.75, shadow_offset=2)
+
+GLITCHES = [
+    { "enabled": True, "running": True, "label": "whitenoise", "func": None },
+]
+
+def overlay_glitches(frame):
+    return frame
+
 def camera_ready(cap, timeout=5):
     start_time = time.time()
     while True:
@@ -124,14 +139,41 @@ def camera_ready(cap, timeout=5):
             return False  # Timeout reached, return failure
         time.sleep(0.1)  # Avoid busy waiting
 
+OVERLAYS = [
+            { "key": "w", "enabled":True, "running":True,  "label": "watermark", "func": overlay_watermark},
+            { "key": "e", "enabled":True, "running":True,  "label": "eyes",      "func": overlay_eyes},
+            { "key": "f", "enabled":True, "running":True,  "label": "fingertip", "func": overlay_fingertip},
+            { "key": "r", "enabled":True, "running":True,  "label": "rects",     "func": overlay_rectangles},
+            { "key": "g", "enabled":True, "running":False, "label": "glitches",  "func": None},
+        ]
+
+def apply_overlays(frame):
+    global OVERLAYS
+
+    for o in OVERLAYS:
+        if not o["enabled"]:
+            continue
+        if not o["running"]:
+            continue
+        f = o.get("func", None)
+#        io.echo(f"checking {f=}", level="debug")
+        if callable(f):
+#            io.echo(f"calling {f=}", level="debug")
+            frame = o["func"](frame)
+    return frame
+
+
 def main(args, **kwargs):
+    global OVERLAYS
+
+    # Open the real webcam
+    cap = cv2.VideoCapture(conf.CAP_DEVICE)
+
     try:
-        # Open the real webcam
-        cap = cv2.VideoCapture(0)
 
         # Make sure the webcam opens correctly
         if not cap.isOpened():
-            raise RuntimeError("Could not open webcam")
+            raise RuntimeError("Could not open webcam. check group membership.")
 
         if camera_ready(cap) is False:
             raise RuntimeError("Camera is not ready after 5s")
@@ -145,15 +187,17 @@ def main(args, **kwargs):
         actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         actual_fps = cap.get(cv2.CAP_PROP_FPS)
 
-
         # Get the frame size
         ret, frame = cap.read()
         if not ret:
             raise RuntimeError("Failed to read frame from webcam")
 
+        # get virtual camera device by label
+        device = get_device_by_label(conf.CAM_LABEL)
+##        io.echo(f"{{labelcolor}}virtualcam label {{valuecolor}}{conf.CAM_LABEL} {{labelcolor}}, device {{valuecolor}}{device}{{/all}}")
         # Start the virtual camera
-        with pyvirtualcam.Camera(width=actual_width, height=actual_height, fps=actual_fps, print_fps=False) as cam:
-            io.echo(f"{{labelcolor}}Capture: {{valuecolor}}{cam.device} {actual_width}{{labelcolor}}x{{valuecolor}}{actual_height} {{labelcolor}}@ {{valuecolor}}{actual_fps} {{labelcolor}}fps{{/all}}")
+        with pyvirtualcam.Camera(width=actual_width, height=actual_height, fps=actual_fps, print_fps=False, device=device) as cam:
+            io.echo(f"{{labelcolor}}Capture: {{valuecolor}}{conf.CAP_DEVICE}, virtcam: ({cam.device}) {actual_width}{{labelcolor}}x{{valuecolor}}{actual_height} {{labelcolor}}@ {{valuecolor}}{actual_fps} {{labelcolor}}fps{{/all}}")
             while True:
                 ret, frame = cap.read()
                 if frame is None:
@@ -166,14 +210,7 @@ def main(args, **kwargs):
 
                 frame = cv2.flip(frame, 1)
 
-                # cv2.putText(frame, TITLE, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
-##                (x, y) = get_bottom_right_position(frame, TITLE, cv2.FONT_HERSHEY_SIMPLEX)
-                frame = draw_text(frame, 10, 15, TITLE, font_scale=0.45, alpha=0.75, shadow_alpha=0.75, shadow_offset=2)
-
-                frame = detect_index_finger_tip(frame)
-                rectangles = detect_rectangles(frame)
-                frame = draw_rectangles(frame, rectangles)
-                frame = draw_eye_privacy_bars(frame)
+                frame = apply_overlays(frame)
 
                 cv2.imshow(TITLE, frame) # BGR
 
@@ -183,10 +220,14 @@ def main(args, **kwargs):
                 cam.send(frame)
 
                 ch = cv2.waitKey(10) & 0xFF
+                for o in OVERLAYS:
+                    if ch == ord(o["key"]):
+                        print(f"toggle {o=}")
+                        o["running"] = True - o["running"]
+                        break
+
                 if ch == ord("q") or ch == 27:
                     break
-                elif ch == ord("d"):
-                    distortions = True - distortions
 
                 # Wait until next frame is due
                 cam.sleep_until_next_frame()
