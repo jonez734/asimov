@@ -1,12 +1,17 @@
+# asimov/rect.py
+
 import cv2
 import time
 import numpy as np
 
+__all__ = ["detect", "merge", "draw"]  # public functions
+
 # Default timeout (seconds) and tolerance (fraction of size)
-DEFAULT_RECT_TIMEOUT = 2.0
+DEFAULT_RECT_TIMEOUT = 0.5
 MERGE_TOLERANCE_RATIO = 0.2  # 20% of rectangle diagonal
 
 _rectangles = []
+
 
 def _centroid(polygon):
     """Return centroid (x, y) of a polygon."""
@@ -23,8 +28,7 @@ def _rect_size(polygon):
 
 
 def _is_duplicate(p1, p2):
-    """Check if two polygons are duplicates based on centroid distance
-    relative to their size."""
+    """Check if two polygons are duplicates based on centroid distance relative to their size."""
     c1, c2 = _centroid(p1), _centroid(p2)
     dist = np.linalg.norm(np.array(c1) - np.array(c2))
 
@@ -35,9 +39,9 @@ def _is_duplicate(p1, p2):
     return dist < tolerance
 
 
-def detect_rectangles(frame):
+def detect(frame):
     """Detect rectangles in a frame, timestamp them, merge duplicates with updates,
-    and expire old ones unless touched."""
+    and expire old ones."""
     global _rectangles
     now = time.time()
     detected = []
@@ -59,7 +63,21 @@ def detect_rectangles(frame):
                 detected.append(polygon)
 
     # --- update existing rectangles or add new ones ---
-    for poly in detected:
+    merge(detected)
+
+    # --- remove expired rectangles ---
+    now = time.time()
+    _rectangles[:] = [r for r in _rectangles if now - r["timestamp"] <= r["timeout"]]
+
+    return _rectangles
+
+
+def merge(new_polygons):
+    """Merge new polygons into existing rectangles, updating polygon and timestamp if duplicate."""
+    global _rectangles
+    now = time.time()
+
+    for poly in new_polygons:
         merged = False
         for r in _rectangles:
             if _is_duplicate(poly, r["polygon"]):
@@ -73,27 +91,14 @@ def detect_rectangles(frame):
                 "polygon": poly,
                 "timestamp": now,
                 "timeout": DEFAULT_RECT_TIMEOUT,
-                "touched": False,
             })
 
-    # --- remove expired rectangles (unless touched) ---
-    still_alive = []
-    for r in _rectangles:
-        if r["touched"]:
-            r["timestamp"] = now  # keep it alive
-            still_alive.append(r)
-        elif now - r["timestamp"] <= r["timeout"]:
-            still_alive.append(r)
-    _rectangles = still_alive
 
-    return _rectangles
-
-
-def touch_rectangle(rect):
-    """Mark a rectangle as touched (prevents expiration)."""
-    rect["touched"] = True
-
-
-def release_rectangle(rect):
-    """Release a rectangle so it can expire normally again."""
-    rect["touched"] = False
+def draw(frame, rectangles=None, color=(0, 255, 0), thickness=2):
+    """Draw rectangles on a frame. If rectangles is None, draw current tracked rectangles."""
+    if rectangles is None:
+        rectangles = _rectangles
+    for r in rectangles:
+        pts = r["polygon"].reshape((-1, 1, 2))
+        cv2.polylines(frame, [pts], isClosed=True, color=color, thickness=thickness)
+    return frame
