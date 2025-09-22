@@ -29,8 +29,8 @@ from typing import List, Dict, Optional, Iterator
 DEFAULT_PALETTE_NAME = "c64"
 
 ESC   = "\x1B"
-CSI   = "\x9B"
-# CSI   = "\x1B[" # "\x9B" # use {ESC}[ for 7-bit version
+#CSI   = "\x9B"
+CSI   = f"{ESC}[" # "\x9B" # use {ESC}[ for 7-bit version
 BELL  = "\007"
 
 # ----------------------------
@@ -357,6 +357,9 @@ _command_handlers = {
 
     # erase display
     "ed": r'ed|erasedisplay',
+
+    # erase line
+    "elo": r'el|eraseline',
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers.items()]
@@ -636,7 +639,6 @@ def _handle_acs(token):
     return
 
 def _handle_var(token):
-    print(f"_handle_var.100: {token=}")
     var_name = token.args[0] if token.args else token.value
     var_val = _runtime_vars.get(var_name, "")
     # recursively tokenize the value of the variable
@@ -693,8 +695,18 @@ def _handle_home(token):
 # tobottom = 1, totop = 2, default = 0 = full
 def _handle_ed(token):
     print(f"**** _handle_ed.100: {token=}")
-    mode = int(token.args[0]) if len(token.args) == 1 else 0
+    mode = int(token.args[0]) if len(token.args) == 1 else 2
     token.text = f"{CSI}{mode}J"
+    yield token
+
+# 0 = clear right of cursor
+# 1 = clear left of cursor
+# 2 = clear whole line
+# EL0 – Erase in Line (cursor to end of line)
+def _handle_elo(token):
+    print(f"**** _handle_ed.100: {token=}")
+    mode = int(token.args[0]) if len(token.args) == 1 else 0
+    token.text = f"{CSI}{mode}K"
     yield token
 
 def _handle_cuu(token):
