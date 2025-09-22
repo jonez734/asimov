@@ -72,7 +72,9 @@ class Token:
 # Runtime variables dictionary
 _runtime_vars = {}
 
-_runtime_vars.update({"cls": "{erasedisplay:2}{home}"})
+_runtime_vars.update({"cls": "{erasedisplay}{home}"})
+_runtime_vars.update({"home": "{curpos:1,1}"})
+
 ##? _runtime_vars.update("/all", "{reset}")
 
 def set_var(name, value):
@@ -329,32 +331,35 @@ command_patterns = [
 
 _command_handlers = {
     # cursor movements (repeat n)
-    ("cuu",    r'cup|cuu|cursorup'),
-    ("cud",    r'cud|cursordown'),
-    ("cuf",    r'cuf|cursorforward|cursorleft'),
-    ("cub",    r'cub|cursorright|cursorback|cursorbackward'),
-    ("curpos", r'curpos'),
+    "cuu":     r'cup|cuu|cursorup',
+    "cud":     r'cud|cursordown',
+    "cuf":     r'cuf|cursorforward|cursorleft',
+    "cub":     r'cub|cursorright|cursorback|cursorbackward',
+    "curpos":  r'curpos',
 
-    ("decsc",  r'decsc|savecursor'),
-    ("decrc",  r'decrc|restorecursor'),
+    "decsc":   r'decsc|savecursor',
+    "decrc":   r'decrc|restorecursor',
 
-    ("decstbm", r'decstbm'),
+    "decstbm": r'decstbm',
 
-    ("acs", r'acs'),
-    ("f6",  r'f6'),
+    "acs":     r'acs',
+    "f6":      r'f6',
 
     # runtime variables
-    ("var", r'var'),
-    ("attr", r'attr'),
+    "var": r'var',
+    "attr": r'attr',
 
     # rgb color
-    ("rgb", r'rgb'),
+    "rgb": r'rgb',
 
     # reset attributes and color
-    ("reset", r'reset'),
+    "reset": r'reset',
+
+    # erase display
+    "ed": r'ed|erasedisplay',
 }
 
-_compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers]
+_compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers.items()]
 
 _whitespace_re = re.compile(r'(\s+)')
 _word_re = re.compile(r'[^\s{}]+')
@@ -374,7 +379,7 @@ _command_re = re.compile(r"\{(?P<name>/?[a-zA-Z_][a-zA-Z0-9_]*)(?::?(?P<params>[
 # Aliases / command expansion
 # ----------------------------
 command_aliases = {
-    "cls": "{erasedisplay:2}{home}",
+##    "cls": "{erasedisplay}{home}",
     "reset": "{/reset}",
 }
 
@@ -443,7 +448,7 @@ Cursor Position (CPR / DECURSORPOS)
     Response: ESC [ <row> ; <col> R
 """
     response = get_dsr("cursor")
-    if response and response.startswith(f"{CSI}") and response.endswith("R"):
+    if response and response.startswith(f"{ESC}[") and response.endswith("R"):
         parts = response[2:-1].split(";")
         row, col = int(parts[0]), int(parts[1])
         return row, col
@@ -631,7 +636,7 @@ def _handle_acs(token):
     return
 
 def _handle_var(token):
-##    print(f"_handle_var.100: {token=}")
+    print(f"_handle_var.100: {token=}")
     var_name = token.args[0] if token.args else token.value
     var_val = _runtime_vars.get(var_name, "")
     # recursively tokenize the value of the variable
@@ -684,9 +689,13 @@ def _handle_home(token):
     yield token
     return
 
+# erasedisplay
+# tobottom = 1, totop = 2, default = 0 = full
 def _handle_ed(token):
-    mode = int(token.args[0]) if token.args else 0
-    yield Token("ERASEDISPLAY", args=(mode,), text=f"erasedisplay")
+    print(f"**** _handle_ed.100: {token=}")
+    mode = int(token.args[0]) if len(token.args) == 1 else 0
+    token.text = f"{CSI}{mode}J"
+    yield token
 
 def _handle_cuu(token):
 ##    print(f"_handle_cuu.100: {token.args=}")
@@ -826,7 +835,7 @@ def handler_dispatch(token):
 
     for kind, regex in _compiled_command_handlers:
         if regex.fullmatch(cmd):
-            handler_name = f"_handle_{cmd}"
+            handler_name = f"_handle_{kind}"
             handler = globals().get(handler_name)
             if callable(handler):
                 result = handler(token)
@@ -970,7 +979,7 @@ def _write_token(token: Token, flush: bool=True, stream=None):
     return
 
 # ----------------------------
-# echo() and echo_file()
+# echo_iter(), echo(), and echo_file()
 # ----------------------------
 def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=False):
     """
