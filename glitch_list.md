@@ -1,17 +1,17 @@
 ### Analog / Signal Distortion
 - [ ] jitter
+- [x] ghost
+  - [ ] add multi-frame trail option
 - [ ] smear
-- [ ] ghost
 - [ ] static
 - [ ] rolling
 - [ ] noise_bars
 - [ ] chroma_roll
 - [ ] sync_loss
-- [ ] phase_shift
 - [x] vhs_warp
 - [x] vertical_hold
-- [ ] tearing
-- [ ] scanlines
+- [x] tearing
+- [x] scanlines
 
 ### Color Manipulation
 - [ ] invert
@@ -33,7 +33,7 @@
 - [ ] pixel_sort
 - [ ] pixelate
 - [ ] block_shuffle
-- [ ] datamosh
+- [x] datamosh
 - [ ] compression
 - [ ] ascii_art
 - [ ] tile_mirror
