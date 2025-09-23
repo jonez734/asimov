@@ -920,7 +920,9 @@ def _handle_attr(token: Token):
 def _handle_emoji(token):
     if token.value in _emoji:
         token.text = _emoji[token.value]
-        yield token
+    else:
+        token.text = token.raw
+    yield token
 
 # save/restore cursor attributes
 @dataclass
