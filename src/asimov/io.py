@@ -10,7 +10,7 @@ Features:
 - Scroll region: DECSTBM / STBM
 - ACS characters with optional repeat
 - Runtime variables: {var:<name>} or {<name>}
-- Markdown-style underline (**text**)
+- Markdown-style attributes (**text**)
 - Hard newline {f6}
 - Recursive command expansion and aliases
 """
@@ -30,7 +30,7 @@ DEFAULT_PALETTE_NAME = "c64"
 
 ESC   = "\x1B"
 #CSI   = "\x9B"
-CSI   = f"{ESC}[" # "\x9B" # use {ESC}[ for 7-bit version
+CSI   = f"{ESC}["
 BELL  = "\007"
 
 # ----------------------------
@@ -288,6 +288,113 @@ _unicode = {
     "arrow_down":  "\u2193", # ↓
 }
 
+# https://stackoverflow.com/questions/3220031/how-to-filter-or-replace-unicode-characters-that-would-take-more-than-3-bytes
+# https://medium.com/analytics-vidhya/how-to-print-emojis-using-python-2e4f93443f7e
+_emoji = {
+  "grin":                   "\U0001f600",
+  "smile":                  "\U0001f642",
+  "rofl":                   "\U0001f923",
+  "wink":                   "\U0001f609",
+  "thinking":               "\U0001f914",
+  "sunglasses":             "\U0001f60e",
+  "100":                    "\U0001f4af",
+  "thumbup":                "\U0001f44d",
+  "thumbdown":              "\U0001f44e",
+  "vulcan":                 "\U0001f596",
+  "spiral":                 "\U0001f4ab",
+  "fire":                   "\U0001f525",
+  "bank":                   "\U0001f3e6",
+  "house":                  "\U0001f3e0",
+  "military-helmet":        "\U0001fa96",
+  "door":                   "\U0001f6aa",
+  "receipt":                "\U0001f9fe",
+  "newspaper":              "\U0001f4f0",
+  "prince":                 "\U0001f934",
+  "princess":               "\U0001f478",
+  "thread":                 "\U0001f9f5",
+  "ice":                    "\U0001f9ca",
+  "moneybag":               "\U0001f4b0",
+  "person":                 "\U0001f9d1",
+  "sun":                    "\U00002600", # @see https://emojipedia.org/sun/
+  "thunder-cloud-and-rain": "\U000026C8", # @see https://emojipedia.org/cloud-with-lightning-and-rain/
+  "crop":                   "\U0001F33E", # @see https://emojipedia.org/sheaf-of-rice/
+  "horse":                  "\U0001F40E", # @see https://emojipedia.org/horse/
+  "cactus":                 "\U0001F335", # @see https://emojipedia.org/cactus/
+  "ship":                   "\U0001F6A2", # @see https://emojipedia.org/ship/
+  "wood":                   "\U0001FAB5", # @see https://emojipedia.org/wood/
+  "link":                   "\U0001F517", # @see https://emojipedia.org/link/
+  "anchor":                 "\U00002693", # @see https://emojipedia.org/anchor/
+  "ballot-box":             "\U0001F5F3", # @see https://emojipedia.org/ballot-box-with-ballot/ @blacklist breaks monospace font
+  "building":               "\U0001F3DB", # @see https://emojipedia.org/classical-building/
+  "envelope":               "\U00002709", # @see https://emojipedia.org/envelope/
+  "dolphin":                "\U0001F42C", # @see https://emojipedia.org/dolphin/
+  "bellhop-bell":           "\U0001F6CE", # @see https://emojipedia.org/bellhop-bell/
+  "hotel":                  "\U0001F3E8", # @see https://emojipedia.org/hotel/
+  "mousetrap":              "\U0001FAA4", # @see https://emojipedia.org/mouse-trap/
+
+  "waninggibbousmoon":      "\U0001F316",
+  "waxinggibbousmoon":      "\U0001F314",
+  "waningcrescentmoon":     "\U0001F318",
+  "waxingcrescentmoon":     "\U0001F312",
+  "lastquartermoon":        "\U0001F317",
+  "firstquartermoon":       "\U0001F313",
+  "newmoon":                "\U0001F311",
+  "fullmoon":               "\U0001F315",
+
+  "sco":                    "\U0000264F", # @see https://emojipedia.org/search/?q=zodiac
+  "sag":                    "\U00002650",
+  "cap":                    "\U00002651",
+  "aqu":                    "\U00002652",
+  "pic":                    "\U00002653",
+  "ari":                    "\U00002648",
+  "tau":                    "\U00002649",
+  "gem":                    "\U0000264A",
+  "can":                    "\U0000264B",
+  "leo":                    "\U0000264C",
+  "vir":                    "\U0000264D",
+  "lib":                    "\U0000264E",
+
+  "package":                "\U0001F4E6", # @since 20220907 @see https://emojipedia.org/package/
+  "compass":                "\U0001F9ED", # @since 20220907
+  "worldmap":               "\U0001F5FA", # @since 20220916
+
+  "wolf":                   "\U0001F43A", # @since 20221002
+  "person":                 "\U0001F9D1",
+
+  "supervillian":           "\U0001F9B9", # @since 20221016
+  "joker":                  "\U0001F0CF", # @since 20221127
+
+  "warning":                "\U000026A0",
+  "stopsign":               "\U0001F6D1",
+
+  "dragon":                 "\U0001F409", # @since 20230716 for empyre
+  "tree":                   "\U0001F333", # @since 20230824 for empyre
+  "wood":                   "\U0001FAB5", # @since 20230824 for empyre
+
+  "cityscape":              "\U0001F3D9", # @since 20230827 for empyre
+  "maint":                  "\U0001F6E0", # @since 20230827 for empyre, mm
+  "axe":                    "\U0001FA93", # @since 20230827 for mm
+
+  "desert":                 "\U0001F3DC", # @since 20240107 for empyre
+
+  "shopping":               "\U0001F6CD", # @since 20240128
+
+  "farmer":                 "\U0001F9D1", # @since 20240415 for empyre
+
+  "zap":                    "\U000026A1", # @since 20240422 for weather
+
+  "palmtree":               "\U0001F334",
+  "evergreentree":          "\U0001F332",
+
+  "tophat":                 "\U0001F3A9",
+  "magicwand":              "\U0001FA84",
+
+  "mercenary":				u"\U0001F977",
+
+  "checkmark":              u"\U00002705",
+  "crossmark":              u"\U0000274E",
+}
+
 # ----------------------------
 # Command patterns
 # ----------------------------
@@ -377,6 +484,7 @@ _word_re = re.compile(r'[^\s{}]+')
 ##""", re.VERBOSE | re.IGNORECASE)
 
 _command_re = re.compile(r"\{(?P<name>/?[a-zA-Z_][a-zA-Z0-9_]*)(?::?(?P<params>[^}]*))\}", re.IGNORECASE)
+_emoji_re = re.compile(r":(?P<name>[\w _-]+):", re.IGNORECASE)
 
 # ----------------------------
 # Aliases / command expansion
@@ -531,6 +639,14 @@ def tokenize(text):
 #        m = re.match(_compiled_command_handlers[1], m.group("name").lower())
 #        if m:
 #            tok = Token(_compiled_command_handler[0], raw=m.group(0))
+
+        m = re.match(_emoji_re, text[pos:])
+        if m:
+            name = m.group("name").lower()
+            tok = Token(kind="EMOJI", value=name, raw=m.group(0))
+            yield from _handle_emoji(tok)
+            pos += m.end()
+            continue
 
         # word
         m = re.match(_word_re, text[pos:])
@@ -800,6 +916,11 @@ def _handle_attr(token: Token):
     yield token
     return
     
+
+def _handle_emoji(token):
+    if token.value in _emoji:
+        token.text = _emoji[token.value]
+        yield token
 
 # save/restore cursor attributes
 @dataclass
