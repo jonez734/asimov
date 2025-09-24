@@ -1,5 +1,5 @@
 """
-io.py – enhanced terminal output with commands, colors, word wrap, runtime variables, ACS chars, and paging.
+io.py – enhanced terminal output with commands, colors, word wrap, runtime variables, ACS chars, select emojis, and file paging.
 
 Features:
 - echo() and echo_file() with wordwrap, raw mode, and recursive command evaluation
@@ -19,7 +19,10 @@ import os
 import re
 import sys
 import time
+import fcntl
 import select
+import platform
+import threading
 
 import tty, termios # get_cursor_position()
 
@@ -53,7 +56,7 @@ class Token:
     text: str = field(default="") # {f6:3} -> \n*3, {home} -> \033[H, etc
     repeat: int = 1
     raw: Optional[str] = None                  # raw input that generated this token
-    def __str__(self):
+    def __repr__(self):
         parts = [self.kind]
         if self.value:
             parts.append(f"value={repr(self.value)}") # repr(self.value))
@@ -84,10 +87,18 @@ def set_var(name, value):
 def get_var(name, default=None):
     return _runtime_vars.get(name, default)
 
+_current_input_stream = sys.stdin
+_current_output_stream = sys.stdout
+_current_output_stream_lock = threading.Lock()
+
 _current_stream = sys.stdout
-def set_stream(stream):
-    global _current_stream
-    _current_stream = stream
+def set_output_stream(stream):
+    global _current_output_stream
+    _current_output_stream = stream
+
+def set_input_stream(stream):
+    global _current_input_stream
+    _current_input_stream = stream
 
 # ----------------------------
 # ANSI / C64 color palettes
@@ -440,8 +451,8 @@ _command_handlers = {
     # cursor movements (repeat n)
     "cuu":     r'cup|cuu|cursorup',
     "cud":     r'cud|cursordown',
-    "cuf":     r'cuf|cursorforward|cursorleft',
-    "cub":     r'cub|cursorright|cursorback|cursorbackward',
+    "cuf":     r'cuf|cursorforward|cursorright',
+    "cub":     r'cub|cursorleft|cursorback|cursorbackward',
     "curpos":  r'curpos',
 
     "decsc":   r'decsc|savecursor',
@@ -527,13 +538,13 @@ def _read_terminal_response(terminator: str) -> str | None:
     Returns:
         The raw response string if successful, or None if timeout/failure occurs.
     """
-    fd = sys.stdin.fileno()
+    fd = _current_input_stream.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
         tty.setcbreak(fd)  # set raw/cbreak mode to read characters immediately
         response = ""
         while True:
-            ch = sys.stdin.read(1)
+            ch = _current_input_stream.read(1)
             response += ch
             if ch == terminator:
                 return response
@@ -579,7 +590,7 @@ def get_terminal_status():
         return row, col
 
     # Save terminal settings
-    fd = sys.stdin.fileno()
+    fd = _current_input_stream.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
         tty.setcbreak(fd)
@@ -708,22 +719,54 @@ def _handle_whitespace(token):
         )
         i += repeat
 
+# save/restore cursor attributes
+@dataclass
+class TerminalState():
+    cursor_row = 1
+    cursor_col = 1
+    wordwrap  = True
+    has_color = True
+    hidden = False
+    def __repr__(self):
+        return f"TerminalState({self.cursor_row=} {self.cursor_col=})"
+
+_terminal_states = []
+
+_wordwrap = True
+_color = True
+_acs = False
+_cursor_row = 1
+_cursor_col = 1
+_raw = False
+
 def _handle_decsc(token):
+    global _terminal_states
+
     (row, col) = get_cursor_position()
-##    print(f"_handle_decsc.100: {token=}")
+    print(f"_handle_decsc.100: {token=}")
     state = TerminalState()
     state.cursor_row = row
     state.cursor_col = col
     state.wordwrap = _wordwrap
     state.color = _color
+#    if len(token.args) == 0:
     _terminal_states.append(state)
+#    else:
+#        _terminal_states[0] = state
+
+    print(f"_handle_decsc.120: {state=} {_terminal_states=}")
     return iter(())
 
 def _handle_decrc(token):
-    global _color, _cursor_col, _cursor_row, _wordwrap
-    state = _terminal_states.pop()
+    global _color, _cursor_col, _cursor_row, _wordwrap, _terminal_states
+    print(f"_handle_decrc.100: {_terminal_states=}")
+    if len(token.args) == 0:
+        state = _terminal_states.pop()
+    else:
+        state = _terminal_states[0]
+
     yield Token("CURPOS", args=(state.cursor_row, state.cursor_col), raw=token.raw, text=f"{CSI}{state.cursor_row};{state.cursor_col}H")
-    yield Token("WORDWRAP", raw=token.raw, text=f"[WORDWRAP: {_wordwrap}]")
+    yield Token("WORDWRAP", raw=token.raw, text=f"") # [WORDWRAP: {_wordwrap}]")
     _color = state.color
     _cursor_row = state.cursor_row
     _cursor_col = state.cursor_col
@@ -924,22 +967,6 @@ def _handle_emoji(token):
         token.text = token.raw
     yield token
 
-# save/restore cursor attributes
-@dataclass
-class TerminalState():
-    cursor_row = 1
-    cursor_col = 1
-    wordwrap  = True
-    has_color = True
-    hidden = False
-
-_terminal_states = []
-_wordwrap = True
-_color = True
-_acs = False
-_cursor_row = 1
-_cursor_col = 1
-_raw = False
 
 _previous_token = Token("UNKNOWN")
 
@@ -1086,6 +1113,7 @@ def _handle_command(token, palette=None, vars=None):
     # unknown commands
 ##    yield Token("UKNOWN", value=token.raw, args=(), kwargs={}, text=token.raw)
 
+
 def _write_token(token: Token, flush: bool=True, stream=None):
     """
     Write a Token to stdout, interpreting commands and attributes.
@@ -1093,24 +1121,22 @@ def _write_token(token: Token, flush: bool=True, stream=None):
     - F6: hard newline
     - COMMANDS: processed via _handle_command()
     """
-    global _raw
+    global _raw, _current_output_stream, _current_output_stream_lock
 
-    if stream is None:
-        stream = sys.stdout
-
-    if type(token) == str:
-        stream.write(f"STR:{repr(token)}")
-    else:
-        if not _raw:
-            stream.write(str(token.text))
+    with _current_output_stream_lock:
+        if type(token) == str:
+            _current_output_stream.write(f"STR:{repr(token)}")
         else:
-            buf = token.raw or token.text
+            if not _raw:
+                _current_output_stream.write(str(token.text))
+            else:
+                buf = token.raw or token.text
 
-            if buf is not None:
-                stream.write(buf)
+                if buf is not None:
+                    _current_output_stream.write(buf)
 
-    if flush:
-        stream.flush()
+        if flush:
+            _current_output_stream.flush()
     return
 
 # ----------------------------
@@ -1186,6 +1212,195 @@ def echo_file(filepath, page_size=20, raw=False):
             line_count += 1
             if line_count % page_size == 0:
                 input("More?")  # wait every page
+
+# ----------------------------
+# input
+# ----------------------------
+# internal mapping of escape sequences to key names
+_input_escape_sequences = {
+    f"{ESC}[A": "KEY_UP",
+    f"{ESC}[B": "KEY_DOWN",
+    f"{ESC}[C": "KEY_RIGHT",
+    f"{ESC}[D": "KEY_LEFT",
+    f"{ESC}[H": "KEY_HOME",
+    f"{ESC}[F": "KEY_END",
+    f"{ESC}[2~": "KEY_INSERT",
+    f"{ESC}[3~": "KEY_DELETE",
+    f"{ESC}[5~": "KEY_PAGEUP",
+    f"{ESC}[6~": "KEY_PAGEDOWN",
+    f"{ESC}OP": "KEY_F1",
+    f"{ESC}OQ": "KEY_F2",
+    f"{ESC}OR": "KEY_F3",
+    f"{ESC}OS": "KEY_F4",
+    f"{ESC}[15~": "KEY_F5",
+    f"{ESC}[17~": "KEY_F6",
+    f"{ESC}[18~": "KEY_F7",
+    f"{ESC}[19~": "KEY_F8",
+    f"{ESC}[20~": "KEY_F9",
+    f"{ESC}[21~": "KEY_F10",
+    f"{ESC}[23~": "KEY_F11",
+    f"{ESC}[24~": "KEY_F12",
+}
+
+_input_simple_keys = {
+    "\x7f": "KEY_BACKSPACE",  # typical terminal backspace
+    "\b": "KEY_BACKSPACE",    # alternate backspace representation
+    "\r": "KEY_ENTER",            # carriage return
+    "\n": "KEY_ENTER",            # newline (for some terminals)
+    "\t": "KEY_TAB",              # tab
+}
+
+def getch(timeout=None):
+    """
+    Return a canonical key name or None if timeout.
+    Handles:
+    - simple keys (backspace, enter, tab)
+    - escape sequences (arrows, function keys)
+    - single Escape key
+    - Ctrl-C -> KeyboardInterrupt
+    - Ctrl-D -> EOFError
+    """
+    fd = _current_input_stream.fileno()
+    old_settings = termios.tcgetattr(fd)
+    old_flags = None
+
+    try:
+        tty.setraw(fd)
+        if platform.system() != "Darwin":
+            old_flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            fcntl.fcntl(fd, fcntl.F_SETFL, old_flags | os.O_NONBLOCK)
+
+        r, _, _ = select.select([fd], [], [], timeout)
+        if not r:
+            return None
+
+        ch = _current_input_stream.read(1)
+
+        # check for Ctrl-C / Ctrl-D
+        if ch == "\x03":  # Ctrl-C
+            raise KeyboardInterrupt
+        if ch == "\x04":  # Ctrl-D
+            raise EOFError
+
+        # check simple keys
+        if ch in _input_simple_keys:
+            return _input_simple_keys[ch]
+
+        # handle escape sequences
+        if ch == ESC:
+            seq = ch
+            # if no extra char arrives quickly, it's a single ESC
+            r, _, _ = select.select([fd], [], [], 0.01)
+            if not r:
+                return "KEY_ESCAPE"
+
+            # otherwise, read remaining chars for multi-char sequence
+            while True:
+                r, _, _ = select.select([fd], [], [], 0.01)
+                if r:
+                    seq += _current_input_stream.read(1)
+                else:
+                    break
+
+            return _input_escape_sequences.get(seq, seq)
+
+        # normal printable character
+        return ch
+
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        # restore original flags if changed
+        if platform.system() != "Darwin" and old_flags is not None:
+            fcntl.fcntl(fd, fcntl.F_SETFL, old_flags)
+
+def getstr(prompt: str = "") -> str:
+    """Read a string from the user with full line editing support and insert/overwrite indicator."""
+    buf: list[str] = []
+    cursor = 0
+    insert_mode = True
+
+    # Print the prompt
+    if prompt:
+        echo(prompt, end="", flush=True)
+
+    # Save cursor position (start of input)
+    echo("{decsc:nostack}", end="", flush=True)
+
+    def draw_line():
+        """Redraw the buffer and insert/overwrite indicator with proper cursor positioning."""
+        mode = "[INS]" if insert_mode else "[OVR]"
+        total_len = len(buf) + len(mode)  # full string length including indicator
+
+        # Move to start of input
+        echo("{decrc:nostack}", end="", flush=True)
+
+        # Print the buffer
+        echo("".join(buf), end="", flush=True)
+
+        # Print insert/overwrite indicator
+        echo(f" {mode}", end="", flush=True)
+
+        # Move cursor back to logical position within buffer
+        if cursor < len(buf):
+            n = len(buf) - cursor
+            echo(f"{{cursorleft:{n + len(mode) + 1}}}", end="", flush=True)
+
+    draw_line()  # initial draw
+
+    while True:
+        key = getch()
+        if key is None:
+            continue
+
+        if key in ("\r", "\n", "KEY_ENTER"):
+            echo("{f6}", end="", flush=True)
+            return "".join(buf)
+
+        elif key == "KEY_BACKSPACE":
+            if cursor > 0:
+                del buf[cursor - 1]
+                cursor -= 1
+                echo("{cursorleft}", end="", flush=True)
+                draw_line()
+
+#        elif key == "KEY_DC":
+#            if cursor < len(buf):
+#                del buf[cursor]
+#                draw_line()
+
+        elif key == "KEY_LEFT":
+            if cursor > 0:
+                cursor -= 1
+                echo("{cursorleft}", end="", flush=True)
+
+        elif key == "KEY_RIGHT":
+            if cursor < len(buf):
+                cursor += 1
+                echo("{cursorright}", end="", flush=True)
+
+        elif key == "KEY_HOME":
+            if cursor > 0:
+                echo(f"{{cursorleft:{cursor}}}", end="", flush=True)
+                cursor = 0
+
+        elif key == "KEY_END":
+            if cursor < len(buf):
+                n = len(buf) - cursor
+                echo(f"{{cursorright:{n}}}", end="", flush=True)
+                cursor = len(buf)
+
+        elif key == "KEY_IC":  # Insert toggle
+            insert_mode = not insert_mode
+            draw_line()  # update indicator
+
+        else:
+            if insert_mode or cursor == len(buf):
+                buf.insert(cursor, key)
+            else:  # overwrite mode
+                buf[cursor] = key
+            echo(key, end="", flush=True)
+            cursor += 1
+#            draw_line()
 
 # ----------------------------
 # End of io.py
