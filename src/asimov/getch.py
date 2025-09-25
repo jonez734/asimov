@@ -36,9 +36,7 @@ KEY_MAP = {
     f"{ESC}[21~": "KEY_F10",
     f"{ESC}[23~": "KEY_F11",
     f"{ESC}[24~": "KEY_F12",
-    f"\r": "KEY_ENTER",
 }
-
 
 def getch_nonblocking(timeout=3.0):
     """Reads a single keypress without blocking and handles control/extended keys."""
@@ -77,7 +75,8 @@ def getch_nonblocking(timeout=3.0):
             raise KeyboardInterrupt
         if char == '\x04':  # Ctrl+D (EOT)
             raise EOFError
-        
+        if char in ('\x7F', '\x08'):
+            return "KEY_BACKSPACE"
         if char == '\r':
             return "KEY_ENTER"
             
@@ -98,7 +97,7 @@ def getch_nonblocking(timeout=3.0):
 
             # A. Check for plain ESC
             if len(sequence) == 1:
-                 return "ESC" # Plain ESC key was pressed (as no other bytes followed)
+                 return "KEY_ESC" # Plain ESC key was pressed (as no other bytes followed)
                  
             # B. Check for known escape sequences
             # Sort keys by length descending to match longest possible sequence first
@@ -122,10 +121,10 @@ def getch_nonblocking(timeout=3.0):
 if __name__ == "__main__":
     done = False
     while not done:
-        ch = getch_nonblocking()
+        ch = getch_nonblocking(timeout=0.01)
         if ch == "KEY_ENTER":
             break
-        else:
-            print(ch, end="", flush=True)
+        if ch is None:
+            continue
 
-    print(ch)
+        print(ch, end="", flush=True)
