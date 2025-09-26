@@ -29,12 +29,14 @@ import tty, termios # get_cursor_position()
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Iterator
 
+from bbsengine6 import screen
+
 DEFAULT_PALETTE_NAME = "c64"
 
 ESC   = "\x1B"
 #CSI   = "\x9B"
 CSI   = f"{ESC}["
-BELL  = "\007"
+BEL  = "\007"
 
 # ----------------------------
 # Token definition
@@ -478,6 +480,7 @@ _command_handlers = {
 
     # erase line
     "elo": r'el|eraseline',
+    "bel": r'bel|bell',
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers.items()]
@@ -749,10 +752,7 @@ def _handle_decsc(token):
     state.cursor_col = col
     state.wordwrap = _wordwrap
     state.color = _color
-#    if len(token.args) == 0:
     _terminal_states.append(state)
-#    else:
-#        _terminal_states[0] = state
 
     print(f"_handle_decsc.120: {state=} {_terminal_states=}")
     return iter(())
@@ -760,7 +760,7 @@ def _handle_decsc(token):
 def _handle_decrc(token):
     global _color, _cursor_col, _cursor_row, _wordwrap, _terminal_states
     print(f"_handle_decrc.100: {_terminal_states=}")
-    if len(token.args) == 0:
+    if len(token.args) == 1:
         state = _terminal_states.pop()
     else:
         state = _terminal_states[0]
@@ -1011,6 +1011,10 @@ def handler_dispatch(token):
     token.text = str(token.raw)
     yield token
     return False
+
+def _handle_bel(token):
+    token.text = BEL
+    yield token
 
 def _handle_command(token, palette=None, vars=None):
     """
@@ -1286,23 +1290,31 @@ def getch(timeout=None):
         if ch in _input_simple_keys:
             return _input_simple_keys[ch]
 
-        # handle escape sequences
-        if ch == ESC:
-            seq = ch
-            # if no extra char arrives quickly, it's a single ESC
-            r, _, _ = select.select([fd], [], [], 0.01)
-            if not r:
-                return "KEY_ESCAPE"
+        elif ch == ESC:
+            # Handle escape sequence
+            seq = ''
+            esc_start = time.time()
 
-            # otherwise, read remaining chars for multi-char sequence
-            while True:
-                r, _, _ = select.select([fd], [], [], 0.01)
-                if r:
-                    seq += _current_input_stream.read(1)
-                else:
-                    break
+            while time.time() - esc_start < 0.5:
+                rlist, _, _ = select.select([_current_input_stream], [], [], 0.01)
+                print(f"{rlist=}")
+                if rlist:
+                    try:
+                        next_ch = _current_input_stream.read(1)
+                    except (IOError, OSError):
+                        break
+                    if not next_ch:
+                        break
+                    seq += next_ch
+                    print(f"io.getch.100: {seq=}")
+                    if seq in KEYS:
+                        return KEYS[seq]
+#                else:
+#                    break
 
-            return _input_escape_sequences.get(seq, seq)
+            if not seq:
+                return "KEY_ESC"
+            return "\x1B" + seq  # Raw unknown escape sequence
 
         # normal printable character
         return ch
@@ -1324,7 +1336,11 @@ def getstr(prompt: str = "") -> str:
         echo(prompt, end="", flush=True)
 
     # Save cursor position (start of input)
-    echo("{decsc:nostack}", end="", flush=True)
+    echo("{decsc}", end="", flush=True)
+
+    def update_bottombar():
+        nonlocal insert_mode
+        screen.setbottombar("io_demo_getstr", "[INS]" if insert_mode else "[OVR]")
 
     def draw_line():
         """Redraw the buffer and insert/overwrite indicator with proper cursor positioning."""
@@ -1332,7 +1348,7 @@ def getstr(prompt: str = "") -> str:
         total_len = len(buf) + len(mode)  # full string length including indicator
 
         # Move to start of input
-        echo("{decrc:nostack}", end="", flush=True)
+        echo("{decrc}", end="", flush=True)
 
         # Print the buffer
         echo("".join(buf), end="", flush=True)
@@ -1346,6 +1362,7 @@ def getstr(prompt: str = "") -> str:
             echo(f"{{cursorleft:{n + len(mode) + 1}}}", end="", flush=True)
 
     draw_line()  # initial draw
+    update_bottombar()
 
     while True:
         key = getch()
