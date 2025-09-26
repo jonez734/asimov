@@ -72,14 +72,31 @@ def handle_backspace(buffer, curpos, scroll_offset, max_width):
         curpos -= 1
     return buffer, curpos, scroll_offset
 
+# --- New Helper Function for ^Y ---
+def handle_yank(buffer, curpos, scroll_offset, max_width):
+    global YANK_BUFFER
+    yank_text = YANK_BUFFER
+
+    # 1. Insert the yanked text at the cursor position
+    buffer = buffer[:curpos] + yank_text + buffer[curpos:]
+
+    # 2. Move the cursor past the inserted text
+    curpos += len(yank_text)
+
+    # Scroll offset adjustment will be handled by the main loop's scrolling logic
+    return buffer, curpos, scroll_offset
+
 # --- 3. Initial Mapping Setup ---
 # Map the initial key actions using the management function
 add_key_mapping("KEY_LEFT",      lambda b, cp, so, mw: handle_left(b, cp, so, mw))
 add_key_mapping("KEY_RIGHT",     lambda b, cp, so, mw: handle_right(b, cp, so, mw))
 add_key_mapping("KEY_HOME",      lambda b, cp, so, mw: handle_home(b, cp, so, mw))
+add_key_mapping("KEY_CTRL_A",    lambda b, cp, so, mw: handle_home(b, cp, so, mw))
 add_key_mapping("KEY_END",       lambda b, cp, so, mw: handle_end(b, cp, so, mw))
+add_key_mapping("KEY_CTRL_E",    lambda b, cp, so, mw: handle_end(b, cp, so, mw))
 add_key_mapping("KEY_BACKSPACE", lambda b, cp, so, mw: handle_backspace(b, cp, so, mw))
 add_key_mapping("KEY_CUTTOBOL",  lambda b, cp, so, mw: handle_cuttobol(b, cp, so, mw))
+add_key_mapping("KEY_YANK",      lambda b, cp, so, mw: handle_yank(b, cp, so, mw))
 
 def inputstring(prompt="> ", max_len:int=255, max_width=80):
     buffer = ""
