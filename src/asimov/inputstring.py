@@ -1,6 +1,86 @@
 from asimov.getch import getch_nonblocking as getch
 from asimov.io import echo, get_cursor_position
 
+# --- 1. Global Key Actions Dictionary ---
+# This dict stores the key_string: lambda mapping
+KEY_ACTIONS = {}
+
+def add_key_mapping(key_string, action_lambda):
+    """Adds or updates a key mapping."""
+    KEY_ACTIONS[key_string] = action_lambda
+
+def remove_key_mapping(key_string):
+    """Removes a key mapping."""
+    if key_string in KEY_ACTIONS:
+        del KEY_ACTIONS[key_string]
+
+# --- 2. Helper Functions (State Logic) ---
+
+# All helpers MUST accept (buffer, curpos, scroll_offset, max_width) and return the updated tuple.
+# max_width is included here because 'handle_end' and scrolling logic may depend on it.
+
+def handle_left(buffer, curpos, scroll_offset, max_width):
+    if curpos > 0:
+        curpos -= 1
+    return buffer, curpos, scroll_offset
+
+def handle_right(buffer, curpos, scroll_offset, max_width):
+    if curpos < len(buffer):
+        curpos += 1
+    else:
+        echo(f"{{bell}}")
+    return buffer, curpos, scroll_offset
+
+def handle_home(buffer, curpos, scroll_offset, max_width):
+    # Home resets cursor and scroll offset
+    return buffer, 0, 0
+
+def handle_end(buffer, curpos, scroll_offset, max_width):
+    # End moves cursor to the end of the buffer
+    curpos = len(buffer)
+    # Scrolling logic adjustment will be handled *after* the action in the main loop
+    return buffer, curpos, scroll_offset
+
+def handle_backspace(buffer, curpos, scroll_offset, max_width):
+    if curpos > 0:
+        buffer = buffer[:curpos-1] + buffer[curpos:]
+        curpos -= 1
+    else:
+        echo(f"{{bell}}")
+    return buffer, curpos, scroll_offset
+
+def handle_cuttobol(buffer, curpos, scroll_offset, max_width):
+    # Keeps text *after* the cursor, resets cursor/scroll
+    # 1. Store the part of the string *after* the cursor (the part we keep)
+    kept_suffix = buffer[curpos:]
+
+    # 2. Reset the buffer to only contain the kept suffix (erasing everything from 0 to curpos)
+    buffer = kept_suffix
+
+    # 3. Reset the cursor position to the new beginning of the buffer
+    curpos = 0
+
+    # 4. Adjust scroll offset if necessary (usually resetting to 0)
+    scroll_offset = 0
+
+    return buffer, curpos, scroll_offset
+
+def handle_backspace(buffer, curpos, scroll_offset, max_width):
+    if curpos > 0:
+        # Delete character before the cursor
+        buffer = buffer[:curpos-1] + buffer[curpos:]
+        curpos -= 1
+    return buffer, curpos, scroll_offset
+
+# --- 3. Initial Mapping Setup ---
+# Map the initial key actions using the management function
+add_key_mapping("KEY_LEFT",      lambda b, cp, so, mw: handle_left(b, cp, so, mw))
+add_key_mapping("KEY_RIGHT",     lambda b, cp, so, mw: handle_right(b, cp, so, mw))
+add_key_mapping("KEY_HOME",      lambda b, cp, so, mw: handle_home(b, cp, so, mw))
+add_key_mapping("KEY_END",       lambda b, cp, so, mw: handle_end(b, cp, so, mw))
+add_key_mapping("KEY_BACKSPACE", lambda b, cp, so, mw: handle_backspace(b, cp, so, mw))
+add_key_mapping("KEY_CUTTOBOL",  lambda b, cp, so, mw: handle_cuttobol(b, cp, so, mw))
+
 def inputstring(prompt="> ", max_len:int=255, max_width=80):
     buffer = ""
 
@@ -36,44 +116,22 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
         # Position the terminal cursor
         echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
         
+        # 2. get input
         ch = getch()
         if ch == "KEY_ENTER":
             return buffer
         elif ch is None:
             continue
-        elif ch == "KEY_HOME":
-            curpos = 0
-        elif ch == "KEY_END":
-            curpos = len(buffer)
-        elif ch == "KEY_LEFT":
-            if curpos > 0:
-                curpos -= 1
-            else:
-                echo(f"{{bell}}", flush=True)
-        elif ch == "KEY_RIGHT":
-            if curpos < len(buf):
-                curpos += 1
-            else:
-                echo(f"{{bell}}", flush=True)
 
-        elif ch == "KEY_CUTTOBOL":
-            # 1. Store the part of the string *after* the cursor (the part we keep)
-            kept_suffix = buffer[curpos:]
-            
-            # 2. Reset the buffer to only contain the kept suffix (erasing everything from 0 to curpos)
-            buffer = kept_suffix
-            
-            # 3. Reset the cursor position to the new beginning of the buffer
-            curpos = 0
-            
-            # 4. Adjust scroll offset if necessary (usually resetting to 0)
-            scroll_offset = 0
+       # 3. Execute Mapped Action (Special Keys)
+        if ch in KEY_ACTIONS:
+            # The lambda calls the specific helper function, passing all state variables
+            # and returns the new state (b, cp, so, mw).
+            # We explicitly update the state variables here.
+            buffer, curpos, scroll_offset = KEY_ACTIONS[ch](
+                buffer, curpos, scroll_offset, max_width
+            )
 
-        elif ch == "KEY_BACKSPACE":
-            if curpos > 0:
-                # Delete character before the cursor
-                buffer = buffer[:curpos-1] + buffer[curpos:]
-                curpos -= 1
         elif len(ch) == 1:
             if len(buffer) < max_len:
                 # Insert the character at the cursor position
