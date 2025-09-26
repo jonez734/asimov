@@ -81,12 +81,12 @@ def getch_nonblocking(timeout=3.0):
             return "KEY_ENTER"
             
         # 4. Handle Escape Sequences and Plain ESC
-        if char == '\x1b': # ESCAPE byte
+        if char == ESC: # ESCAPE byte
             sequence = char
             # Read subsequent bytes without blocking to check for a sequence
             # Wait a short period, then check up to a maximum number of bytes (e.g., 10)
             
-            # The critical logic: read more bytes *until* BlockingIOError
+            # The critical logic: read more bytes *until* BlockingIOError *or* 10 bytes read
             for _ in range(10): 
                 try:
                     # Reading one byte at a time is safest for sequential parsing
