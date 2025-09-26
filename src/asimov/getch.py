@@ -79,6 +79,8 @@ def getch_nonblocking(timeout=3.0):
             return "KEY_BACKSPACE"
         if char == '\r':
             return "KEY_ENTER"
+        if char == '\x15':
+            return "KEY_CUTTOBOL"
             
         # 4. Handle Escape Sequences and Plain ESC
         if char == ESC: # ESCAPE byte

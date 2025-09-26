@@ -56,6 +56,19 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
             else:
                 echo(f"{{bell}}", flush=True)
 
+        elif ch == "KEY_CUTTOBOL":
+            # 1. Store the part of the string *after* the cursor (the part we keep)
+            kept_suffix = buffer[curpos:]
+            
+            # 2. Reset the buffer to only contain the kept suffix (erasing everything from 0 to curpos)
+            buffer = kept_suffix
+            
+            # 3. Reset the cursor position to the new beginning of the buffer
+            curpos = 0
+            
+            # 4. Adjust scroll offset if necessary (usually resetting to 0)
+            scroll_offset = 0
+
         elif ch == "KEY_BACKSPACE":
             if curpos > 0:
                 # Delete character before the cursor
