@@ -754,12 +754,12 @@ def _handle_decsc(token):
     state.color = _color
     _terminal_states.append(state)
 
-    print(f"_handle_decsc.120: {state=} {_terminal_states=}")
+##    print(f"_handle_decsc.120: {state=} {_terminal_states=}")
     return iter(())
 
 def _handle_decrc(token):
     global _color, _cursor_col, _cursor_row, _wordwrap, _terminal_states
-    print(f"_handle_decrc.100: {_terminal_states=}")
+##    print(f"_handle_decrc.100: {_terminal_states=}")
     if len(token.args) == 1:
         state = _terminal_states.pop()
     else:
@@ -901,11 +901,20 @@ def _handle_cub(token):
     return
 
 def _handle_decstbm(token):
+    token.repeat = 1
+    if len(token.args) == 0:
+        token.text = f"{CSI}r"
+        yield token
+        return
+
     t = token.args[0]
     b = token.args[1]
-    token.repeat = 1
-    token.text = f"{CSI}{t};{b}r"
+    if t == "0" and b == "0":
+        token.text = f"{CSI}r"
+    else:
+        token.text = f"{CSI}{t};{b}r"
     yield token
+    return
 
 def _handle_reset(token):
     token.repeat = 1
