@@ -1,5 +1,6 @@
 from asimov.getch import getch_nonblocking as getch
 from asimov.io import echo, get_cursor_position
+from bbsengine6 import screen
 
 # --- 1. Global Key Actions Dictionary ---
 # This dict stores the key_string: lambda mapping
@@ -134,7 +135,9 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
         echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
         
         # 2. get input
-        ch = getch()
+        ch = getch(timeout=0.015)
+        screen.setbottombar("asimov.inputstring", f"{ch=}")
+        echo(f"{ch=}", flush=True)
         if ch == "KEY_ENTER":
             return buffer
         elif ch is None:
@@ -175,5 +178,9 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
     return buffer
 
 if __name__ == "__main__":
-    buf = inputstring("> ")
-    echo(f"{{f6:3}}{buf=}{{f6:3}}")
+    screen.init()
+    try:
+        buf = inputstring("> ")
+        echo(f"{{f6:3}}{buf=}")
+    finally:
+        echo(f"{{savecursor}}{{decstbm}}{{reset}}{{restorecursor}}aaa", flush=True)
