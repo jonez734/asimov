@@ -71,17 +71,21 @@ def getch_nonblocking(timeout=3.0):
             return None
         
         # 3. Handle Control Characters
+        if char == "\x01":
+            return "KEY_CTRL_A"
         if char == '\x03':  # Ctrl+C (ETX)
             raise KeyboardInterrupt
         if char == '\x04':  # Ctrl+D (EOT)
             raise EOFError
+        if char == '\x05': # ctrl-e (EOL)
+            return "KEY_CTRL_E"
         if char in ('\x7F', '\x08'):
             return "KEY_BACKSPACE"
         if char == '\r':
             return "KEY_ENTER"
-        if char == '\x15':
+        if char == '\x15': # ctrl-u
             return "KEY_CUTTOBOL"
-            
+
         # 4. Handle Escape Sequences and Plain ESC
         if char == ESC: # ESCAPE byte
             sequence = char
