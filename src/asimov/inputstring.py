@@ -1,6 +1,8 @@
-from asimov.getch import getch_nonblocking as getch
-from asimov.io import echo, get_cursor_position
-from bbsengine6 import screen
+from asimov.io.echo import echo
+from asimov.io.getch import getch_str as getch
+from asimov.io.common import  get_cursor_position, _current_stream_lock, _cursor_row, _cursor_col
+from asimov.io.util import setbottombar, screen_init, terminal_lines
+from asimov.util import logentry
 
 # --- 1. Global Key Actions Dictionary ---
 # This dict stores the key_string: lambda mapping
@@ -71,9 +73,11 @@ def handle_backspace(buffer, curpos, scroll_offset, max_width):
         # Delete character before the cursor
         buffer = buffer[:curpos-1] + buffer[curpos:]
         curpos -= 1
+    else:
+        echo("{bell}", end="", flush=True)
     return buffer, curpos, scroll_offset
 
-# --- New Helper Function for ^Y ---
+# --- Helper Function for ^Y ---
 def handle_yank(buffer, curpos, scroll_offset, max_width):
     global YANK_BUFFER
     yank_text = YANK_BUFFER
@@ -87,6 +91,44 @@ def handle_yank(buffer, curpos, scroll_offset, max_width):
     # Scroll offset adjustment will be handled by the main loop's scrolling logic
     return buffer, curpos, scroll_offset
 
+def handle_help(buffer, curpos, scroll_offset, max_width):
+    logentry("handle_help.100: trace")
+    return buffer, curpos, scroll_offset
+
+def handle_tab(buffer, curpos, scroll_offset, max_width, matches=[]):
+##    matches = completer(buffer, curpos)
+    if not matches:
+        return buffer, curpos, scroll_offset
+
+    prefix, word_start, word_end = get_current_word(buffer, curpos)
+
+    if len(matches) == 1:
+        # Only one match → complete directly
+        word = matches[0]
+        buffer = buffer[:word_start] + word + buffer[word_end:]
+        curpos = word_start + len(word)
+        redraw_line(prompt, buffer, max_len, start_row, start_col, curpos)
+        tab_count = 0
+        last_matches = []
+    else:
+        if matches == last_matches:
+            # second tab press → show all matches
+            echo("\n")
+            print_matches(matches)
+            redraw_line(prompt, buffer, max_len, start_row, start_col, curpos)
+            tab_count = 0
+        else:
+            # first tab press → insert longest common prefix
+            lcp = common_prefix(matches)
+            if lcp and lcp != prefix:
+                buffer = buffer[:word_start] + lcp + buffer[word_end:]
+                curpos = word_start + len(lcp)
+                redraw_line(prompt, buffer, max_len, start_row, start_col, curpos)
+            last_matches = matches
+            tab_count = 1
+
+    return buffer, curpos, scroll_offset
+
 # --- 3. Initial Mapping Setup ---
 # Map the initial key actions using the management function
 add_key_mapping("KEY_LEFT",      lambda b, cp, so, mw: handle_left(b, cp, so, mw))
@@ -98,6 +140,25 @@ add_key_mapping("KEY_CTRL_E",    lambda b, cp, so, mw: handle_end(b, cp, so, mw)
 add_key_mapping("KEY_BACKSPACE", lambda b, cp, so, mw: handle_backspace(b, cp, so, mw))
 add_key_mapping("KEY_CUTTOBOL",  lambda b, cp, so, mw: handle_cuttobol(b, cp, so, mw))
 add_key_mapping("KEY_YANK",      lambda b, cp, so, mw: handle_yank(b, cp, so, mw))
+add_key_mapping("KEY_F1",        lambda b, cp, so, mw: handle_help(b, cp, so, mw))
+
+def redraw_line(prompt, buffer, max_len, start_row, start_col, curpos):
+    echo(f"\r{prompt}{buffer}{' ' * (max_len - len(buffer))}")
+    move_cursor(start_row, start_col + len(prompt) + curpos)
+
+def print_matches(matches: list[str]):
+    """
+    Print matches in neat rows/columns depending on terminal width.
+    """
+    cols, _ = shutil.get_terminal_size((80, 20))
+    longest = max(len(m) for m in matches) + 2
+    per_line = max(1, cols // longest)
+    for i, m in enumerate(matches, 1):
+        echo(m.ljust(longest))
+        if i % per_line == 0:
+            echo("{f6}")
+    if len(matches) % per_line != 0:
+        echo("{f6}")
 
 def inputstring(prompt="> ", max_len:int=255, max_width=80):
     buffer = ""
@@ -113,35 +174,48 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
     # Calculate the column where the editable input area begins
     input_col_start = start_col + prompt_len
 
+    _current_display_str = None
+
     done = False
     while not done:
         # 1. Redraw the input area
         # Calculate the string segment to display
         display_str = buffer[scroll_offset : scroll_offset + max_width]
-#        echo(f"{display_str=} {scroll_offset=} {max_width=}", flush=True)
-        
-        # Clear the old input (optional, but good practice for clean display)
-        # Using ANSI escape codes for cursor positioning and clearing
-        echo(f"{{curpos:{start_row},{input_col_start}}}{' ' * max_width}", end="", flush=True)
+        if _current_display_str != display_str:
+            # Clear the old input (optional, but good practice for clean display)
+            # Using ANSI escape codes for cursor positioning and clearing
+            echo(f"{{curpos:{start_row},{input_col_start}}}{' ' * max_width}", end="", flush=True)
 
-        # Print the current viewable part of the buffer
-        echo(f"{{curpos:{start_row},{input_col_start}}}{display_str}", end="", flush=True)
+            # Print the current viewable part of the buffer
+            echo(f"{{curpos:{start_row},{input_col_start}}}")
+            echo(f"{display_str}", flush=True, raw=True)
 
-        # Calculate the *display column* for the cursor
-        # The cursor display position is: input_col_start + (curpos - scroll_offset)
-        cursor_display_col = input_col_start + (curpos - scroll_offset)
-        
-        # Position the terminal cursor
-        echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
+            # Calculate the *display column* for the cursor
+            # The cursor display position is: input_col_start + (curpos - scroll_offset)
+            cursor_display_col = input_col_start + (curpos - scroll_offset)
+
+            # Position the terminal cursor
+            echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
+
+            _cursor_row = start_row
+            _cursor_col = cursor_display_col
+
+            _current_display_str = display_str
+
+##            _current_state.cursor_col = curpos
         
         # 2. get input
         ch = getch(timeout=0.015)
-        screen.setbottombar("asimov.inputstring", f"{ch=}")
-        echo(f"{ch=}", flush=True)
         if ch == "KEY_ENTER":
             return buffer
         elif ch is None:
             continue
+
+        if ch == "KEY_TAB" and callable(completer):
+            buffer, curpos, last_matches, tab_count = handle_tab(
+                buffer, curpos, completer, last_matches, tab_count,
+                prompt, max_len, start_row, start_col
+            )
 
        # 3. Execute Mapped Action (Special Keys)
         if ch in KEY_ACTIONS:
@@ -151,7 +225,6 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
             buffer, curpos, scroll_offset = KEY_ACTIONS[ch](
                 buffer, curpos, scroll_offset, max_width
             )
-
         elif len(ch) == 1:
             if len(buffer) < max_len:
                 # Insert the character at the cursor position
@@ -173,14 +246,11 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
         if scroll_offset < 0:
             scroll_offset = 0
 
-    # --- Final Cleanup ---
-#    echo(f"{{f6}}", end="", flush=True)
-    return buffer
+        # Always recalc cursor position
+        cursor_display_col = input_col_start + (curpos - scroll_offset)
+        echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
 
-if __name__ == "__main__":
-    screen.init()
-    try:
-        buf = inputstring("> ")
-        echo(f"{{f6:3}}{buf=}")
-    finally:
-        echo(f"{{savecursor}}{{decstbm}}{{reset}}{{restorecursor}}aaa", flush=True)
+        _cursor_row = start_row
+        _cursor_col = cursor_display_col
+
+    return buffer
