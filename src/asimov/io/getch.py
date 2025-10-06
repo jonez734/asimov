@@ -1,46 +1,16 @@
 import os
 import sys
 import tty
-import time
 import select
 import fcntl
 import termios
 from collections import deque
 
-from .io import _current_input_stream, _current_stream_lock, _input_queue, _read_current_input_stream
-from .util import logentry
 
-ESC = '\x1b'
-ETX = '\x03' # ctrl-c
-EOF = '\x04' # ctrl-d
-
-# Dictionary to map ANSI escape sequences to logical key names
-# This is a MINIMAL subset—a robust solution requires a much larger map.
-KEY_MAP = {
-    f"{ESC}[A": "KEY_UP",
-    f"{ESC}[B": "KEY_DOWN",
-    f"{ESC}[C": "KEY_RIGHT",
-    f"{ESC}[D": "KEY_LEFT",
-    f"{ESC}[H": "KEY_HOME",
-    f"{ESC}[F": "KEY_END",
-    f"{ESC}[2~": "KEY_INSERT",
-    f"{ESC}[3~": "KEY_DELETE",
-    f"{ESC}[5~": "KEY_PAGEUP",
-    f"{ESC}[6~": "KEY_PAGEDOWN",
-    f"{ESC}OP": "KEY_F1",
-#    f"{ESC}OP": "KEY_HELP", # PF1
-    f"{ESC}OQ": "KEY_F2",
-    f"{ESC}OR": "KEY_F3",
-    f"{ESC}OS": "KEY_F4",
-    f"{ESC}[15~": "KEY_F5",
-    f"{ESC}[17~": "KEY_F6",
-    f"{ESC}[18~": "KEY_F7",
-    f"{ESC}[19~": "KEY_F8",
-    f"{ESC}[20~": "KEY_F9",
-    f"{ESC}[21~": "KEY_F10",
-    f"{ESC}[23~": "KEY_F11",
-    f"{ESC}[24~": "KEY_F12",
-}
+from .common import _current_input_stream, _current_stream_lock, _input_queue, _read_current_input_stream
+from ..util import logentry
+from .keymap import KEY_MAP
+from .const import ESC, ETX, EOF
 
 #def _read():
 #    if _input_queue:
@@ -51,9 +21,9 @@ def _proc_char(char:str) -> str:
     # 3. Handle Control Characters
     if char == "\x01":
         return "KEY_CTRL_A"
-    if char == '\x03':  # Ctrl+C (ETX)
+    if char == ETX:  # Ctrl+C (ETX)
         raise KeyboardInterrupt
-    if char == '\x04':  # Ctrl+D (EOT)
+    if char == EOF:  # Ctrl+D (EOF)
         raise EOFError
     if char == '\x05': # ctrl-e (EOL)
         return "KEY_CTRL_E"
