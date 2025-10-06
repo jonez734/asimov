@@ -4,12 +4,17 @@ from OpenGL.GLUT import *
 from math import log2, ceil
 import struct
 from dataclasses import dataclass, field
+import time
 
 import numpy as np
+
+from . import io
 
 import cv2
 
 MAX_BLOCK_SIZE = 128
+
+LOGGER_NAME = "asimov"
 
 # @since 20250326
 def render_text(text, x, y, font=GLUT_BITMAP_8_BY_13,
@@ -249,91 +254,190 @@ def calculate_total_blocks_in_frame(frame_width, frame_height, block_size):
     rows = ceil(frame_height / block_size)
     return cols * rows
 
+def _blend_bgr(img_bgr, overlay_bgr, alpha_mask):
+    """Blend overlay_bgr into img_bgr using per-pixel alpha_mask (0..1). In-place."""
+    # alpha_mask: (h,w) float32 0..1
+    a = alpha_mask[..., None]  # (h,w,1)
+    img_f = img_bgr.astype(np.float32)
+    over_f = overlay_bgr.astype(np.float32)
+    out = over_f * a + img_f * (1.0 - a)
+    np.copyto(img_bgr, np.clip(out, 0, 255).astype(np.uint8))
+
+
+def _composite_rgba(img_rgba, overlay_bgr, overlay_a):
+    """
+    Proper alpha-composite overlay_bgr (with overlay_a 0..1) over img_rgba (BGRA).
+    In-place.
+    """
+    img_c = img_rgba[..., :3].astype(np.float32)
+    img_a = img_rgba[..., 3].astype(np.float32) / 255.0
+
+    over_c = overlay_bgr.astype(np.float32)
+    over_a = overlay_a.astype(np.float32)
+
+    # new alpha per pixel
+    new_a = over_a + img_a * (1.0 - over_a)
+
+    # premultiplied result colors
+    out_premul = over_c * over_a[..., None] + img_c * (img_a * (1.0 - over_a))[..., None]
+
+    # un-premultiply where new_a > 0
+    result_c = np.zeros_like(out_premul, dtype=np.float32)
+    mask = new_a > 1e-8
+    result_c[mask] = out_premul[mask] / new_a[mask, None]
+
+    img_rgba[..., :3] = np.clip(result_c, 0, 255).astype(np.uint8)
+    img_rgba[..., 3] = np.clip(new_a * 255.0, 0, 255).astype(np.uint8)
+
+
 def draw_text(img, x, y, text,
               color=(255, 255, 255), alpha=1.0,
-              shadow_offset=1, shadow_color=(0, 0, 0), shadow_alpha=1.0,
+              shadow_offset=1, shadow_color=(128, 128, 128), shadow_alpha=1.0,
               thickness=1, font_scale=0.5,
               font=cv2.FONT_HERSHEY_SIMPLEX):
-    """
-    Draw text with a shadow effect using OpenCV, supporting BGR and BGRA images.
 
-    Parameters:
-        img (np.ndarray): Image to draw on (BGR or BGRA).
-        x, y (int): Coordinates of the text baseline.
-        text (str): Text string to draw.
-        color (tuple): Text color (B, G, R) or (B, G, R, A) if alpha channel included.
-        alpha (float): Opacity of main text (0.0 to 1.0).
-        shadow_offset (int or tuple): Offset for the shadow in pixels.
-                                      If int, offset applies to both x and y (right/down if positive, left/up if negative).
-                                      If 0, no shadow is drawn.
-                                      If tuple (x_offset, y_offset), offset applies separately on x and y.
-        shadow_color (tuple): Shadow color (B, G, R) or (B, G, R, A).
-        shadow_alpha (float): Opacity of shadow (0.0 to 1.0).
-        thickness (int): Thickness of the text stroke.
-        font_scale (float): Scale factor for the text size.
-        font (int): OpenCV font type.
-    """
     is_rgba = (img.shape[2] == 4)
+    h, w = img.shape[:2]
 
-    # Normalize shadow_offset to tuple (x_off, y_off)
-    if isinstance(shadow_offset, int):
-        x_off = shadow_offset
-        y_off = shadow_offset
-    else:
-        x_off, y_off = shadow_offset
+#    print(f"{is_rgba=} {h=} {w=}")
 
-    # Draw shadow only if offset != (0,0)
-    if x_off != 0 or y_off != 0:
-        overlay = np.zeros_like(img, dtype=np.uint8)
-        cv2.putText(overlay, text, (x + x_off, y + y_off),
-                    font, font_scale, shadow_color[:3], thickness, cv2.LINE_AA)
-        if is_rgba:
-            overlay[:, :, 3] = np.where(
-                cv2.cvtColor(overlay[:, :, :3], cv2.COLOR_BGR2GRAY) > 0,
-                int(shadow_alpha * 255), 0
-            )
-            mask = overlay[:, :, 3] > 0
-            img[mask] = overlay[mask]
+    def make_overlay_and_mask(tx, ty, col):
+        """Draw text onto a blank image and return overlay + alpha mask."""
+        overlay = np.zeros((h, w, 3), dtype=np.uint8)
+        cv2.putText(overlay, text, (tx, ty), font, font_scale,
+                    tuple(int(c) for c in col[:3]), thickness, cv2.LINE_AA)
+        mask = cv2.cvtColor(overlay, cv2.COLOR_BGR2GRAY) > 0
+        return overlay, mask.astype(np.float32)
+
+    def blend_bgr(dst, overlay, mask, alpha_val):
+        """Blend overlay into dst only where mask is nonzero."""
+        m = (mask * alpha_val)[..., None]
+        dst[:] = (overlay * m + dst * (1 - m)).astype(np.uint8)
+
+    def blend_rgba(dst, overlay, mask, alpha_val):
+        """Blend overlay into BGRA image."""
+        m = (mask * alpha_val)[..., None]
+        dst_rgb = dst[..., :3].astype(np.float32)
+        over_rgb = overlay.astype(np.float32)
+        dst[..., :3] = (over_rgb * m + dst_rgb * (1 - m)).astype(np.uint8)
+        # Leave alpha channel unchanged (we could modify if desired)
+
+    # --- Draw shadow ---
+    if shadow_offset != 0 and (isinstance(shadow_offset, tuple) or shadow_offset != 0):
+        if isinstance(shadow_offset, int):
+            sx, sy = shadow_offset, shadow_offset
         else:
-            img[:] = cv2.addWeighted(overlay, shadow_alpha, img, 1 - shadow_alpha, 0)
+            sx, sy = shadow_offset
+        shadow_overlay, shadow_mask = make_overlay_and_mask(x + sx, y + sy, shadow_color)
+        if not is_rgba:
+            blend_bgr(img, shadow_overlay, shadow_mask, shadow_alpha)
+        else:
+            blend_rgba(img, shadow_overlay, shadow_mask, shadow_alpha)
 
-    # Draw main text
-    text_layer = np.zeros_like(img, dtype=np.uint8)
-    cv2.putText(text_layer, text, (x, y),
-                font, font_scale, color[:3], thickness, cv2.LINE_AA)
-    if is_rgba:
-        text_layer[:, :, 3] = np.where(
-            cv2.cvtColor(text_layer[:, :, :3], cv2.COLOR_BGR2GRAY) > 0,
-            int(alpha * 255), 0
-        )
-        mask = text_layer[:, :, 3] > 0
-        img[mask] = text_layer[mask]
+    # --- Draw main text ---
+    text_overlay, text_mask = make_overlay_and_mask(x, y, color)
+    if not is_rgba:
+        blend_bgr(img, text_overlay, text_mask, alpha)
     else:
-        img[:] = cv2.addWeighted(text_layer, alpha, img, 1 - alpha, 0)
+        blend_rgba(img, text_overlay, text_mask, alpha)
 
     return img
 
-def get_bottom_right_position(frame, text, font, font_scale, thickness, padding=10):
+def get_bottom_right_position(frame, text, font, font_scale=1.0, thickness=2, padding=10):
     """
     Calculate (x, y) starting position to draw text in the lower-right corner with padding.
 
-    Parameters:
-        frame (np.ndarray): The image/frame to draw on.
-        text (str): Text string to measure.
-        font (int): OpenCV font type (e.g., cv2.FONT_HERSHEY_SIMPLEX).
-        font_scale (float): Font scale.
-        thickness (int): Thickness of text.
-        padding (int): Padding from the edges in pixels.
-
     Returns:
-        (x, y) tuple: Coordinates for cv2.putText baseline start point.
+        (x, y): Baseline start point for cv2.putText().
     """
-    text_size, baseline = cv2.getTextSize(text, font, font_scale, thickness)
-    text_width, text_height = text_size
-
+    (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
     frame_height, frame_width = frame.shape[:2]
 
-    x = frame_width - text_width - padding
-    y = frame_height - baseline - padding
+    # x is left edge of text so that right edge is at (frame_width - padding)
+    x = frame_width - padding - text_width
+    # y is the baseline so that bottom of text is at (frame_height - padding)
+    y = frame_height - padding - baseline
 
     return x, y
+
+def get_device_by_label(label:str):
+    base = "/sys/class/video4linux"
+    for dev in os.listdir(base):
+        card_path = os.path.join(base, dev, "name")
+        try:
+            with open(card_path, "r") as f:
+                name = f.read().strip()
+            if name == label:
+                return f"/dev/{dev}"
+        except FileNotFoundError:
+            continue
+    return None
+
+#path = find_device_by_label("PyVirtualCam")
+#if path:
+#    print("Found:", path)
+#else:
+#    print("Not found")
+
+def camera_ready(cap, timeout=5):
+    start_time = time.time()
+    while True:
+        ret, frame = cap.read()
+        if frame is not None:
+            return True  # Camera gave a valid frame
+        print("waiting...")
+        if time.time() - start_time >= timeout:
+            print("camera_ready(): timeout")
+            return False  # Timeout reached, return failure
+        time.sleep(0.1)  # Avoid busy waiting
+
+
+# ---------
+# logging
+# ---------
+import logging
+import logging.handlers
+
+# default syslog handler
+default_handler = logging.handlers.SysLogHandler(address="/dev/log")
+default_formatter = logging.Formatter('%(name)s[%(process)d]: %(levelname)s %(message)s')
+default_handler.setFormatter(default_formatter)
+
+def logentry(message, level=logging.INFO, *, handler=None, formatter=None, logger_name=LOGGER_NAME):
+    """
+    Write a log entry to syslog (by default), with optional handler/formatter overrides.
+
+    Args:
+        message (str): The log message.
+        level (int): Logging level (default=logging.INFO).
+        handler (logging.Handler, optional): Custom logging handler.
+        formatter (logging.Formatter, optional): Custom formatter.
+        logger_name (str): Name for the logger (default="myapp").
+    """
+
+    h = handler or default_handler
+    f = formatter or default_formatter
+
+    # Ensure formatter is applied
+    h.setFormatter(f)
+
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.DEBUG)   # capture all levels
+    if not any(isinstance(x, type(h)) for x in logger.handlers):
+        logger.addHandler(h)
+
+    levels = {
+        "debug":    logging.DEBUG,
+        "info":     logging.INFO,
+        "warn":     logging.WARNING,
+        "warning":  logging.WARNING,
+        "error":    logging.ERROR,
+        "critical": logging.CRITICAL,
+#        "exception":logging.EXCEPTION,
+    }
+
+    if level in levels:
+        level = levels[level]
+
+    logger.log(level, message)
+    return
