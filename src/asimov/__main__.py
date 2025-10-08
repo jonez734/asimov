@@ -28,7 +28,7 @@ if __name__ == "__main__":
     time.tzset()
 
     try:
-        libasimov.runmodule(args, "main") # asimov.main.main(args) # module.run(args, "main") # main(args) # lib.runsubmodule(args, "main") # module.main(args)
+        libasimov.runmodule(args, "main_virtualcam") # asimov.main.main(args) # module.run(args, "main") # main(args) # lib.runsubmodule(args, "main") # module.main(args)
     except KeyboardInterrupt:
         io.echo("{/all}*INTR*")
     except EOFError:
