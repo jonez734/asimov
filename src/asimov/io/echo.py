@@ -18,17 +18,53 @@ from .const import CSI, BEL, ESC
 
 from .common import terminal_columns, Token, write_current_output_stream, get_cursor_position, _cursor_row, _cursor_col
 
-from .palette import c64_palette, get_current_palette, get_palette_entry
+from .palette import c64_palette, get_current_palette, get_palette_entry, rgb
 
 _previous_token = Token("UNKNOWN")
+
+_skin = {
+"theanswer": 42,
+"engine.title.color": "{bggray}{white}",
+"engine.title.hrcolor": "{darkgreen}",
+
+"optioncolor": "{white}{bggray}",
+"currentoptioncolor": "{bgwhite}{gray}",
+"bottombarcolor": "{bggray}{white}",
+"promptcolor": "{/bgcolor}{white}", # {lightgray}",
+"inputcolor": "{/bgcolor}{green}",
+"normalcolor": "{/bgcolor}{lightgray}",
+"highlightcolor": "{green}",
+"labelcolor": "{/bgcolor}{lightgray}",
+"valuecolor": "{/bgcolor}{green}",
+"hrcolor": "{/bgcolor}{gray}",
+"acscolor": "{/bgcolor}{gray}", # @since 20220916
+"sepcolor": "{lightgray}", # @since 20220924
+
+"level.debug": "{bglightblue}{blue}",
+"level.warning": "{bgyellow}{black}",
+"level.error": "{bgred}{black}",
+"level.ok": "{bggreen}{black}",
+"level.info": "{bgwhite}{blue}",
+"level.crit": "{bgblue}{white]",
+
+#"engine.menu.boxcharcolor": "{bglightgray}{darkgreen}",
+#"engine.menu.color": "{bggray}",
+#"engine.menu.shadowcolor": "{bgdarkgray}",
+#"engine.menu.cursorcolor": "{bglightgray}{blue}",
+#"engine.menu.boxcolor": "{bgblue}{green}",
+#"engine.menu.titlecolor": "{black}{bglightgray}",
+#"engine.menu.disableditemcolor": "{darkgray}",
+#"engine.menu.resultfailedcolor": "{bgred}{white}",
+}
 
 # Runtime variables dictionary
 _runtime_vars = {}
 
 _runtime_vars.update({"cls": "{erasedisplay}{home}"})
 _runtime_vars.update({"home": "{curpos:1,1}"})
-_runtime_vars.update({"bottombarcolor": "{bglightgray}{black}"})
 _runtime_vars.update({"/all": "{reset}"})
+
+_runtime_vars.update(_skin)
 
 def set_var(name, value):
     """Set a runtime variable for use in {var:<name>} or {<name>} commands."""
@@ -40,44 +76,6 @@ def get_var(name, default=None):
 # ----------------------------
 # Command patterns
 # ----------------------------
-command_patterns = [
-    # hard newline
-    ("F6",       r'\{f6(?::(?P<repeat>\d+))?\}'),
-
-    # reset all attributes
-    ("RESET",    r'\{/?reset\}'),
-
-    # clear screen (ED modes: 0=down, 1=up, 2=entire)
-    ("ERASEDISPLAY", r'\{erasedisplay(?::(?P<mode>[012]))?\}'),
-
-    # home: equivalent to CURPOS 1,1
-    ("HOME",     r'\{home\}'),
-
-    # cursor positioning: optional y and x, 1-based
-    ("CURPOS",   r'\{curpos(?::(?P<y>\d+)(,(?P<x>\d+))?)?\}'),
-
-    # erase line: EL modes: 0=right, 1=left, 2=entire
-    ("ERASELINE", r'\{(?:eraseline|el)(:(?P<mode>[012]))?\}'),
-
-    # cursor horizontal absolute (CHA)
-    ("CHA",      r'\{cha(:(?P<chanum>\d{1,3}))?\}'),
-
-    # cursor movements (repeat n)
-    ("CUP",      r'\{cup|cursorup(?::(?P<repeat>\d+))?\}'),
-    ("CUD",      r'\{cud|cursordown(?::(?P<repeat>\d+))?\}'),
-    ("CUF",      r'\{cuf|cursorforward|cursorleft(?::(?P<repeat>\d+))?\}'),
-    ("CUB",      r'\{cub|cursorright|cursorback|cursorbackward(?::(?P<repeat>\d+))?\}'),
-
-    # RGB colors, fg by default
-    ("RGB",      r'\{rgb(?::(?P<fgbg>fg|bg))?:(?P<spec>[#\d,]+)\}'),
-
-    # ACS characters (optional repeat)
-    ("ACS",      r'\{acs:(?P<name>\w+)(?::(?P<repeat>\d+))?\}'),
-
-    # run-time variables
-    ("VAR",      r'\{var:(?P<name>\w+)\}'),
-]
-
 _command_handlers = {
     # cursor movements (repeat n)
     "cuu":     r'cup|cuu|cursorup',
@@ -110,6 +108,10 @@ _command_handlers = {
     # erase line
     "elo": r'el|eraseline',
     "bel": r'bel|bell',
+
+    # clear fg or bg color
+    "slashfgcolor": r'/fgcolor',
+    "slashbgcolor": r'/bgcolor',
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers.items()]
@@ -174,8 +176,8 @@ def tokenize(text):
         m = re.match(_emoji_re, text[pos:])
         if m:
             name = m.group("name").lower()
-            tok = Token(kind="EMOJI", value=name, raw=m.group(0))
-            yield from _handle_emoji(tok)
+            token = Token(kind="EMOJI", value=name, raw=m.group(0))
+            yield from _handle_emoji(token)
             pos += m.end()
             continue
 
@@ -363,7 +365,7 @@ def _handle_var(token):
     return
 
 def _handle_rgb(token):
-    print(f"_handle_rgb.100: {token=}")
+##    print(f"_handle_rgb.100: {token=}")
     if len(token.args) == 2:
         mode = 38 if token.args[0] == "fg" else 48
         token.text = rgb(mode, token.args[1])
@@ -392,7 +394,7 @@ def _handle_f6(token):
     global _cursor_col
 
     repeat = int(token.args[0]) if token.args else 1
-    token.repeat = repeat
+    token.repeat = 1
     token.text = "\n"*repeat
     token.kind = "F6"
 
@@ -474,6 +476,18 @@ def _handle_reset(token):
 
 def _handle_unknown(token):
     token.text = f"{token.kind=}: no registered handler"
+    yield token
+
+def _handle_slashfgcolor(token):
+    if len(token.args) > 0:
+      raise ValueError
+    token.text = f"{CSI}39m"
+    yield token
+
+def _handle_slashbgcolor(token):
+    if len(token.args) > 0:
+      raise ValueError
+    token.text = f"{CSI}49m"
     yield token
 
 PARAM_SPLIT_RE = re.compile(r"[:,]")
@@ -808,7 +822,7 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
 
             if _wordwrap and _cursor_col + word_len > width - 1:
                 # insert hard newline before this word/space
-                yield Token("F6", raw="{f6}", text="*\n")
+                yield Token("F6", raw="{f6}", text="\n")
                 _cursor_col = 0
 
             _cursor_col += word_len
@@ -816,6 +830,7 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
         elif token.kind == "WHITESPACE":
             if _previous_token.kind == "F6" and token.text == " ":
                 continue
+            _cursor_col += len(token.text)
             yield token
         elif token.kind == "F6":
             yield from _handle_f6(token)
