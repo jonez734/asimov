@@ -160,7 +160,7 @@ def print_matches(matches: list[str]):
     if len(matches) % per_line != 0:
         echo("{f6}")
 
-def inputstring(prompt="> ", max_len:int=255, max_width=80):
+def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None):
     buffer = ""
 
     curpos = 0
@@ -188,7 +188,10 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
 
             # Print the current viewable part of the buffer
             echo(f"{{curpos:{start_row},{input_col_start}}}")
-            echo(f"{display_str}", flush=True, raw=True)
+            if mask is not None:
+                echo(f"{mask*len(display_str)}", end="", flush=True)
+            else:
+                echo(f"{display_str}", flush=True, raw=True)
 
             # Calculate the *display column* for the cursor
             # The cursor display position is: input_col_start + (curpos - scroll_offset)
@@ -231,7 +234,7 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
                 buffer = buffer[:curpos] + ch + buffer[curpos:]
                 curpos += 1
 
-        # 5. Handle Scrolling Logic (Key Requirement)
+        # 4. Handle Scrolling Logic (Key Requirement)
         # Scroll right if cursor moves past the visible right edge
         if curpos >= scroll_offset + max_width:
             # Adjust offset so cursor is at the right edge
@@ -247,8 +250,9 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80):
             scroll_offset = 0
 
         # Always recalc cursor position
-        cursor_display_col = input_col_start + (curpos - scroll_offset)
-        echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
+        if mask != "":
+            cursor_display_col = input_col_start + (curpos - scroll_offset)
+            echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
 
         _cursor_row = start_row
         _cursor_col = cursor_display_col
