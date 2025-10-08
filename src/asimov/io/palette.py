@@ -68,7 +68,7 @@ ansi_palette = {
     "lightmagenta": f"{CSI}95m",
     "lightcyan":    f"{CSI}96m",
     "lightwhite":   f"{CSI}97m",
-    # Reset
+##    # Reset
 ##    "reset":        f"{CSI}0m",
 }
 
@@ -89,7 +89,7 @@ c64_palette = {
     'lightpurple': rgb(38, "#ff77ff"),
     'lightgreen': rgb(38, "#aaff66"),
     'lightblue': rgb(38, "#0088ff"),
-    'lightgray': rgb(38, "#bbbbbb")
+    'lightgray': rgb(38, "#bbbbbb"),
 }
 
 def set_palette(palette_name):
@@ -100,7 +100,6 @@ def set_palette(palette_name):
         _current_palette = c64_palette
 
 def get_palette(name=DEFAULT_PALETTE_NAME):
-##    print(f"get_palette.100: {name=}")
     if name == "c64":
         return c64_palette
     elif name == "ansi":
@@ -112,7 +111,6 @@ def get_current_palette():
 
 def get_palette_entry(name):
     global _current_palette
-##    print(f"get_palette_entry.100: {name=}")
     if _current_palette is None:
         print(f"setting _current_palette")
         set_palette(DEFAULT_PALETTE_NAME)
@@ -127,6 +125,5 @@ def make_bg(palette):
     return bg
 
 c64_palette.update(make_bg(c64_palette))
-#ansi_palette.update(make_bg(ansi_palette))
 
 _current_palette = get_palette(DEFAULT_PALETTE_NAME).copy()
