@@ -3,7 +3,7 @@ import time
 import argparse
 from dataclasses import dataclass, field
 
-from bbsengine6 import io
+from . import io
 
 import cv2
 import pyvirtualcam
