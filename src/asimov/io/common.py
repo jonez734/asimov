@@ -24,7 +24,7 @@ def terminal_columns():
     return terminal_size().columns
 
   w = terminal_size().columns
-  return MAX_TERMINAL_WIDTH if MAX_WIDTH is not None and w > MAX_TERMINAL_WIDTH else w
+  return MAX_TERMINAL_WIDTH if MAX_TERMINAL_WIDTH is not None and w > MAX_TERMINAL_WIDTH else w
 
 def terminal_lines():
   return terminal_size().lines
