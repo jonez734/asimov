@@ -20,12 +20,13 @@ from .util import setbottombar
 from .const import ESC
 
 ## from . import common
-from .echo import echo
+from .echo import echo, echo_file
 ## from .inputstr import inputstr
 from .getch import getch_str as getch
 from .inputstring import inputstring
+from .palette import set_palette
 
-__all__ = ["echo", "inputstring", "getch"]
+__all__ = ["echo", "inputstring", "getch", "set_palette"]
 
 # ----------------------------
 # End of io.py
