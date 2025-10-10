@@ -16,7 +16,9 @@ from typing import List, Dict, Optional
 
 from .const import CSI, BEL, ESC
 
-from .common import terminal_columns, Token, write_current_output_stream, get_cursor_position, _cursor_row, _cursor_col
+from .common import Token, write_current_output_stream, get_cursor_position, _cursor_row, _cursor_col
+
+from . import terminal
 
 from .palette import c64_palette, get_current_palette, get_palette_entry, rgb
 
@@ -47,6 +49,9 @@ _skin = {
 "level.info": "{bgwhite}{blue}",
 "level.crit": "{bgblue}{white]",
 
+"boxcolor": "{darkgreen}",
+"titlecolor": "{white}{bggray}",
+
 #"engine.menu.boxcharcolor": "{bglightgray}{darkgreen}",
 #"engine.menu.color": "{bggray}",
 #"engine.menu.shadowcolor": "{bgdarkgray}",
@@ -55,6 +60,16 @@ _skin = {
 #"engine.menu.titlecolor": "{black}{bglightgray}",
 #"engine.menu.disableditemcolor": "{darkgray}",
 #"engine.menu.resultfailedcolor": "{bgred}{white}",
+}
+
+_box = {
+  "ulcorner": "{acs:ulcorner}",
+  "hline"   : "{{acs:hline:{width}}}",
+  "llcorner": "{acs:llcorner}",
+  "lrcorner": "{acs:lrcorner}",
+  "vline"   : "{acs:vline}",
+  "urcorner": "{acs:urcorner}",
+  "ulcorner": "{acs:ulcorner}",
 }
 
 # Runtime variables dictionary
@@ -112,6 +127,9 @@ _command_handlers = {
     # clear fg or bg color
     "slashfgcolor": r'/fgcolor',
     "slashbgcolor": r'/bgcolor',
+
+    # doublewidth
+    "decdhl": r'fullwidth|/fullwidth',
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers.items()]
@@ -143,12 +161,11 @@ def tokenize(text):
         m = _whitespace_re.match(text, pos)
         if m:
             # emit a single WHITESPACE token
-            token = Token(
-                kind="WHITESPACE",
-                value=m.group(1),       # optional semantic info
-                repeat=len(m.group(0)), # total length of run
-                text=None,              # to be filled by handler
-                raw=m.group(0)
+            token = Token("WHITESPACE",
+              value=m.group(1),       # optional semantic info
+              repeat=len(m.group(0)), # total length of run
+              text=None,              # to be filled by handler
+              raw=m.group(0)
             )
 ##            print(f"tokenize.100: {tok=}")
             yield from _handle_whitespace(token)
@@ -196,21 +213,55 @@ def tokenize(text):
         yield Token("UNKNOWN", value=run, text=run)
         pos += len(text[pos:])
 
+def to_fullwidth(s: str) -> str:
+    """
+    Convert a string to its fullwidth Unicode equivalent.
+    ASCII 0x21–0x7E are mapped to U+FF01–U+FF5E.
+    Space (0x20) maps to U+3000.
+    Other characters are left unchanged.
+    """
+    result = []
+    for c in s:
+        code = ord(c)
+        if c == ' ':
+            result.append('\u3000')  # Fullwidth space
+        elif 0x21 <= code <= 0x7E:
+            result.append(chr(code - 0x21 + 0xFF01))
+        else:
+            result.append(c)
+##    print(f"{result=}")
+    return ''.join(result)
+
 # ----------------------------
 # token handlers
 # ----------------------------
-def _handle_word(token):
-    global _acs, _raw
+def _handle_word(token, **kwargs):
+    global _acs, _raw, _decdhl, _wordwrap, _cursor_col
+
+    width = kwargs.get("width", terminal.columns())
 
     token.text = token.value
     token.raw = token.value
     token.repeat = 1
     
-
     if _acs and not _raw:
         _acs = False
         yield Token("CONTROL", text=f"{ESC}(B")
 
+##    print(f"_handle_word.100: {_decdhl=}")
+    if _decdhl: # and not _wordwrap:
+      token.text = to_fullwidth(token.value)
+      yield token
+      return
+
+    word_len = len(token.text)
+
+    if _wordwrap and _cursor_col + word_len > width - 1:
+        # insert hard newline before this word/space
+        yield Token("F6", raw="{f6}", text="\n")
+        _cursor_col = 0
+
+    _cursor_col += word_len
     yield token
 
 def _handle_whitespace(token):
@@ -258,6 +309,8 @@ _wordwrap = True
 _color = True
 _acs = False
 _raw = False
+_decdhl = False
+_term_width = None
 
 def _handle_decsc(token):
     global _terminal_states
@@ -490,6 +543,66 @@ def _handle_slashbgcolor(token):
     token.text = f"{CSI}49m"
     yield token
 
+options = {}
+def setoption(opt:str, value):
+  global options
+  options[opt] = value
+  return value
+
+def getoption(opt:str, default=None):
+  global options
+
+  return options[opt] if opt in options else default
+
+def _handle_box(token):
+    """
+    Handle box drawing tokens like:
+      {hline:10} → repeat ACS hline 10 times
+      {ulcorner} → ACS upper-left corner
+    Falls back to ASCII equivalents when ACS is disabled.
+    """
+    global _acs, _raw
+
+    # determine repeat count (default 1)
+    repeat = int(token.args[0]) if token.args else 1
+
+    # map ACS and fallback ASCII chars
+    box_acs = {
+        "ulcorner": "l",
+        "urcorner": "k",
+        "llcorner": "m",
+        "lrcorner": "j",
+        "hline": "q",
+        "vline": "x",
+    }
+
+    box_ascii = {
+        "ulcorner": "+",
+        "urcorner": "+",
+        "llcorner": "+",
+        "lrcorner": "+",
+        "hline": "-",
+        "vline": "|",
+    }
+
+    name = token.value
+    acs_char = box_acs.get(name)
+    ascii_char = box_ascii.get(name, "?")
+
+    # enter ACS mode if needed
+    if not _raw:
+        if getoption("style", "ttyio") != "noansi":
+            if not _acs:
+              yield Token("CONTROL", text=f"{ESC}(0")
+            yield Token("TEXT", text=(acs_char or "?") * repeat)
+            if not _acs:
+              yield Token("CONTROL", text=f"{ESC}(B")
+        else:
+            yield Token("TEXT", text=(ascii_char or "?") * repeat)
+    else:
+        # raw mode: just emit fallback
+        yield Token("TEXT", text=(ascii_char or "?") * repeat)
+
 PARAM_SPLIT_RE = re.compile(r"[:,]")
 def parse_command_params(name, params):
     args = [] # [name,]
@@ -505,7 +618,6 @@ def parse_command_params(name, params):
         elif part:
             args.append(part)
     return args, kwargs
-
 
 def handler_dispatch(token):
     """Yield from the appropriate handler given a token."""
@@ -563,7 +675,7 @@ def _handle_unicode(token):
     token.text = _unicode[token.kind]
     yield token
 
-def _handle_command(token, palette=None, vars=None):
+def _handle_command(token, **kwargs): # palette=None, vars=None):
     """
     Processes a single command token and yields one or more Tokens.
     
@@ -598,6 +710,10 @@ def _handle_command(token, palette=None, vars=None):
 
     if cmd.lstrip('/') in ANSI_ATTRS:
         yield from _handle_attr(token)
+        return
+
+    if cmd in _box:
+        yield from _handle_box(token)
         return
 
     if cmd in _acs_map:
@@ -775,6 +891,15 @@ def _handle_attr(token: Token):
     yield token
     return
 
+def _handle_decdhl(token):
+    global _decdhl
+
+    if token.value.startswith("/"):
+      _decdhl = False
+    else:
+      _decdhl = True
+    return iter(())
+
 def _write_token(token: Token, flush: bool=True, stream=None):
     """
     Write a Token to the current stream (defaults to sys.stdout), interpreting commands and attributes.
@@ -809,24 +934,26 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
     _raw = raw
 
     if width is None:
-        width = terminal_columns()  # default or queried width
+        width = terminal.columns()  # default or queried width
     
     palette = palette or c64_palette
     _runtime_vars = _runtime_vars or {}
+    _term_width = width
 
     for token in tokenize(text):
         if token.kind == "COMMAND":
             yield from _handle_command(token)
         elif token.kind == "WORD": # in ("WORD", "WHITESPACE"):
-            word_len = len(token.text)
-
-            if _wordwrap and _cursor_col + word_len > width - 1:
-                # insert hard newline before this word/space
-                yield Token("F6", raw="{f6}", text="\n")
-                _cursor_col = 0
-
-            _cursor_col += word_len
-            yield token
+            yield from _handle_word(token)
+##            word_len = len(token.text)
+##
+##           if _wordwrap and _cursor_col + word_len > width - 1:
+##                # insert hard newline before this word/space
+##                yield Token("F6", raw="{f6}", text="\n")
+##                _cursor_col = 0
+##
+##            _cursor_col += word_len
+##            yield token
         elif token.kind == "WHITESPACE":
             if _previous_token.kind == "F6" and token.text == " ":
                 continue
