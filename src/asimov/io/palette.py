@@ -4,8 +4,6 @@ from .const import CSI, DEFAULT_PALETTE_NAME
 # ----------------------------
 # ANSI / C64 color palettes
 # ----------------------------
-CSI = "\x1b["
-
 def _clamp_int(x):
     return max(0, min(255, int(round(x))))
 
@@ -114,7 +112,6 @@ def get_palette_entry(name):
         set_palette(DEFAULT_PALETTE_NAME)
 
     return _current_palette[name]
-
 
 # Background color aliases
 def make_bg(palette):
