@@ -441,3 +441,32 @@ def logentry(message, level=logging.INFO, *, handler=None, formatter=None, logge
 
     logger.log(level, message)
     return
+
+def heading(title:str, level=1, **kwargs): # hrchar:str="{acs:hline}", llcorner="{acs:llcorner}", lrcorner="{acs:lrcorner}", ulcorner="{acs:ulcorner}", urcorner="{acs:urcorner}", vline="{acs:vline}", width=None, fillchar=" ", center=True):
+##  if io.getoption("style", "ttyio") == "noansi":
+##      width = 100
+##      hline="-"*width
+##      llcorner="+"
+##      lrcorner="+"
+##      ulcorner="+"
+##      urcorner="+"
+##      vline="|"
+##      #boxcolor = ""
+##      #titlecolor = ""
+##      #reset = ""
+##  else:
+  width = io.terminal.width() - 4
+  w = width - len(title)
+  if int(w % 2) == 0:
+    repeat = int(w/2)
+    leftpadding  = " "*int(repeat)
+    rightpadding = " "*int(repeat)
+  else:
+    repeat = int(w-2)/2
+    leftpadding  = " "*int(repeat+2)
+    rightpadding = " "*int(repeat+1)
+
+  io.echo(f"{{/all}}{{normalcolor}} {{boxcolor}}{{ulcorner}}{{hline:{width}}}{{urcorner}}", wordwrap=False, end="\n")
+  io.echo(f" {{boxcolor}}{{vline}}{{titlecolor}}{leftpadding}{title}{rightpadding}{{/all}}{{boxcolor}}{{vline}}", wordwrap=False, end="\n")
+  io.echo(f" {{llcorner}}{{hline:{width}}}{{lrcorner}}{{/all}}{{f6}}", wordwrap=False, end="")
+  return
