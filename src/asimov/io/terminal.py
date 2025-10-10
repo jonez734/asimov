@@ -14,3 +14,5 @@ def columns():
         return sz[0]
     except OSError:
         return MAX_TERMINAL_WIDTH
+
+width = columns
