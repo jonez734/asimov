@@ -4,50 +4,44 @@ from .const import CSI, DEFAULT_PALETTE_NAME
 # ----------------------------
 # ANSI / C64 color palettes
 # ----------------------------
+CSI = "\x1b["
+
+def _clamp_int(x):
+    return max(0, min(255, int(round(x))))
+
+def _parse_rgb(rgb):
+    """Convert either #RRGGBB string or tuple/list to (r,g,b)"""
+    if isinstance(rgb, str) and rgb.startswith("#") and len(rgb) == 7:
+        r = int(rgb[1:3], 16)
+        g = int(rgb[3:5], 16)
+        b = int(rgb[5:7], 16)
+        return r, g, b
+    elif isinstance(rgb, (tuple, list)) and len(rgb) in (3,4):
+        return rgb[:3]
+    else:
+        raise ValueError(f"Invalid RGB spec: {rgb!r}")
+
+def darken(prefix, rgb, percentage):
+    """
+    prefix: 38 (foreground) or 48 (background)
+    rgb: tuple/list (r,g,b) or (r,g,b,a) with 0-255 or #RRGGBB string
+    percentage: fraction 0..1
+    """
+    if not (0.0 <= percentage <= 1.0):
+        raise ValueError("percentage must be between 0.0 and 1.0")
+
+    r, g, b = _parse_rgb(rgb)
+
+    r = _clamp_int(r * (1 - percentage))
+    g = _clamp_int(g * (1 - percentage))
+    b = _clamp_int(b * (1 - percentage))
+
+    return f"{CSI}{prefix};2;{r};{g};{b}m"
+
 def rgb(fgbg, triplet):
     """Return ANSI SGR sequence for foreground (38) or background (48). Spec can be #RRGGBB or (r,g,b)"""
-    if isinstance(triplet, str) and triplet.startswith("#") and len(triplet) == 7:
-        r, g, b = int(triplet[1:3], 16), int(triplet[3:5], 16), int(triplet[5:7], 16)
-    else:
-        raise ValueError(f"Invalid RGB spec: {triplet=}")
-
-    result = f"{CSI}{fgbg};2;{r};{g};{b}m"
-#    print(f"rgb.100: {repr(result)=}")
-    return result
-
-def _parse_rgb(argstr: str) -> Token:
-    """
-    Parse rgb commands:
-      {rgb:255,0,255}
-      {rgb:#FF00FF}
-      {rgb:#F0F}
-      {rgb} (defaults to black)
-    Returns Token with kwargs={"r":..,"g":..,"b":..}
-    """
-    r = g = b = 0  # default black
-
-    if argstr:
-        argstr = argstr.strip()
-
-        # Hex form
-        if argstr.startswith("#"):
-            hexstr = argstr
-            if len(hexstr) == 4:  # #RGB shorthand
-                hexstr = "#" + "".join(ch * 2 for ch in hexstr[1:])
-            hexstr = hexstr.upper()
-            r = int(hexstr[1:3], 16)
-            g = int(hexstr[3:5], 16)
-            b = int(hexstr[5:7], 16)
-
-        else:
-            # Comma-separated ints
-            parts = [p.strip() for p in argstr.split(",")]
-            if len(parts) >= 3:
-                r, g, b = (int(parts[0]), int(parts[1]), int(parts[2]))
-            elif len(parts) == 4:
-                r, g, b, a = (int(parts[0]), int(parts[1]), int(parts[2]))
-
-    return Token(kind="COMMAND", value="rgb", args=(), kwargs={"r": r, "g": g, "b": b})
+    r, g, b = _parse_rgb(triplet)
+    return f"{CSI}{fgbg};2;{r};{g};{b}m"
 
 # ANSI palette (foreground)
 ansi_palette = {
@@ -89,7 +83,11 @@ c64_palette = {
     'lightpurple': rgb(38, "#ff77ff"),
     'lightgreen': rgb(38, "#aaff66"),
     'lightblue': rgb(38, "#0088ff"),
-    'lightgray': rgb(38, "#bbbbbb"),
+    'lightgray': rgb(38, "#c6c6c6"),
+    'gray': rgb(38, '#989898'),
+    'darkgray':  rgb(38, '#6b6b6b'),
+
+    'darkgreen':   darken(38, "#00cc55", 0.20), # not official c64 color
 }
 
 def set_palette(palette_name):
@@ -116,6 +114,7 @@ def get_palette_entry(name):
         set_palette(DEFAULT_PALETTE_NAME)
 
     return _current_palette[name]
+
 
 # Background color aliases
 def make_bg(palette):
