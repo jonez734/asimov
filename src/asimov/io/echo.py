@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 
-from .const import CSI, BEL, ESC
+from .const import CSI, BEL, ESC, ECHO_END
 
 from .common import Token, write_current_output_stream, get_cursor_position, _cursor_row, _cursor_col
 
@@ -967,7 +967,7 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
 
         _previous_token = token
 
-def echo(text, *, palette:dict=None, width:int=None, wordwrap:bool=True, raw:bool=False, flush:bool=True, end=""):
+def echo(text, *, palette:dict=None, width:int=None, wordwrap:bool=True, raw:bool=False, flush:bool=True, end=ECHO_END):
     """
     Print text to stdout, interpreting inline commands unless raw=True.
     width: override detected terminal width if not None

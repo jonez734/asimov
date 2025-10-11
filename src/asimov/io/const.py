@@ -6,3 +6,5 @@ EOF = '\x04' # ctrl-d
 
 MAX_TERMINAL_WIDTH = None # 100
 DEFAULT_PALETTE_NAME = "c64"
+
+ECHO_END = ""
