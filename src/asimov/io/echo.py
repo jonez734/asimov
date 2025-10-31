@@ -17,6 +17,7 @@ from typing import List, Dict, Optional
 from .const import CSI, BEL, ESC, ECHO_END
 
 from .common import Token, write_current_output_stream, get_cursor_position, _cursor_row, _cursor_col
+from ..common import logentry
 
 from . import terminal
 
@@ -81,11 +82,11 @@ _runtime_vars.update({"/all": "{reset}"})
 
 _runtime_vars.update(_skin)
 
-def set_var(name, value):
+def setvar(name, value):
     """Set a runtime variable for use in {var:<name>} or {<name>} commands."""
     _runtime_vars[name] = value
 
-def get_var(name, default=None):
+def getvar(name, default=None):
     return _runtime_vars.get(name, default)
 
 # ----------------------------
@@ -130,6 +131,9 @@ _command_handlers = {
 
     # doublewidth
     "decdhl": r'fullwidth|/fullwidth',
+
+    # cursor horizontal absolute @since 20251025
+    "cha": r'cha',
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers.items()]
@@ -244,9 +248,8 @@ def _handle_word(token, **kwargs):
     token.raw = token.value
     token.repeat = 1
     
-    if _acs and not _raw:
-        _acs = False
-        yield Token("CONTROL", text=f"{ESC}(B")
+    if not _raw:
+      yield from _acs_off()
 
 ##    print(f"_handle_word.100: {_decdhl=}")
     if _decdhl: # and not _wordwrap:
@@ -272,10 +275,8 @@ def _handle_whitespace(token):
     """
     global _acs, _raw
 
-    if _acs:
-        _acs = False
-        if not _raw:
-            yield Token("CONTROL", text=f"{ESC}(B")
+    if not _raw:
+      yield from _acs_off()
 
     run = token.value
     i = 0
@@ -287,8 +288,8 @@ def _handle_whitespace(token):
         yield Token("WHITESPACE",
             value=ch,           # the character itself (' ', '\t', or '\n')
             repeat=repeat,       # how many times it repeats
-            text=ch * repeat,    # string that will be written
-            raw=ch * repeat
+            text=ch,    # string that will be written
+            raw=ch
         )
         i += repeat
 
@@ -357,6 +358,11 @@ _acs_map = {
     "ltee":     "u",    # ┤
     "rtee":     "t",    # ├
     "plus":     "n",    # ┼
+#    "ttee":        "\u252C", # ┬
+#    "btee":        "\u2534", # ┴
+#    "ltee":        "\u251C", # ├
+#    "rtee":        "\u2524", # ┤
+#    "cross":       "\u253C", # ┼
 
     # Other symbols
     "diamond":      "`",  # ◆
@@ -385,26 +391,41 @@ _acs_map = {
     "space":        "_",  # blank space
 }
 
+def _acs_on():
+  global _acs
+
+  if not _acs:
+    _acs = True
+##    yield Token(kind="ACS", repeat=1, text=f"{ESC}(0")
+##    print("ACSON")
+  return iter(())
+
+def _acs_off():
+  global _acs
+
+  if _acs:
+    _acs = False
+    yield Token(kind="ACS", repeat=1, text=f"{ESC}(B")
+  return
+
 def _handle_acs(token):
-    global _acs, _raw
+    global _raw, _cursor_col
 
     if token.value == "acs":
         name = token.args[0]
         repeat = int(token.args[1]) if len(token.args) > 1 else 1
     else:
-        token.value in _acs_map
         name = token.value
-        repeat = int(token.args[0]) if token.args else 1
+        repeat = int(token.args[0]) if len(token.args) == 1 else 1
 
-    if not _acs:
-        _acs = True
-        if not _raw:
-            yield Token("CONTROL", text=f"{ESC}(0")
-    else:
-        _acs = False
+    _cursor_col += repeat
+
+    if not _raw:
+      yield from _acs_on()
 
     token.kind = "ACS"
-    token.text = _acs_map.get(name, "?")*repeat
+    token.text = _acs_map.get(name, "?")
+    token.repeat = repeat
 
     yield token
     return
@@ -447,8 +468,8 @@ def _handle_f6(token):
     global _cursor_col
 
     repeat = int(token.args[0]) if token.args else 1
-    token.repeat = 1
-    token.text = "\n"*repeat
+    token.repeat = repeat
+    token.text = "\n"
     token.kind = "F6"
 
     yield token
@@ -523,25 +544,38 @@ def _handle_decstbm(token):
     return
 
 def _handle_reset(token):
-    token.repeat = 1
-    token.text = f"{ESC}[0m"
-    yield token
+  global _raw
+
+  token.repeat = 1
+  token.text = f"{ESC}[0m" # reset fg and bg color
+  yield token
+
+  if not _raw:
+    yield from _acs_off()
+  return
 
 def _handle_unknown(token):
     token.text = f"{token.kind=}: no registered handler"
     yield token
 
 def _handle_slashfgcolor(token):
-    if len(token.args) > 0:
-      raise ValueError
-    token.text = f"{CSI}39m"
-    yield token
+  if len(token.args) > 0:
+    raise ValueError
+  token.text = f"{CSI}39m"
+  yield token
 
 def _handle_slashbgcolor(token):
-    if len(token.args) > 0:
-      raise ValueError
-    token.text = f"{CSI}49m"
-    yield token
+  if len(token.args) > 0:
+    raise ValueError
+  token.text = f"{CSI}49m"
+  yield token
+
+def _handle_cha(token):
+  repeat = token.args[0] if len(token.args) == 1 else 1
+  token.kind = "CURSOR"
+  token.repeat = 1
+  token.text = f"{CSI}{repeat}G"
+  yield token
 
 options = {}
 def setoption(opt:str, value):
@@ -559,49 +593,51 @@ def _handle_box(token):
     Handle box drawing tokens like:
       {hline:10} → repeat ACS hline 10 times
       {ulcorner} → ACS upper-left corner
-    Falls back to ASCII equivalents when ACS is disabled.
     """
-    global _acs, _raw
-
     # determine repeat count (default 1)
-    repeat = int(token.args[0]) if token.args else 1
+    repeat = int(token.args[0]) if len(token.args) == 1 else 1
+##    print(f"_handle_box.100: {repeat=}", flush=True)
 
     # map ACS and fallback ASCII chars
-    box_acs = {
-        "ulcorner": "l",
-        "urcorner": "k",
-        "llcorner": "m",
-        "lrcorner": "j",
-        "hline": "q",
-        "vline": "x",
-    }
+#    box_acs = {
+#        "ulcorner": "l",
+#        "urcorner": "k",
+#        "llcorner": "m",
+#        "lrcorner": "j",
+#        "hline":    "q",    # ─
+#        "vline":    "x",    # │
+#
+#        "ttee":  "w",    # ┬
+#        "btee":  "v",    # ┴
+#        "ltee":  "u",    # ┤
+#        "rtee":  "t",    # ├
+#        "plus":  "n",    # ┼
+#
+#    }
 
-    box_ascii = {
-        "ulcorner": "+",
-        "urcorner": "+",
-        "llcorner": "+",
-        "lrcorner": "+",
-        "hline": "-",
-        "vline": "|",
-    }
+#    box_ascii = {
+#        "ulcorner": "+",
+#        "urcorner": "+",
+#        "llcorner": "+",
+#        "lrcorner": "+",
+#        "hline": "-",
+#        "vline": "|",
+#    }
 
     name = token.value
-    acs_char = box_acs.get(name)
-    ascii_char = box_ascii.get(name, "?")
+    acs_char = _acs_map.get(name, "?")
+#    ascii_char = box_ascii.get(name, "?")
+
 
     # enter ACS mode if needed
     if not _raw:
-        if getoption("style", "ttyio") != "noansi":
-            if not _acs:
-              yield Token("CONTROL", text=f"{ESC}(0")
-            yield Token("TEXT", text=(acs_char or "?") * repeat)
-            if not _acs:
-              yield Token("CONTROL", text=f"{ESC}(B")
-        else:
-            yield Token("TEXT", text=(ascii_char or "?") * repeat)
-    else:
-        # raw mode: just emit fallback
-        yield Token("TEXT", text=(ascii_char or "?") * repeat)
+      yield from _acs_on()
+
+    token.kind = "ACS"
+    token.repeat = repeat
+    token.text = acs_char
+    yield token
+    return
 
 PARAM_SPLIT_RE = re.compile(r"[:,]")
 def parse_command_params(name, params):
@@ -646,17 +682,17 @@ def _handle_bel(token):
     yield token
 
 _unicode = {
-    "ulcorner":    "\u250C", # ┌
-    "urcorner":    "\u2510", # ┐
-    "llcorner":    "\u2514", # └
-    "lrcorner":    "\u2518", # ┘
-    "hline":       "\u2500", # ─
-    "vline":       "\u2502", # │
-    "ttee":        "\u252C", # ┬
-    "btee":        "\u2534", # ┴
-    "ltee":        "\u251C", # ├
-    "rtee":        "\u2524", # ┤
-    "cross":       "\u253C", # ┼
+##    "ulcorner":    "\u250C", # ┌
+##    "urcorner":    "\u2510", # ┐
+##    "llcorner":    "\u2514", # └
+##    "lrcorner":    "\u2518", # ┘
+##    "hline":       "\u2500", # ─
+##    "vline":       "\u2502", # │
+##    "ttee":        "\u252C", # ┬
+##    "btee":        "\u2534", # ┴
+##    "ltee":        "\u251C", # ├
+##    "rtee":        "\u2524", # ┤
+##    "cross":       "\u253C", # ┼
     "dblhline":    "\u2550", # ═
     "dblvline":    "\u2551", # ║
     "dblul":       "\u2554", # ╔
@@ -692,11 +728,9 @@ def _handle_command(token, **kwargs): # palette=None, vars=None):
     args = token.args
     kwargs = token.kwargs
     raw  = token.raw
+    repeat = token.repeat
 
-    if _acs:
-        _acs = False
-        token.text = f"{ESC}(B"
-        yield token
+    yield from _acs_off()
 
     # Palette color
     if cmd.lstrip('/') in get_current_palette():
@@ -712,9 +746,9 @@ def _handle_command(token, **kwargs): # palette=None, vars=None):
         yield from _handle_attr(token)
         return
 
-    if cmd in _box:
-        yield from _handle_box(token)
-        return
+##    if cmd in _box:
+##        yield from _handle_box(token)
+##        return
 
     if cmd in _acs_map:
         yield from _handle_acs(token)
@@ -722,6 +756,11 @@ def _handle_command(token, **kwargs): # palette=None, vars=None):
       
     if cmd in _unicode:
         yield from _handle_unicode(token)
+        return
+
+    if cmd in _emoji:
+        yield from _handle_emoji(token)
+        return
 
     yield from handler_dispatch(token)
     return
@@ -833,8 +872,8 @@ _emoji = {
 
   "mercenary":				u"\U0001F977",
 
-  "checkmark":              u"\U00002705",
-  "crossmark":              u"\U0000274E",
+  "checkmark":              u"\U00002714", #u"\U00002705",
+  "crossmark":              u"\U00002718", #u"\U0000274E",
 }
 
 def _handle_emoji(token):
@@ -908,17 +947,13 @@ def _write_token(token: Token, flush: bool=True, stream=None):
     - COMMANDS: processed via _handle_command()
     """
     global _raw, _current_output_stream, _current_stream_lock
-
+##    print(f"_write_token.100: {token.kind=} {token.repeat=} {token.value=}", flush=True)
+    repeat = int(token.repeat) or 1
     if not _raw:
-        write_current_output_stream(str(token.text), flush=flush)
+      text = str(token.text) * repeat
     else:
-        buf = token.raw or token.text
-
-        if buf is not None:
-            write_current_output_stream(buf, flush=flush)
-
-#    if flush:
-#        _current_output_stream.flush()
+      text = (str(token.raw) or str(text)) * repeat
+    write_current_output_stream(text, flush=flush)
     return
 
 # ----------------------------
@@ -967,7 +1002,7 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
 
         _previous_token = token
 
-def echo(text, *, palette:dict=None, width:int=None, wordwrap:bool=True, raw:bool=False, flush:bool=True, end=ECHO_END):
+def echo(text="", *, palette:dict=None, width:int=None, wordwrap:bool=True, raw:bool=False, flush:bool=True, end=ECHO_END, **kwargs):
     """
     Print text to stdout, interpreting inline commands unless raw=True.
     width: override detected terminal width if not None
@@ -975,9 +1010,13 @@ def echo(text, *, palette:dict=None, width:int=None, wordwrap:bool=True, raw:boo
     raw: if True, commands are treated as literal text
     flush: if True, flush after writing
     """
-    global _raw
+    global _raw, _cursor_col, _acs
     
     _raw = raw
+
+    loglevel = kwargs.get("level", None)
+    if loglevel is not None:
+      return logentry(text, loglevel=loglevel)
 
     for token in echo_iter(text, width=width, wordwrap=wordwrap, raw=raw, palette=palette):
         _write_token(token, flush=flush)
@@ -985,6 +1024,8 @@ def echo(text, *, palette:dict=None, width:int=None, wordwrap:bool=True, raw:boo
     # Always write the "end" string
     if end:
         write_current_output_stream(end, flush=flush)
+        if end == "\n":
+          _cursor_col = 0
 
 def echo_file(filepath, page_size=20, raw=False):
     with open(filepath, 'r') as f:
