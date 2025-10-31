@@ -1,5 +1,6 @@
 from .echo import echo
 from .common import terminal_lines, terminal_columns
+from .const import MAX_TERMINAL_WIDTH
 
 # ------------------------
 # screen related functions
@@ -118,16 +119,3 @@ def setbottombar(left, right=None, stack: bool = False, width: int = None, **kwa
 # ----------------------------
 # Utilities
 # ----------------------------
-def get_terminal_size():
-    try:
-        sz = os.get_terminal_size()
-        return sz.columns, sz.lines
-    except OSError:
-        return 100, 30
-
-def get_terminal_width():
-    try:
-        sz = get_terminal_size()
-        return sz[0]
-    except OSError:
-        return 100
