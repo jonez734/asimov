@@ -1,72 +1,130 @@
 import cv2
 import numpy as np
-from cvzone.HandTrackingModule import HandDetector
-
+from math import sin, pi
+import time
 
 class InteractiveGrid:
-    def __init__(self, items, cols=4, frame_size=(600, 400),
-                 cell_size=(100, 100), padding=10, detection_conf=0.8):
+    """
+    Interactive grid for hand-controlled selection.
+    Supports hover highlighting, pinch detection, and alpha blending transitions.
+    """
+
+    def __init__(self, items, cols, rows, hover_pulse_freq=2.0):
         self.items = items
         self.cols = cols
-        self.rows = (len(items) + cols - 1) // cols
-        self.frame_size = frame_size
-        self.cell_size = cell_size
-        self.padding = padding
+        self.rows = rows
+        self.hover_pulse_freq = hover_pulse_freq
 
-        self.cell_positions = self._compute_cell_positions()
-        self.hover_idx = None
-        self.detector = HandDetector(detectionCon=detection_conf, maxHands=1)
-        self.last_click = False
+        # Active state
+        self.active_index = None
+        self.alpha_overlay = 1.0
 
-    def _compute_cell_positions(self):
-        positions = []
-        for idx, _ in enumerate(self.items):
-            row = idx // self.cols
-            col = idx % self.cols
-            x = self.padding + col * (self.cell_size[0] + self.padding)
-            y = self.padding + row * (self.cell_size[1] + self.padding)
-            positions.append((x, y))
-        return positions
+        # Layout
+        self.rects = []
+        self.cell_w = 0
+        self.cell_h = 0
 
-    def _get_idx_at_pos(self, pos):
-        x, y = pos
-        for idx, (cx, cy) in enumerate(self.cell_positions):
-            if cx <= x <= cx + self.cell_size[0] and cy <= y <= cy + self.cell_size[1]:
-                return idx
-        return None
+        # Animation
+        self.scale = 1.0
 
-    def update_hover_and_click(self, frame):
-        hands = self.detector.findHands(frame, draw=False)
-        self.hover_idx = None
-        clicked_item = None
+    # ----------------------------
+    # Layout and drawing helpers
+    # ----------------------------
 
-        if hands:
-            hand = hands[0]
-            lmList = hand['lmList']
-            index_tip = lmList[8]
-            thumb_tip = lmList[4]
+    def compute_rects(self, frame_w, frame_h):
+        """Compute rectangle positions to center the grid."""
+        self.cell_w = frame_w // (self.cols + 2)
+        self.cell_h = frame_h // (self.rows + 4)
 
-            x, y = int(index_tip[0]), int(index_tip[1])
-            self.hover_idx = self._get_idx_at_pos((x, y))
+        grid_w = self.cell_w * self.cols
+        grid_h = self.cell_h * self.rows
+        start_x = (frame_w - grid_w) // 2
+        start_y = (frame_h - grid_h) // 2
 
-            distance = np.linalg.norm(np.array(thumb_tip[:2]) - np.array(index_tip[:2]))
-            click = distance < 40
+        self.rects = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                x1 = start_x + c * self.cell_w
+                y1 = start_y + r * self.cell_h
+                x2 = x1 + self.cell_w
+                y2 = y1 + self.cell_h
+                self.rects.append((x1, y1, x2, y2))
 
-            if click and not self.last_click and self.hover_idx is not None:
-                clicked_item = self.items[self.hover_idx]
-            self.last_click = click
-        else:
-            self.last_click = False
+    def draw(self, frame, hands=None):
+        """
+        Draw grid onto the frame.
+        hands: optional CvZone hands list for hover detection
+        """
+        if not self.rects:
+            self.compute_rects(frame.shape[1], frame.shape[0])
 
-        return clicked_item
+        # Update hover
+        self.update_hover(hands)
 
-    def draw(self, frame, alpha=1.0):
         overlay = frame.copy()
-        for idx, item in enumerate(self.items):
-            x, y = self.cell_positions[idx]
-            color = (100, 100, 100)
-            if idx == self.hover_idx:
-                color = (50, 150, 255)
+        t = time.time()
+        pulse = 0
+        if self.active_index is not None:
+            pulse = 0.2 * sin(2 * pi * self.hover_pulse_freq * t)
 
-            cv2.rectangle(overlay, (x, y),
-                          (x + self.cell_size[0],_
+        for i, rect in enumerate(self.rects):
+            x1, y1, x2, y2 = rect
+            color = (0, 200, 255) if i == self.active_index else (255, 255, 255)
+            thickness = 3
+
+            # Draw rectangle
+            cv2.rectangle(overlay, (x1, y1), (x2, y2), color, thickness)
+
+            # Draw label
+            if i < len(self.items):
+                label = str(self.items[i])
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                scale = 1.5
+                (w, h), _ = cv2.getTextSize(label, font, scale, thickness)
+                tx = x1 + (self.cell_w - w) // 2
+                ty = y1 + (self.cell_h + h) // 2
+                cv2.putText(overlay, label, (tx, ty), font, scale, (255, 255, 255), thickness)
+
+        blend_alpha = min(1.0, self.alpha_overlay + pulse)
+        cv2.addWeighted(overlay, blend_alpha, frame, 1 - blend_alpha, 0, frame)
+
+    # ----------------------------
+    # Interaction helpers
+    # ----------------------------
+
+    def update_hover(self, hands):
+        """Update active_index based on first hand index finger."""
+        self.active_index = None
+        if not hands:
+            return
+        lmList = hands[0]["lmList"]
+        cx, cy = lmList[8][:2]  # index fingertip
+        for i, (x1, y1, x2, y2) in enumerate(self.rects):
+            if x1 <= cx <= x2 and y1 <= cy <= y2:
+                self.active_index = i
+                break
+
+    def get_active_item(self):
+        """Return the currently active item (label) or None."""
+        if self.active_index is None or self.active_index >= len(self.items):
+            return None
+        return self.items[self.active_index]
+
+    # ----------------------------
+    # Animation helpers
+    # ----------------------------
+
+    def animate_in(self, scale_step=0.02, alpha_step=0.03):
+        """Simple time-based animation step. Returns True if animation ongoing."""
+        updated = False
+        if self.scale < 1.0:
+            self.scale += scale_step
+            if self.scale > 1.0:
+                self.scale = 1.0
+            updated = True
+        if self.alpha_overlay < 1.0:
+            self.alpha_overlay += alpha_step
+            if self.alpha_overlay > 1.0:
+                self.alpha_overlay = 1.0
+            updated = True
+        return updated
