@@ -4,13 +4,15 @@ import time
 from math import sin, pi
 
 class InteractiveGrid:
-    def __init__(self, items, cols, rows, hover_pulse_freq=2.0, margin_ratio=0.05):
+    def __init__(self, items, cols, rows, hover_pulse_freq=2.0,
+                 margin_ratio=0.05, hover_scale=1.1, flash_duration=0.3):
         """
         items: list of strings (labels)
-        cols: number of columns
-        rows: number of rows
+        cols, rows: grid layout
         hover_pulse_freq: pulse frequency in Hz
-        margin_ratio: fraction of cell width/height used as margin
+        margin_ratio: fraction of cell width/height used for hover detection margin
+        hover_scale: scale multiplier for hovered cell
+        flash_duration: seconds for selection flash
         """
         assert len(items) > 0 and cols > 0 and rows > 0, "Invalid grid dimensions"
 
@@ -19,6 +21,8 @@ class InteractiveGrid:
         self.rows = rows
         self.hover_pulse_freq = hover_pulse_freq
         self.margin_ratio = margin_ratio
+        self.hover_scale = hover_scale
+        self.flash_duration = flash_duration
 
         # Active state
         self.active_index = None
@@ -31,17 +35,20 @@ class InteractiveGrid:
         self.cell_w = 0
         self.cell_h = 0
 
+        # Selection flash tracking
+        self.selection_flash = {}  # index -> timestamp
+
     # ----------------------------
     # Layout helpers
     # ----------------------------
     def compute_rects(self, frame_w, frame_h):
-        # Compute raw cell size
-        max_grid_w = frame_w * 0.8  # occupy 80% width
-        max_grid_h = frame_h * 0.5  # occupy 50% height
+        # Occupy ~80% width, ~50% height
+        max_grid_w = int(frame_w * 0.8)
+        max_grid_h = int(frame_h * 0.5)
         self.cell_w = int(max_grid_w / self.cols)
         self.cell_h = int(max_grid_h / self.rows)
 
-        # Compute top-left corner for centering
+        # Center the grid
         total_w = self.cell_w * self.cols
         total_h = self.cell_h * self.rows
         start_x = (frame_w - total_w) // 2
@@ -69,7 +76,7 @@ class InteractiveGrid:
         if rect is None:
             return None
         x1, y1, x2, y2 = rect
-        return (x1 + x2) // 2, (y1 + y2) // 2
+        return (x1 + x2)//2, (y1 + y2)//2
 
     # ----------------------------
     # Hover detection
@@ -78,7 +85,7 @@ class InteractiveGrid:
         self.active_index = None
         if not hands:
             return
-        lmList = hands[0]["lmList"]
+        lmList = hands[0].get("lmList", [])
         if len(lmList) <= 8 or len(lmList[8]) < 2:
             return
         cx, cy = lmList[8][:2]  # index fingertip
@@ -117,10 +124,17 @@ class InteractiveGrid:
 
     def draw_label_centered(self, frame, rect, text, font_scale=1.0, thickness=2):
         x1, y1, x2, y2 = rect
-        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        cx, cy = (x1 + x2)//2, (y1 + y2)//2
         size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
         cv2.putText(frame, text, (cx - size[0]//2, cy + size[1]//2),
                     cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255,255,255), thickness, cv2.LINE_AA)
+
+    # ----------------------------
+    # Register a selection for visual feedback
+    # ----------------------------
+    def record_selection(self, index):
+        if 0 <= index < len(self.rects):
+            self.selection_flash[index] = time.time()
 
     # ----------------------------
     # Draw grid
@@ -137,11 +151,37 @@ class InteractiveGrid:
             x1, y1, x2, y2 = rect
             color = (0, 128, 255)  # base rectangle color
 
-            # Per-cell hover pulse
+            # ------------------------
+            # Handle hover pulse & scaling
+            # ------------------------
+            scale = self.scale
             if i == self.active_index:
                 pulse = 0.2 * sin(2 * pi * self.hover_pulse_freq * t)
-                self.apply_hover_overlay(frame, rect, color, alpha=0.3 + pulse)
+                scale *= self.hover_scale
+            else:
+                pulse = 0.0
+
+            # Compute scaled rect
+            cx, cy = (x1 + x2)//2, (y1 + y2)//2
+            w, h = int((x2 - x1) * scale), int((y2 - y1) * scale)
+            x1s, y1s = cx - w//2, cy - h//2
+            x2s, y2s = cx + w//2, cy + h//2
+            scaled_rect = (x1s, y1s, x2s, y2s)
+
+            # Hover overlay
+            if i == self.active_index:
+                self.apply_hover_overlay(frame, scaled_rect, color, alpha=0.3 + pulse)
+
+            # Selection flash overlay
+            if i in self.selection_flash:
+                elapsed = t - self.selection_flash[i]
+                if elapsed < self.flash_duration:
+                    alpha_flash = 0.5 * (1.0 - elapsed/self.flash_duration)
+                    self.apply_hover_overlay(frame, scaled_rect, (0,255,0), alpha_flash)
+                else:
+                    del self.selection_flash[i]
+
             # Draw outline
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
+            cv2.rectangle(frame, (x1s, y1s), (x2s, y2s), color, 3)
             # Draw label
-            self.draw_label_centered(frame, rect, self.items[i])
+            self.draw_label_centered(frame, scaled_rect, self.items[i])
