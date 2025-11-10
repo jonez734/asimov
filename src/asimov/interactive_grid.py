@@ -2,8 +2,7 @@ import cv2
 import numpy as np
 import time
 
-# --- INTERACTIVE GRID CLASS WITH MARGINS AND FADE-IN ---
-# Named constants for defaults
+# --- NAMED CONSTANTS ---
 DEFAULT_ROWS = 3
 DEFAULT_COLS = 3
 DEFAULT_WIDTH = 640
@@ -63,8 +62,39 @@ class InteractiveGrid:
         self._fade_start_time = None
         self._current_alpha = 0.0
 
+        # Hover tracking
+        self.hover_cell = None  # (row, col) currently hovered
+
+    # -----------------------
+    # DEVICE-AGNOSTIC INTERACTIONS
+    # -----------------------
+    def update_hover_by_position(self, x, y):
+        """Device-agnostic hover update using coordinates."""
+        col = (x - self.left_margin) // self.cell_width
+        row = (y - self.top_margin) // self.cell_height
+        if 0 <= row < self.rows and 0 <= col < self.cols:
+            self.hover_cell = (row, col)
+        else:
+            self.hover_cell = None
+
+    def handle_click_at_position(self, x, y):
+        """Device-agnostic click/toggle at coordinates."""
+        col = (x - self.left_margin) // self.cell_width
+        row = (y - self.top_margin) // self.cell_height
+        if 0 <= row < self.rows and 0 <= col < self.cols:
+            self.grid_state[row, col] = not self.grid_state[row, col]
+
+    def handle_mouse_event(self, event, x, y, flags, param):
+        """Legacy mouse callback for convenience."""
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.handle_click_at_position(x, y)
+        self.update_hover_by_position(x, y)
+
+    # -----------------------
+    # DRAWING
+    # -----------------------
     def draw_grid(self, frame):
-        """Draw the grid with optional fade-in."""
+        """Draw the grid with fade-in and hover effect."""
         if self._fade_start_time is None:
             self._fade_start_time = time.time()
 
@@ -84,26 +114,26 @@ class InteractiveGrid:
                 if self.grid_state[r, c]:
                     cv2.rectangle(overlay, top_left, bottom_right, self.cell_color, -1)
 
+                # Hover effect
+                if self.hover_cell == (r, c):
+                    HOVER_COLOR = (0, 255, 255)  # yellow
+                    HOVER_ALPHA = 0.3
+                    temp_overlay = overlay.copy()
+                    cv2.rectangle(temp_overlay, top_left, bottom_right, HOVER_COLOR, -1)
+                    cv2.addWeighted(temp_overlay, HOVER_ALPHA, overlay, 1 - HOVER_ALPHA, 0, overlay)
+
                 # Draw border
                 cv2.rectangle(overlay, top_left, bottom_right, self.border_color, self.cell_thickness)
 
         # Blend overlay
         cv2.addWeighted(overlay, self._current_alpha, frame, 1 - self._current_alpha, 0, frame)
 
-    def toggle_cell(self, x, y):
-        """Toggle cell at mouse coordinates, accounting for all margins."""
-        col = (x - self.left_margin) // self.cell_width
-        row = (y - self.top_margin) // self.cell_height
-        if 0 <= row < self.rows and 0 <= col < self.cols:
-            self.grid_state[row, col] = not self.grid_state[row, col]
-
+    # -----------------------
+    # GRID RESET
+    # -----------------------
     def reset_grid(self):
-        """Reset all cells and fade-in."""
+        """Reset all cells and restart fade-in."""
         self.grid_state[:] = False
         self._fade_start_time = None
         self._current_alpha = 0.0
-
-    def handle_mouse_event(self, event, x, y, flags, param):
-        if event == cv2.EVENT_LBUTTONDOWN:
-            self.toggle_cell(x, y)
-
+        self.hover_cell = None
