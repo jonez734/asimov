@@ -1,97 +1,145 @@
+# File: demo_interactive_grid.py
+
 import cv2
 import argparse
 from cvzone.HandTrackingModule import HandDetector
-from asimov.interactive_grid import InteractiveGrid, DEFAULT_WIDTH, DEFAULT_HEIGHT
+from asimov.interactive_grid import InteractiveGrid
 from asimov.common import safe_distance
-from asimov.gestures import GestureState
 
+# -----------------------------
+# Named constants
+# -----------------------------
+CAMERA_INDEX = 1
+FRAME_WIDTH = 1024
+FRAME_HEIGHT = 768
+MAX_HANDS = 1
+DETECTION_CONFIDENCE = 0.8
+PINCH_DISTANCE_THRESHOLD = 40
+INDEX_ONLY_GESTURE = [False, True, False, False, False]
 
-# --- Named constants ---
-DEFAULT_PINCH_DISTANCE_THRESHOLD = 30   # pixels
-DEFAULT_DEBOUNCE_TIME = 0.4             # seconds
-DEFAULT_CAMERA_DEVICE_INDEX = 1
+# -----------------------------
+# Global mouse state
+# -----------------------------
+mouse_pos = [None, None]
+mouse_clicked = False
 
-
-def run_demo(camera_index, pinch_threshold, debounce_time):
-    """Run the InteractiveGrid hand-tracking demo."""
-
-    # Initialize objects
-    grid = InteractiveGrid(singleton_selection=True)
-    gestures = GestureState(debounce_time=debounce_time)
-
-    cap = cv2.VideoCapture(camera_index)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, DEFAULT_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, DEFAULT_HEIGHT)
-
-    detector = HandDetector(detectionCon=0.8, maxHands=1)
-
-    def on_mouse(event, x, y, flags, param):
-        """Mouse fallback for testing."""
-        if event == cv2.EVENT_LBUTTONDOWN:
-            grid.handle_click_at_position(x, y)
-        grid.update_hover_by_position(x, y)
-
-    cv2.namedWindow("InteractiveGrid Demo")
-    cv2.setMouseCallback("InteractiveGrid Demo", on_mouse)
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        frame = cv2.flip(frame, 1)
-
-        hands, _ = detector.findHands(frame, draw=False)
-        if hands:
-            hand = hands[0]
-            tip_index = hand["lmList"][8][:2]
-            tip_thumb = hand["lmList"][4][:2]
-            fingers = detector.fingersUp(hand)  # [thumb, index, middle, ring, pinky]
-
-            # Hover: index finger only
-            if fingers[1] == 1 and sum(fingers) == 1:
-                grid.update_hover_by_position(*tip_index)
-            else:
-                grid.hover_cell = None
-
-            # Pinch: index + thumb
-            tip_dist = safe_distance(tip_index, tip_thumb)
-            if tip_dist < pinch_threshold:
-                if gestures.try_trigger("pinch_click"):
-                    grid.handle_click_at_position(*tip_index)
-
-        grid.draw_grid(frame)
-        cv2.imshow("InteractiveGrid Demo", frame)
-
-        key = cv2.waitKey(1)
-        if key == 27:  # ESC
-            break
-        elif key == ord("r"):
-            grid.reset_grid()
-
-    cap.release()
-    cv2.destroyAllWindows()
+def mouse_callback(event, x, y, flags, param):
+    """Update mouse hover and detect clicks."""
+    global mouse_clicked
+    if event == cv2.EVENT_MOUSEMOVE:
+        mouse_pos[0] = x
+        mouse_pos[1] = y
+    elif event == cv2.EVENT_LBUTTONDOWN:
+        mouse_clicked = True
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="InteractiveGrid demo with hand tracking and pinch gesture."
-    )
-    parser.add_argument(
-        "-c", "--camera", type=int, default=DEFAULT_CAMERA_DEVICE_INDEX,
-        help=f"Camera device index (default {DEFAULT_CAMERA_DEVICE_INDEX})"
-    )
-    parser.add_argument(
-        "-p", "--pinch-threshold", type=float, default=DEFAULT_PINCH_DISTANCE_THRESHOLD,
-        help=f"Pinch distance threshold in pixels (default {DEFAULT_PINCH_DISTANCE_THRESHOLD})"
-    )
-    parser.add_argument(
-        "-d", "--debounce", type=float, default=DEFAULT_DEBOUNCE_TIME,
-        help=f"Debounce time in seconds between gestures (default {DEFAULT_DEBOUNCE_TIME})"
-    )
+    global mouse_clicked
+
+    parser = argparse.ArgumentParser(description="Interactive Grid Demo")
+    parser.add_argument("--camera", type=int, default=CAMERA_INDEX)
+    parser.add_argument("--width", type=int, default=FRAME_WIDTH)
+    parser.add_argument("--height", type=int, default=FRAME_HEIGHT)
+    parser.add_argument("--rows", type=int, default=2)
+    parser.add_argument("--cols", type=int, default=2)
+    parser.add_argument("--singleton", action="store_true")
     args = parser.parse_args()
 
-    run_demo(args.camera, args.pinch_threshold, args.debounce)
+    # -----------------------------
+    # Video capture
+    # -----------------------------
+    cap = cv2.VideoCapture(args.camera)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+
+    # -----------------------------
+    # Hand detector
+    # -----------------------------
+    detector = HandDetector(maxHands=MAX_HANDS, detectionCon=DETECTION_CONFIDENCE)
+
+    # -----------------------------
+    # Interactive grid
+    # -----------------------------
+    grid = InteractiveGrid(rows=args.rows, cols=args.cols, singleton_selection=args.singleton)
+
+    # -----------------------------
+    # Setup mouse callback
+    # -----------------------------
+    cv2.namedWindow("Interactive Grid")
+    cv2.setMouseCallback("Interactive Grid", mouse_callback)
+
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+
+        frame = cv2.flip(frame, 1)  # mirror for natural interaction
+
+        # -----------------------------
+        # Detect hands once (draw=False)
+        # -----------------------------
+        hands, _ = detector.findHands(frame, draw=False)
+
+        # Hover and pinch tracking
+        hover_updated = False
+        pinch_cell = None
+
+        if hands:
+            hand = hands[0]
+            lmList = hand["lmList"]
+            fingers = detector.fingersUp(hand)
+            index_tip = lmList[8]
+            thumb_tip = lmList[4]
+            px, py = int(index_tip[0]), int(index_tip[1])
+
+            # Hover from hand only if index finger is the only one extended
+            if fingers == INDEX_ONLY_GESTURE:
+                grid.update_hover_by_position(px, py, frame.shape[1], frame.shape[0])
+                hover_updated = True
+
+            # Selection from hand
+            grid.attempt_select(fingers, px, py, frame.shape[1], frame.shape[0])
+
+            # Pinch detection
+            dist = safe_distance(index_tip, thumb_tip)
+            if dist < PINCH_DISTANCE_THRESHOLD:
+                pinch_cell = grid.get_cell_from_position(px, py, frame.shape[1], frame.shape[0])
+
+        # Mouse hover if hand did not update
+        if not hover_updated:
+            if mouse_pos[0] is not None and mouse_pos[1] is not None:
+                grid.update_hover_by_position(mouse_pos[0], mouse_pos[1], frame.shape[1], frame.shape[0])
+            else:
+                grid.update_hover_by_position(None, None)
+
+        # Mouse click selection
+        if mouse_clicked and mouse_pos[0] is not None and mouse_pos[1] is not None:
+            grid.attempt_select(INDEX_ONLY_GESTURE, mouse_pos[0], mouse_pos[1],
+                                frame.shape[1], frame.shape[0])
+            mouse_clicked = False
+
+        # Update pinch
+        grid.pinch_cell = pinch_cell
+
+        # -----------------------------
+        # Draw grid first
+        # -----------------------------
+        grid.draw_grid(frame)
+
+        # -----------------------------
+        # Draw hands on top
+        # -----------------------------
+        detector.findHands(frame, draw=True)
+
+        # -----------------------------
+        # Display
+        # -----------------------------
+        cv2.imshow("Interactive Grid", frame)
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC to exit
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
