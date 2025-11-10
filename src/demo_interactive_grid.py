@@ -2,16 +2,17 @@ import cv2
 from cvzone.HandTrackingModule import HandDetector
 from asimov.interactive_grid import InteractiveGrid
 from asimov.interactive_grid import DEFAULT_WIDTH, DEFAULT_HEIGHT
-from asimov.common import safe_distance  # import the utility
+from asimov.common import safe_distance
 
 # --- CONFIG ---
-PINCH_DISTANCE_THRESHOLD = 30  # pixels, configurable click threshold
+CAMERA_DEVICE_INDEX = 1             # camera device index
+PINCH_DISTANCE_THRESHOLD = 30       # pixels, configurable click threshold
 
-# Create grid (single_selection can be True or False)
+# Create grid with singleton selection
 grid = InteractiveGrid(singleton_selection=True)
 
 # Initialize webcam
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(CAMERA_DEVICE_INDEX)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, DEFAULT_WIDTH)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, DEFAULT_HEIGHT)
 
@@ -32,23 +33,29 @@ while True:
     if not ret:
         break
 
-    # Flip frame if needed
     frame = cv2.flip(frame, 1)
 
     # Detect hands
     hands, _ = detector.findHands(frame, draw=False)
     if hands:
         hand = hands[0]
-        tip_index = hand["lmList"][8][:2]   # index fingertip
-        tip_middle = hand["lmList"][12][:2] # middle fingertip
+        tip_index = hand["lmList"][8][:2]  # index fingertip
+        tip_thumb = hand["lmList"][4][:2]  # thumb tip
 
-        # Hover updates based on fingertip position
-        grid.update_hover_by_position(*tip_index)
+        # Get fingers state from detector
+        fingers = detector.fingersUp(hand)  # [thumb, index, middle, ring, pinky]
 
-        # Pinch/click detection
-        tip_dist = safe_distance(tip_index, tip_middle)
-        if tip_dist < PINCH_DISTANCE_THRESHOLD:
-            grid.handle_click_at_position(*tip_index)
+        # --- Hover: only when index finger is up alone ---
+        if fingers[1] == 1 and sum(fingers) == 1:
+            grid.update_hover_by_position(*tip_index)
+        else:
+            grid.hover_cell = None  # remove hover
+
+        # --- Pinch/Click: distance between index and thumb ---
+        if fingers[0] == 1 and fingers[1] == 1 and sum(fingers) == 2:
+            tip_dist = safe_distance(tip_index, tip_thumb)
+            if tip_dist < PINCH_DISTANCE_THRESHOLD:
+                grid.handle_click_at_position(*tip_index)
 
     # Draw grid overlay
     grid.draw_grid(frame)
