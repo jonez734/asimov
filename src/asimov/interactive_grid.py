@@ -28,7 +28,8 @@ class InteractiveGrid:
                  top_margin_pct=DEFAULT_TOP_MARGIN_PCT,
                  bottom_margin_pct=DEFAULT_BOTTOM_MARGIN_PCT,
                  left_margin_pct=DEFAULT_LEFT_MARGIN_PCT,
-                 right_margin_pct=DEFAULT_RIGHT_MARGIN_PCT):
+                 right_margin_pct=DEFAULT_RIGHT_MARGIN_PCT,
+                 singleton_selection=True):
         self.rows = rows
         self.cols = cols
         self.width = width
@@ -65,6 +66,8 @@ class InteractiveGrid:
         # Hover tracking
         self.hover_cell = None  # (row, col) currently hovered
 
+        self.singleton_selection = singleton_selection
+
     # -----------------------
     # DEVICE-AGNOSTIC INTERACTIONS
     # -----------------------
@@ -82,7 +85,12 @@ class InteractiveGrid:
         col = (x - self.left_margin) // self.cell_width
         row = (y - self.top_margin) // self.cell_height
         if 0 <= row < self.rows and 0 <= col < self.cols:
-            self.grid_state[row, col] = not self.grid_state[row, col]
+            if self.singleton_selection:
+                # Deselect all other cells first
+                self.grid_state[:] = False
+                self.grid_state[row, col] = True
+            else:
+                self.grid_state[row, col] = not self.grid_state[row, col]
 
     def handle_mouse_event(self, event, x, y, flags, param):
         """Legacy mouse callback for convenience."""
