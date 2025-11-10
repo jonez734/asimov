@@ -1,129 +1,109 @@
-# asimov/interactive_grid.py
 import cv2
+import numpy as np
+import time
 
-# ----------------------------
-# Constants
-# ----------------------------
-COLOR_CELL = (50, 50, 200)
-COLOR_CELL_HOVER = (80, 80, 255)
-COLOR_CELL_SELECTED = (0, 200, 0)
-COLOR_TIP = (0, 255, 255)
-COLOR_CONFIRM = (0, 255, 0)
-COLOR_CONFIRM_HOVER = (0, 200, 0)
-RADIUS_TIP = 8
-MARGIN_RATIO = 0.1
-ALPHA_GRID = 0.7
-SCALE_HOVER = 1.1
+# --- INTERACTIVE GRID CLASS WITH MARGINS AND FADE-IN ---
+# Named constants for defaults
+DEFAULT_ROWS = 3
+DEFAULT_COLS = 3
+DEFAULT_WIDTH = 640
+DEFAULT_HEIGHT = 480
+DEFAULT_CELL_THICKNESS = 2
+DEFAULT_CELL_COLOR = (0, 255, 0)       # Green fill for active cells
+DEFAULT_BORDER_COLOR = (255, 255, 255) # White border
+DEFAULT_ALPHA = 0.7                     # Max transparency
+DEFAULT_FADE_DURATION = 2.0             # Seconds for fade-in
+DEFAULT_TOP_MARGIN_PCT = 0.1
+DEFAULT_BOTTOM_MARGIN_PCT = 0.1
+DEFAULT_LEFT_MARGIN_PCT = 0.1
+DEFAULT_RIGHT_MARGIN_PCT = 0.1
 
 class InteractiveGrid:
-    def __init__(self, rects):
-        """
-        rects: list of rectangles [(x1,y1,x2,y2), ...]
-        """
-        self.rects = rects
-        self.active_index = None
-        self.selected_index = None
-        self.hands = []
+    def __init__(self, rows=DEFAULT_ROWS, cols=DEFAULT_COLS,
+                 width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT,
+                 cell_thickness=DEFAULT_CELL_THICKNESS,
+                 cell_color=DEFAULT_CELL_COLOR,
+                 border_color=DEFAULT_BORDER_COLOR,
+                 alpha=DEFAULT_ALPHA,
+                 fade_duration=DEFAULT_FADE_DURATION,
+                 top_margin_pct=DEFAULT_TOP_MARGIN_PCT,
+                 bottom_margin_pct=DEFAULT_BOTTOM_MARGIN_PCT,
+                 left_margin_pct=DEFAULT_LEFT_MARGIN_PCT,
+                 right_margin_pct=DEFAULT_RIGHT_MARGIN_PCT):
+        self.rows = rows
+        self.cols = cols
+        self.width = width
+        self.height = height
+        self.cell_thickness = cell_thickness
+        self.cell_color = cell_color
+        self.border_color = border_color
+        self.alpha = alpha
+        self.fade_duration = fade_duration
+        self.top_margin_pct = top_margin_pct
+        self.bottom_margin_pct = bottom_margin_pct
+        self.left_margin_pct = left_margin_pct
+        self.right_margin_pct = right_margin_pct
 
-    # ----------------------------
-    # Update hands (robust)
-    # ----------------------------
-    def update_hands(self, hands):
-        """
-        hands: list of hands detected by cvzone/mediapipe
-        Accepts list of dicts or list of landmark lists
-        """
-        self.hands = hands or []
+        # Compute effective width and height excluding margins
+        self.effective_width = int(self.width * (1.0 - self.left_margin_pct - self.right_margin_pct))
+        self.effective_height = int(self.height * (1.0 - self.top_margin_pct - self.bottom_margin_pct))
+        self.top_margin = int(self.height * self.top_margin_pct)
+        self.bottom_margin = int(self.height * self.bottom_margin_pct)
+        self.left_margin = int(self.width * self.left_margin_pct)
+        self.right_margin = int(self.width * self.right_margin_pct)
 
-    # ----------------------------
-    # Hover detection (robust)
-    # ----------------------------
-    def update_hover(self):
-        """
-        Updates self.active_index based on index fingertip position
-        """
-        self.active_index = None
-        if not self.hands:
-            return
+        # Calculate cell size
+        self.cell_width = self.effective_width // self.cols
+        self.cell_height = self.effective_height // self.rows
 
-        hand = self.hands[0]
+        # Grid state
+        self.grid_state = np.zeros((self.rows, self.cols), dtype=bool)
 
-        # Support dict or list
-        if isinstance(hand, dict):
-            lmList = hand.get("lmList", [])
-        elif isinstance(hand, list):
-            lmList = hand
-        else:
-            return
+        # Fade-in tracking
+        self._fade_start_time = None
+        self._current_alpha = 0.0
 
-        if len(lmList) <= 8 or len(lmList[8]) < 2:
-            return
-
-        cx, cy = lmList[8][:2]
-
-        for i, rect in enumerate(self.rects):
-            x1, y1, x2, y2 = rect
-            margin_x = int((x2 - x1) * MARGIN_RATIO)
-            margin_y = int((y2 - y1) * MARGIN_RATIO)
-            if x1 + margin_x <= cx <= x2 - margin_x and y1 + margin_y <= cy <= y2 - margin_y:
-                self.active_index = i
-                break
-
-    # ----------------------------
-    # Draw yellow tip circles
-    # ----------------------------
-    def draw_tips(self, frame):
-        """
-        Draws yellow circles at thumb (4) and index (8) tips
-        """
-        if not self.hands:
-            return
-
-        hand = self.hands[0]
-
-        if isinstance(hand, dict):
-            lmList = hand.get("lmList", [])
-        elif isinstance(hand, list):
-            lmList = hand
-        else:
-            return
-
-        for tip_index in [4, 8]:  # thumb tip and index tip
-            if len(lmList) > tip_index and len(lmList[tip_index]) >= 2:
-                x, y = lmList[tip_index][:2]
-                cv2.circle(frame, (int(x), int(y)), RADIUS_TIP, COLOR_TIP, -1)
-
-    # ----------------------------
-    # Draw the grid (cells only)
-    # ----------------------------
     def draw_grid(self, frame):
-        """
-        Draws grid rectangles with hover and selection coloring
-        """
+        """Draw the grid with optional fade-in."""
+        if self._fade_start_time is None:
+            self._fade_start_time = time.time()
+
+        elapsed = time.time() - self._fade_start_time
+        fade_ratio = min(elapsed / self.fade_duration, 1.0)
+        self._current_alpha = fade_ratio * self.alpha
+
         overlay = frame.copy()
-        for i, rect in enumerate(self.rects):
-            x1, y1, x2, y2 = rect
-            color = COLOR_CELL
-            if i == self.selected_index:
-                color = COLOR_CELL_SELECTED
-            elif i == self.active_index:
-                color = COLOR_CELL_HOVER
+        for r in range(self.rows):
+            for c in range(self.cols):
+                top_left = (self.left_margin + c * self.cell_width,
+                            self.top_margin + r * self.cell_height)
+                bottom_right = (self.left_margin + (c + 1) * self.cell_width,
+                                self.top_margin + (r + 1) * self.cell_height)
 
-            # Draw rectangle
-            cv2.rectangle(overlay, (x1, y1), (x2, y2), color, -1)
+                # Fill active cells
+                if self.grid_state[r, c]:
+                    cv2.rectangle(overlay, top_left, bottom_right, self.cell_color, -1)
 
-        # Apply alpha blending
-        cv2.addWeighted(overlay, ALPHA_GRID, frame, 1 - ALPHA_GRID, 0, frame)
+                # Draw border
+                cv2.rectangle(overlay, top_left, bottom_right, self.border_color, self.cell_thickness)
 
-    # ----------------------------
-    # Select active cell
-    # ----------------------------
-    def select_active(self):
-        if self.active_index is not None:
-            self.selected_index = self.active_index
+        # Blend overlay
+        cv2.addWeighted(overlay, self._current_alpha, frame, 1 - self._current_alpha, 0, frame)
 
-    # ----------------------------
-    # Reset selection
-    # ----------------------------
-    def reset_selection(self):
-        self.selected_index = None
+    def toggle_cell(self, x, y):
+        """Toggle cell at mouse coordinates, accounting for all margins."""
+        col = (x - self.left_margin) // self.cell_width
+        row = (y - self.top_margin) // self.cell_height
+        if 0 <= row < self.rows and 0 <= col < self.cols:
+            self.grid_state[row, col] = not self.grid_state[row, col]
+
+    def reset_grid(self):
+        """Reset all cells and fade-in."""
+        self.grid_state[:] = False
+        self._fade_start_time = None
+        self._current_alpha = 0.0
+
+    def handle_mouse_event(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.toggle_cell(x, y)
+
