@@ -1,0 +1,96 @@
+<!DOCTYPE html> {*HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">*}
+<html lang="en-us" id="html">
+<head id="head" itemscope itemtype="https://schema.org/WebSite">
+{block name="head"}
+<!-- page.tmpl in achilles -->
+<meta charset="utf-8">
+{*<link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Montserrat%7COpen+Sans" />*}
+{*<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">*}
+<script src="https://kit.fontawesome.com/684c5b77b8.js" crossorigin="anonymous"></script>
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/animate.css" media="screen" >
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/blurb.css" {*{$smarty.const.STATICSKINURL}css/blurb.css"*} media="screen" >
+{*<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/actions.css" media="screen" />*} {* temporary, 2020-mar-24, until tested *}
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/pageheader.css" media="screen" >
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/pagefooter.css" media="screen" >
+{*<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/clock.css" media="screen" /> *}
+{* <link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/nav.css" media="screen" />*}
+<link rel="stylesheet" type="text/css" href="/skin/css/achilles.css" media="screen" >
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/breadcrumbs.css" media="screen" >
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/actions.css" media="screen" >
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/page.css" media="screen" >
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/poweredby.css" media="screen" >
+{*<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/spoiler.css" media="screen" />*}
+{*<link href="https://fonts.googleapis.com/css?family=Roboto+Condensed&display=swap" rel="stylesheet">*}
+
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/lists.css" media="screen" >
+
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+
+<script>var ENGINEURL="{$smarty.const.ENGINEURL}";</script>
+{* <script src="{$smarty.const.ENGINEURL}js/bbsengine6.js"></script> *}
+<script src="/engine/js/bbsengine6.js"></script>
+
+{*<script defer src="{$smarty.const.ENGINEURL}js/preloadbackgroundimages.js"></script>*}
+<script defer src="{$smarty.const.ENGINEURL}js/jquery.smoothState.js"></script>
+<script defer src="{$smarty.const.ENGINEURL}js/initsmoothstate.js"></script>
+{*<script defer src="{$smarty.const.ENGINEURL}js/clock.js"></script>*}
+{*<script defer src="{$smarty.const.ENGINEURL}js/spoiler.js"></script>*}
+{*
+{if $currentmemberid > 0}
+<script defer src="{$smarty.const.ENGINEURL}js/topbar-notifycount.js"></script>
+<script defer src="{$smarty.const.ENGINEURL}js/topbar-credits.js"></script>
+<script defer src="{$smarty.const.ENGINEURL}js/topbar-loginlogout.js"></script>
+<script defer src="{$smarty.const.ENGINEURL}js/topbar-join.js"></script>
+<script defer src="{$smarty.const.ENGINEURL}js/topbar-greetings.js"></script>
+<script defer src="{$smarty.const.ENGINEURL}js/topbar-nav.js"></script>
+{/if}
+*}
+{*<script defer src="{$smarty.const.ENGINEURL}js/checkcurrentmemberid.js"></script>*}
+{*{include file="googleanalytics.tmpl"}*}
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/topbar.css" media="screen" >
+
+<script defer src="{$smarty.const.ENGINEURL}js/topbar.js" type="text/javascript"></script>
+
+{*<script defer src="{$smarty.const.ENGINEURL}js/snowstorm-min.js"></script>*}
+{*<script defer src="{$smarty.const.ENGINEURL}js/initsnow.js"></script>*}
+
+{* 
+<script src="{$smarty.const.ENGINEURL}js/tinymce/tinymce.js"></script>
+<script src="{$smarty.const.ENGINEURL}js/tinymce/jquery.tinymce.min.js"></script>
+<script src="{$smarty.const.ENGINEURL}js/inittinymce.js"></script>
+*}
+<title>achilles - a study of flavor enhancers</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="the ai consensus" >
+
+<meta property="og:type" content="website" >
+<meta property="og:description" content="the ai consensus - personal website" >
+<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/maturecontentwarning.css" media="screen" >
+{*<link rel="stylesheet" type="text/css" href="{$smarty.const.STATICSKINURL}css/amznitem.css" media="screen" >*}
+{* <meta property="og:url" content="https://www.mailgun.com/" /> *}
+{* <meta property="og:title" content="Pricing - Transactional Email API Service for Developers - Mailgun" /> *}
+{/block}
+{* {block name="head"}<!-- head -->{/block}  *}
+</head>
+<body id="body" class="scene element fadeIn">
+{*{include file="pageheader.tmpl"}*}
+<header id="pageheader" class="blurb">
+{block name="pageheader"}
+<div class="body">
+{* <h1 class="animate__animated animate__lightSpeedInRight">Zoid Technologies</h1>*}
+ <h1>zoid technologies</h1>
+ <h2>project achilles</h2>
+</div> {* body *}
+{/block}
+</header>
+
+{include file="topbar.tmpl" data=$data|default:NULL}
+{*{include file="maturecontentwarning.tmpl"}*}
+{*{include file="nav.tmpl" sidebar=$data.sidebar|default:NULL}*}
+{*<pre>{\bbsengine6\getcurrenturi()} {\bbsengine6\getreturnto()|var_dump}</pre>*}
+{block name="content"}
+<main>{block name="main"}<div class="blurb vstretch"><div class="body">NEEDINFO:main</div></div>{/block}</main>
+{/block}
+{include file="pagefooter.tmpl"}
+</body>
+</html>
