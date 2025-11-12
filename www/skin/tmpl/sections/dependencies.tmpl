@@ -1,19 +1,43 @@
-<div class="blurb" id="dependencies-section" role="region" aria-labelledby="dependencies-heading">
-  <div class="header">
-    <h2 id="dependencies-heading">Technical Details / Dependencies</h2>
-  </div>
-  <div class="body">
-    <h3>Dependencies</h3>
-    <ul>
-      <li>Python 3.9 – 3.12</li>
-      <li>OpenCV 4.9.0 (Qt backend by default; GTK needed for some legacy demos)</li>
-      <li>cvzone (provides hand tracking and gesture utilities via MediaPipe)</li>
-      <li>NumPy</li>
-      <li>PyOpenGL (optional, for GPU-based rendering in OpenGL demos)</li>
-      <li>pyvirtualcam (for virtual camera output; compatible with OBS and Zoom)</li>
-    </ul>
-    <p>
-      Note: MediaPipe is only supported by the Python versions listed above; cvzone depends on MediaPipe for gesture and face detection.
-    </p>
-  </div>
+<div class="blurb" role="region" aria-labelledby="dependencies-title">
+    <div class="header">
+        <h1 id="dependencies-title">Dependencies</h1>
+    </div>
+
+    <div class="body">
+        <p>Asimov depends on the following Python packages:</p>
+        <ul>
+            <li>
+                <a href="https://github.com/letmaik/pyvirtualcam" rel="noopener noreferrer" 
+                   aria-label="pyvirtualcam home page">pyvirtualcam</a> — Sends frames to a virtual camera.
+            </li>
+            <li>
+                <a href="https://pypi.org/project/opencv-python/" rel="noopener noreferrer" 
+                   aria-label="opencv-python home page">opencv-python</a> — Python bindings for OpenCV for computer vision tasks.
+            </li>
+            <li>
+                <a href="https://numpy.org/" rel="noopener noreferrer" 
+                   aria-label="numpy home page">numpy</a> — Fundamental package for scientific computing.
+            </li>
+            <li>
+                <a href="https://developers.google.com/mediapipe" rel="noopener noreferrer" 
+                   aria-label="mediapipe home page">mediapipe</a> — Cross-platform framework for building multimodal applied ML pipelines.
+            </li>
+            <li>
+                <a href="https://pypi.org/project/PyQt5/" rel="noopener noreferrer" 
+                   aria-label="PyQt5 home page">PyQt5</a> — Python bindings for the Qt GUI framework.
+            </li>
+        </ul>
+
+        <p>And the following system packages should be installed via <code>dnf</code> on Fedora:</p>
+        <ul>
+            <li><a href="https://ffmpeg.org/" rel="noopener noreferrer" aria-label="ffmpeg home page"><code>ffmpeg</code></a> — for video encoding and decoding (optional).</li>
+            <li><code>gstreamer1-plugins-base</code> — base GStreamer plugins (optional).</li>
+            <li><code>gstreamer1-plugins-good</code> — additional “good” GStreamer plugins (optional).</li>
+            <li><a href="https://mesa3d.org/" rel="noopener noreferrer" aria-label="Mesa home page"><code>mesa-libGL</code></a> — OpenGL library for rendering.</li>
+            <li><code>qt5-qtbase</code> — Qt5 base libraries for GUI support.</li>
+            <li><a href="https://opencv.org/" rel="noopener noreferrer" aria-label="OpenCV home page"><code>opencv</code></a> — OpenCV system libraries.</li>
+        </ul>
+
+        <p>Please make sure all Python and required system dependencies are installed before running Asimov.</p>
+    </div>
 </div>
