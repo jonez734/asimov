@@ -1,0 +1,13 @@
+<section id="overview" aria-labelledby="overview-heading">
+  <h2 id="overview-heading">Overview</h2>
+  <p>
+    <strong>Asimov</strong> is a Python package and interactive real-time vision system that can also be run as a standalone program. 
+    It processes camera input via OpenCV, recognizes hand gestures using cvzone (which wraps MediaPipe), and provides configurable 
+    visual effects and “glitches.” In <code>main_virtualcam.py</code>, cvzone is also used for face detection to implement a 
+    “privacy eyes” overlay. Asimov includes utility functions for distance checks, logging, and safe path computation, 
+    making it suitable for building interactive applications or demos. When run directly, it supports pluggable main loops 
+    such as <code>main_virtualcam.py</code>, which showcase glitch effects and virtual camera output compatible with 
+    OBS (tested) and Zoom (tested). meet.jit.si (Jitsi) does not currently work (black preview), and Discord sees the virtual camera in the 
+    dropdown but shows a black frame. Legacy GTK-based demos exist but are no longer actively maintained.
+  </p>
+</section>

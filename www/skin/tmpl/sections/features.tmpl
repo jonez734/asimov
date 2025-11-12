@@ -1,0 +1,28 @@
+<div class="blurb" id="features-section" role="region" aria-labelledby="features-heading">
+  <div class="header">
+    <h2 id="features-heading">Features</h2>
+  </div>
+  <div class="body">
+    <ul>
+      <li>Real-time camera input using OpenCV's <code>VideoCapture</code></li>
+      <li>Hand and gesture recognition via cvzone (which uses MediaPipe) and OpenCV</li>
+      <li>Face detection via cvzone for the “privacy eyes” overlay in <code>main_virtualcam.py</code></li>
+      <li>Gesture state management with debounce logic and configurable thresholds (<code>gestures.py</code>)</li>
+      <li>Demo code uses <code>gestures.py</code> to detect pinch and spread gestures, triggering visual effects or interactive responses</li>
+      <li>Configurable “glitch” and distortion effects with timing and randomization</li>
+      <li>Utility functions centralized in <code>asimov.common</code>:
+        <ul>
+          <li><code>logentry()</code> – logging events and actions</li>
+          <li><code>safe_distance()</code> – distance checks for interactive safety</li>
+          <li><code>get_safe_path()</code> – computing paths that avoid collisions or restricted zones</li>
+        </ul>
+      </li>
+      <li>Extensive use of named constants to avoid magic numbers and improve readability</li>
+      <li>Can be imported as a Python package or run directly as a program</li>
+      <li>Supports pluggable main loops via Python modules (e.g., <code>main_virtualcam.py</code>) for demos and glitch effects</li>
+      <li>OpenGL-based demos exist but are not used in production</li>
+      <li>Virtual camera output via <code>pyvirtualcam</code>, compatible with OBS (tested) and Zoom (tested); meet.jit.si (Jitsi) does not work (black preview); Discord shows the virtual camera in the dropdown but displays a black frame</li>
+      <li>Legacy GTK-based demos for video display and interaction (untested in recent versions)</li>
+    </ul>
+  </div>
+</div>
