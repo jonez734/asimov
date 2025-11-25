@@ -4,6 +4,7 @@ import time
 import random
 import numpy as np
 from cvzone.HandTrackingModule import HandDetector
+# Removed cvzone.Utils.fps import to use manual time.time() calculation.
 
 # Import the external glitch module and path utility from asimov
 from asimov import glitch
@@ -33,7 +34,7 @@ def setup_detector_and_args():
     args = parser.parse_args()
 
     # Initialize Hand Detector (0.8 minimum detection confidence)
-    detector = HandDetector(detectionCon=0.8, maxHands=1)
+    detector = HandDetector(detectionCon=0.7, maxHands=1)
 
     return args.card, args.device, detector
 
@@ -170,7 +171,7 @@ def main():
         img = cv2.flip(img, 1)
 
         # 1. Hand Detection
-        hands, img = detector.findHands(img, draw=True)
+        hands, img = detector.findHands(img, draw=True, flipType=False)
 
         info_text = "Status: Card hidden (Close hand or no hand detected)"
         current_card_img = original_card_img.copy()
