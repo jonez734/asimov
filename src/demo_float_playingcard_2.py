@@ -4,18 +4,156 @@ import time
 import random
 import numpy as np
 from cvzone.HandTrackingModule import HandDetector
+from dataclasses import dataclass, field
+from typing import Optional, Callable
+from collections import deque
+
+# User specified import for path handling (requires 'asimov' package to be installed)
 from asimov.util import safe_path
 
-# --- CONSTANTS ---
+# --- CORE GLITCH FRAMEWORK CONSTANTS (from glitch.py) ---
+MIN_DURATION = 0.3          # Minimum duration a glitch effect runs (seconds)
+MAX_DURATION = 1.2          # Maximum duration a glitch effect runs (seconds)
+MIN_INTERVAL = 3.0          # Minimum time between glitch starts (seconds)
+MAX_INTERVAL = 7.0          # Maximum time between glitch starts (seconds)
+
+# --- APPLICATION CONSTANTS ---
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
-GLITCH_MAX_DURATION = 0.05  # Max duration in seconds the glitch state is active
-GLITCH_INTERVAL_MIN = 3.0   # Minimum time (seconds) between glitch events
-GLITCH_INTERVAL_MAX = 7.0   # Maximum time (seconds) between glitch events
 PALM_SCALE_FACTOR = 1.5     # Factor to size the card relative to the palm bounding box width
+DEFAULT_OPACITY = 0.8       # Default card transparency (0.0=invisible, 1.0=opaque)
+GLITCH_OPACITY = 0.5        # Opacity while any glitch is active
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 TEXT_COLOR = (255, 255, 255)
 TEXT_BG_COLOR = (0, 0, 0)
+
+# --- GLITCH STATE MANAGEMENT (Based on glitch.py) ---
+
+@dataclass
+class Glitch:
+    """Dataclass to hold the state of a single glitch effect."""
+    name: str
+    func: Callable
+    running: bool = False
+    active_start: Optional[float] = 0.0
+    duration: Optional[float] = 0.0
+    last_trigger: float = 0.0
+    trigger_interval: float = 0.0
+    kwargs: dict = field(default_factory=dict)
+
+# Global state dictionaries
+_glitches: dict[str, Glitch] = {}
+_frame_history = deque(maxlen=5) # History for ghost/datamosh effects
+
+def register_glitch(name: str, func: Callable, **kwargs):
+    """Register a new glitch effect with its function and initial settings."""
+    g = Glitch(name=name, func=func, kwargs=kwargs)
+    g.last_trigger = time.time()
+    g.trigger_interval = random.uniform(MIN_INTERVAL, MAX_INTERVAL)
+    _glitches[name] = g
+
+def start_glitch(name: str, duration: float):
+    """Mark a registered glitch as running for a specific duration."""
+    g = _glitches.get(name)
+    if g:
+        g.running = True
+        g.active_start = time.time()
+        g.duration = duration
+
+def is_any_glitch_running():
+    """Returns True if at least one registered glitch is currently active."""
+    return any(g.running for g in _glitches.values())
+
+def manage_glitch_scheduler():
+    """Checks timing and starts/stops glitches based on defined intervals/durations."""
+    now = time.time()
+    
+    for name, glitch in list(_glitches.items()):
+        
+        # 1. Stop glitches that have run their course
+        if glitch.running and now - glitch.active_start >= glitch.duration:
+            glitch.running = False
+            glitch.last_trigger = now  # Mark when it finished
+            # Clear history for effects like 'ghost' when they stop
+            if name == 'ghost':
+                 _frame_history.clear() 
+
+        # 2. Maybe trigger new glitches
+        elif not glitch.running:
+            if now - glitch.last_trigger >= glitch.trigger_interval:
+                # Start new random duration
+                duration = random.uniform(MIN_DURATION, MAX_DURATION)
+                start_glitch(name, duration)
+                # Update next trigger interval now
+                glitch.trigger_interval = random.uniform(MIN_INTERVAL, MAX_INTERVAL)
+
+# --- GLITCH EFFECT FUNCTIONS (Based on glitch.py) ---
+
+def glitch_scanlines(frame, t=None, **kwargs):
+    """Overlays simple static scanlines (darkens every other row)."""
+    output = frame.copy()
+    # Simple static scanlines for short effect (darkens half the pixels)
+    output[::2, :, :] = (output[::2, :, :] * 0.5).astype(np.uint8)
+    return output
+
+def glitch_vhs_warp(frame, t=None, intensity=5, frequency=2.0, speed=1.0, **kwargs):
+    """Simulate VHS horizontal warping using a sine wave function."""
+    h, w, c = frame.shape
+    # Create an empty output image with the same dimensions
+    output = np.zeros_like(frame)
+    
+    # Create vertical coordinate grid
+    y = np.arange(h)
+    
+    # Compute horizontal offsets using a sinusoidal function of y (vertical position) and t (time)
+    offsets = (intensity * np.sin(2 * np.pi * frequency * (y / h) + speed * t)).astype(np.int32)
+    
+    for row in range(h):
+        shift = offsets[row]
+        if shift > 0:
+            # Shift right (pulling data from the left)
+            output[row, shift:] = frame[row, :-shift]
+        elif shift < 0:
+            # Shift left (pulling data from the right)
+            output[row, :shift] = frame[row, -shift:]
+        else:
+            output[row] = frame[row]
+
+    return output
+
+def glitch_ghost(frame, alpha: float = 0.4, shift: int = 5, **kwargs):
+    """Ghosting effect: overlays a faded, shifted older frame."""
+    global _frame_history
+    h, w = frame.shape[:2]
+    
+    # Add current frame to history
+    _frame_history.append(frame.copy())
+    
+    if len(_frame_history) < 2:
+        return frame
+    
+    # Use the oldest frame (index 0) as the ghost
+    ghost_frame = _frame_history[0]
+
+    # Shift ghost frame horizontally (like a CRT lag)
+    M = np.float32([[1, 0, shift], [0, 1, 0]])
+    shifted = cv2.warpAffine(ghost_frame, M, (w, h))
+
+    # Blend ghost with current frame (current frame is 1.0 weight, ghost is alpha weight)
+    return cv2.addWeighted(frame, 1.0, shifted, alpha, 0)
+
+def apply_glitches_to_image(image):
+    """Iterates through all running glitches and applies them sequentially to the image."""
+    now = time.time()
+    current_image = image.copy()
+    
+    for glitch in _glitches.values():
+        if glitch.running:
+            elapsed = now - glitch.active_start
+            # Pass the current image through the glitch function
+            current_image = glitch.func(current_image, t=elapsed, **glitch.kwargs)
+    
+    return current_image
 
 # --- UTILITY FUNCTIONS ---
 
@@ -36,6 +174,9 @@ def setup_detector_and_args():
 def load_card_image(card_path):
     """Loads the PNG card image with an alpha channel."""
     try:
+        # Run the card_path through the safety function
+        card_path = safe_path(card_path)
+
         card_img = cv2.imread(card_path, cv2.IMREAD_UNCHANGED)
         if card_img is None:
             raise FileNotFoundError(f"Image not found at path: {card_path}")
@@ -50,40 +191,10 @@ def load_card_image(card_path):
         print(f"Error loading card image: {e}")
         exit()
 
-def apply_glitch_effect(image):
-    """Applies a brief, noticeable visual distortion (glitch) to the image."""
-    h, w, _ = image.shape
-    glitched_img = image.copy()
-
-    # 1. Random horizontal shift (flickering)
-    shift_amount = random.randint(-10, 10)
-    if shift_amount > 0:
-        glitched_img[:, shift_amount:] = image[:, :-shift_amount]
-        glitched_img[:, :shift_amount] = 0 # Black fill
-    elif shift_amount < 0:
-        shift_amount = abs(shift_amount)
-        glitched_img[:, :-shift_amount] = image[:, shift_amount:]
-        glitched_img[:, -shift_amount:] = 0 # Black fill
-
-    # 2. Color channel separation (randomly shift G or B channel)
-    b, g, r, a = cv2.split(glitched_img)
-    if random.choice([True, False]):
-        g = np.roll(g, random.randint(-5, 5), axis=1)
-    else:
-        b = np.roll(b, random.randint(-5, 5), axis=0)
-
-    # 3. Random noise/scan lines (apply to a small region)
-    y_start = random.randint(0, h // 2)
-    y_end = random.randint(h // 2, h)
-    glitched_img[y_start:y_end, :, :3] = cv2.addWeighted(glitched_img[y_start:y_end, :, :3], 0.7, np.random.randint(0, 255, (y_end - y_start, w, 3), dtype=np.uint8), 0.3, 0)
-
-    glitched_img = cv2.merge([b, g, r, a])
-    return glitched_img
-
-def overlay_image_on_frame(frame, card_img, bbox):
+def overlay_image_on_frame(frame, card_img, bbox, card_opacity):
     """
     Resizes the card image based on the hand bounding box and overlays it onto the frame.
-    bbox is [x, y, w, h] of the hand.
+    Applies card_opacity to the image's alpha channel for dynamic transparency.
     """
     # 1. Determine size and position
     hand_w = bbox[2]
@@ -127,7 +238,8 @@ def overlay_image_on_frame(frame, card_img, bbox):
     card_to_overlay = resized_card[card_crop_y1:card_crop_y2, card_crop_x1:card_crop_x2]
 
     # Get alpha channel and the color BGR channels
-    alpha_channel = card_to_overlay[:, :, 3] / 255.0
+    # Apply the user-defined card_opacity to the image's existing alpha channel
+    alpha_channel = (card_to_overlay[:, :, 3] / 255.0) * card_opacity 
     color_channels = card_to_overlay[:, :, :3]
 
     # Extract the ROI from the frame
@@ -135,6 +247,7 @@ def overlay_image_on_frame(frame, card_img, bbox):
 
     # Blend the images
     for c in range(0, 3):
+        # Weighted sum: (Background * (1 - Alpha)) + (Foreground * Alpha)
         roi[:, :, c] = (roi[:, :, c] * (1 - alpha_channel)) + (color_channels[:, :, c] * alpha_channel)
 
     frame[y1_final:y2_final, x1_final:x2_final] = roi
@@ -150,23 +263,23 @@ def draw_info_box(frame, text, x, y):
 def main():
     """Main function to run the video processing loop."""
     
-    # Setup initial components, now receiving the device_index
+    # Setup initial components
     card_path, device_index, detector = setup_detector_and_args()
-
-    card_path = safe_path(card_path)
-    
     original_card_img = load_card_image(card_path)
+
+    # --- GLITCH INITIALIZATION ---
+    # Register the required glitch types
+    register_glitch("scanlines", glitch_scanlines)
+    register_glitch("vhs_warp", glitch_vhs_warp, intensity=7, frequency=3.0, speed=1.5)
+    register_glitch("ghost", glitch_ghost, alpha=0.3, shift=8)
 
     # Initialize video capture using the parsed device index
     cap = cv2.VideoCapture(device_index)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
     
-    # Glitch state variables
-    last_glitch_time = time.time()
-    next_glitch_interval = random.uniform(GLITCH_INTERVAL_MIN, GLITCH_INTERVAL_MAX)
-    is_glitching = False
-    glitch_start_time = 0
+    # State variable for dynamic opacity
+    current_opacity = DEFAULT_OPACITY
 
     while True:
         success, img = cap.read()
@@ -178,7 +291,6 @@ def main():
         img = cv2.flip(img, 1)
 
         # 1. Hand Detection
-        # Finds hands and draws landmarks/bounding box by default
         hands, img = detector.findHands(img, draw=True)
 
         info_text = "Status: Card hidden (Close hand or no hand detected)"
@@ -189,46 +301,41 @@ def main():
             hand = hands[0]
             bbox = hand["bbox"]  # [x, y, w, h] of the hand bounding box
             
-            # 2. Check Finger State
-            # list of 5 (1=up, 0=down): [thumb, index, middle, ring, pinky]
+            # 2. Check Finger State: list of 5 (1=up, 0=down)
             finger_list = detector.fingersUp(hand) 
             
             # Check if all 5 fingers are up (open palm)
             if all(finger_list):
-                info_text = "Status: Card floating (Open Palm Detected)"
-
-                # 3. Glitch Logic
-                current_time = time.time()
                 
-                # Check if it's time to start a new glitch
-                if not is_glitching and (current_time - last_glitch_time) > next_glitch_interval:
-                    is_glitching = True
-                    glitch_start_time = current_time
-                    # Pre-calculate next interval immediately after triggering
-                    last_glitch_time = current_time
-                    next_glitch_interval = random.uniform(GLITCH_INTERVAL_MIN, GLITCH_INTERVAL_MAX)
+                # 3. Glitch Logic: Check timing and update active states
+                manage_glitch_scheduler()
+                
+                # 4. Dynamic Opacity and Glitch Application
+                if is_any_glitch_running():
+                    current_card_img = apply_glitches_to_image(current_card_img)
+                    current_opacity = GLITCH_OPACITY # Set lower opacity during glitch
                     
-                # Check if the current glitch should end
-                if is_glitching and (current_time - glitch_start_time) > GLITCH_MAX_DURATION:
-                    is_glitching = False
-
-                # Apply glitch effect if state is active
-                if is_glitching:
-                    current_card_img = apply_glitch_effect(current_card_img)
-                    info_text += " - GLITCH ACTIVE!"
+                    # Create status text listing active glitches
+                    active_names = ", ".join([g.name for g in _glitches.values() if g.running])
+                    info_text = f"Status: Card floating ({current_opacity * 100:.0f}%) - GLITCH ACTIVE: {active_names}"
+                else:
+                    current_opacity = DEFAULT_OPACITY # Revert to default opacity
+                    info_text = f"Status: Card floating ({current_opacity * 100:.0f}%)"
                 
-                # 4. Overlay the card
-                img = overlay_image_on_frame(img, current_card_img, bbox)
+                # 5. Overlay the card
+                img = overlay_image_on_frame(img, current_card_img, bbox, current_opacity)
 
             else:
+                # Hand detected but not open palm
                 info_text = f"Status: Fingers up: {sum(finger_list)}/5 (Close palm)"
 
-        # 5. Display Information and Frame
+        # 6. Display Information and Frame
         draw_info_box(img, info_text, 10, FRAME_HEIGHT - 10)
         
         cv2.imshow("Demo Float Playing Card", img)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        ch = cv2.waitKey(1) & 0xFF 
+        if ch == ord('q') or ch == 27:
             break
 
     # Cleanup
