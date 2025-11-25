@@ -11,8 +11,8 @@ from asimov import glitch
 from asimov.util import safe_path
 
 # --- APPLICATION CONSTANTS ---
-FRAME_WIDTH = 640
-FRAME_HEIGHT = 480
+FRAME_WIDTH = 1280
+FRAME_HEIGHT = 720
 # Factor now sizes the card relative to the face width (0.5 means half the face width)
 FOREHEAD_SCALE_FACTOR = 0.5     
 DEFAULT_OPACITY = 0.8       # Default card transparency (0.0=invisible, 1.0=opaque)
@@ -22,9 +22,10 @@ TEXT_COLOR = (255, 255, 255)
 TEXT_BG_COLOR = (0, 0, 0)
 
 # FPS Smoothing and Font Scaling Configuration
-SMOOTHING_ALPHA = 0.1       # Alpha for EMA smoothing (closer to 1 = less smoothing, more flicker)
+SMOOTHING_ALPHA = 0.1       # Alpha for EMA smoothing on FPS (closer to 1 = less smoothing, more flicker)
+COORDINATE_SMOOTHING_ALPHA = 0.3 # Alpha for EMA smoothing on coordinates (lower = more smoothing, more lag)
 BASE_FONT_SCALE = 0.7       # Reference font scale for 720p height
-BASE_HEIGHT_REF = FRAME_HEIGHT       # Reference height for proportional scaling
+BASE_HEIGHT_REF = 720       # Reference height for proportional scaling
 
 # --- UTILITY FUNCTIONS ---
 
@@ -158,6 +159,12 @@ def main():
     pTime = 0
     avg_fps = 0.0 # Initial smoothed FPS
 
+    # --- COORDINATE SMOOTHING STATE ---
+    # Initialize smoothed coordinates to None (or 0)
+    _smooth_forehead_x = 0
+    _smooth_forehead_y = 0
+    # ----------------------------------
+
     while True:
         success, img = cap.read()
         if not success:
@@ -193,8 +200,19 @@ def main():
             
             # --- Forehead Calculation ---
             # Landmark 10 is typically the top-center of the head/forehead.
-            forehead_center = lmList[10] 
-            center_x, center_y = forehead_center[0], forehead_center[1]
+            current_forehead_center = lmList[10] 
+            current_x, current_y = current_forehead_center[0], current_forehead_center[1]
+            
+            # Apply Exponential Moving Average (EMA) to smooth the position
+            global _smooth_forehead_x, _smooth_forehead_y
+            if _smooth_forehead_x == 0 and _smooth_forehead_y == 0:
+                _smooth_forehead_x = current_x
+                _smooth_forehead_y = current_y
+            else:
+                _smooth_forehead_x = (COORDINATE_SMOOTHING_ALPHA * current_x) + ((1 - COORDINATE_SMOOTHING_ALPHA) * _smooth_forehead_x)
+                _smooth_forehead_y = (COORDINATE_SMOOTHING_ALPHA * current_y) + ((1 - COORDINATE_SMOOTHING_ALPHA) * _smooth_forehead_y)
+
+            smoothed_forehead_center = (int(_smooth_forehead_x), int(_smooth_forehead_y))
             
             # Calculate face bounding box manually for sizing reference
             x_coords = [p[0] for p in lmList]
@@ -215,8 +233,8 @@ def main():
                 current_opacity = DEFAULT_OPACITY
                 info_text = f"Status: Card STUCK ({current_opacity * 100:.0f}%)"
             
-            # 4. Overlay the card
-            img = overlay_card_on_forehead(img, current_card_img, (center_x, center_y), face_w, current_opacity)
+            # 4. Overlay the card using the smoothed position
+            img = overlay_card_on_forehead(img, current_card_img, smoothed_forehead_center, face_w, current_opacity)
 
         # 5. Display Information and Frame
         # Combine status text and FPS text
