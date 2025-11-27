@@ -1,4 +1,5 @@
-# asimov/fingertip.py
+# asimov/indexfingertip.py
+
 from . import conf
 
 import cv2
