@@ -25,7 +25,7 @@ def main():
     global USE_TRUE_ALPHA
 
     # --- 1. Argument Parsing ---
-    parser = argparse.ArgumentParser(description="Virtual Pong Trail Demo with CVZone and PyVirtualCam.")
+    parser = argparse.ArgumentParser(description="Virtual Trail Demo with CVZone and PyVirtualCam.")
     parser.add_argument(
         '--device', 
         type=int, 
