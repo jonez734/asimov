@@ -9,8 +9,10 @@ import time
 import numpy as np
 
 from . import io
+from .common import safe_path
 
 import cv2
+from typing import Callable, Any, Tuple
 
 MAX_BLOCK_SIZE = 128
 
@@ -363,7 +365,8 @@ def get_bottom_right_position(frame, text, font, font_scale=1.0, thickness=2, pa
 def get_device_by_label(label:str):
     base = "/sys/class/video4linux"
     for dev in os.listdir(base):
-        card_path = os.path.join(base, dev, "name")
+        card_path = safe_path(base, dev, "name")
+        io.echo(f"get_device_by_label.100: {card_path=}")
         try:
             with open(card_path, "r") as f:
                 name = f.read().strip()
@@ -392,55 +395,6 @@ def camera_ready(cap, timeout=5):
         time.sleep(0.1)  # Avoid busy waiting
 
 
-# ---------
-# logging
-# ---------
-import logging
-import logging.handlers
-
-# default syslog handler
-default_handler = logging.handlers.SysLogHandler(address="/dev/log")
-default_formatter = logging.Formatter('%(name)s[%(process)d]: %(levelname)s %(message)s')
-default_handler.setFormatter(default_formatter)
-
-def logentry(message, level=logging.INFO, *, handler=None, formatter=None, logger_name=LOGGER_NAME):
-    """
-    Write a log entry to syslog (by default), with optional handler/formatter overrides.
-
-    Args:
-        message (str): The log message.
-        level (int): Logging level (default=logging.INFO).
-        handler (logging.Handler, optional): Custom logging handler.
-        formatter (logging.Formatter, optional): Custom formatter.
-        logger_name (str): Name for the logger (default="myapp").
-    """
-
-    h = handler or default_handler
-    f = formatter or default_formatter
-
-    # Ensure formatter is applied
-    h.setFormatter(f)
-
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)   # capture all levels
-    if not any(isinstance(x, type(h)) for x in logger.handlers):
-        logger.addHandler(h)
-
-    levels = {
-        "debug":    logging.DEBUG,
-        "info":     logging.INFO,
-        "warn":     logging.WARNING,
-        "warning":  logging.WARNING,
-        "error":    logging.ERROR,
-        "critical": logging.CRITICAL,
-#        "exception":logging.EXCEPTION,
-    }
-
-    if level in levels:
-        level = levels[level]
-
-    logger.log(level, message)
-    return
 
 def heading(title:str, level=1, **kwargs): # hrchar:str="{acs:hline}", llcorner="{acs:llcorner}", lrcorner="{acs:lrcorner}", ulcorner="{acs:ulcorner}", urcorner="{acs:urcorner}", vline="{acs:vline}", width=None, fillchar=" ", center=True):
 ##  if io.getoption("style", "ttyio") == "noansi":
@@ -470,3 +424,196 @@ def heading(title:str, level=1, **kwargs): # hrchar:str="{acs:hline}", llcorner=
   io.echo(f" {{boxcolor}}{{vline}}{{titlecolor}}{leftpadding}{title}{rightpadding}{{/all}}{{boxcolor}}{{vline}}", wordwrap=False, end="\n")
   io.echo(f" {{llcorner}}{{hline:{width}}}{{lrcorner}}{{/all}}{{f6}}", wordwrap=False, end="")
   return
+
+import math
+import time
+import cv2
+import numpy as np
+
+class OneEuroFilter:
+    """
+    One Euro Filter: https://cristal.univ-lille.fr/~casiez/1euro/
+    Keeps smooth values but reacts faster to quick movements.
+
+    Parameters:
+    - freq (float): Estimated frequency/frame rate in Hz.
+    - min_cutoff (float): Base smoothing factor (lower = more smooth).
+    - beta (float): Factor that controls responsiveness to speed (higher = more responsive).
+    - dcutoff (float): Cutoff frequency for the derivative filter.
+    - init (float | None): Initial value.
+    """
+    def __init__(self, freq=30, min_cutoff=1.0, beta=0.01, dcutoff=1.0, init=None):
+        self.freq = freq              # Hz, frame rate estimate
+        self.min_cutoff = min_cutoff  # baseline smoothing
+        self.beta = beta              # speed sensitivity
+        self.dcutoff = dcutoff        # derivative smoothing
+        self.last_time = None
+        self.x_prev = init
+        self.dx_prev = 0
+
+    def _alpha(self, cutoff, dt):
+        """Calculates the smoothing factor based on cutoff frequency and time step."""
+        tau = 1.0 / (2 * math.pi * cutoff)
+        return 1.0 / (1.0 + tau / dt)
+
+    def update(self, x):
+        """Applies the filter to the new value x."""
+        now = time.time()
+        if self.last_time is None:
+            dt = 1.0 / self.freq
+        else:
+            dt = max(now - self.last_time, 1e-6)
+        self.last_time = now
+
+        if self.x_prev is None:
+            self.x_prev = x
+            self.dx_prev = 0
+
+        # Derivative calculation
+        dx = (x - self.x_prev) / dt
+        a_d = self._alpha(self.dcutoff, dt)
+        dx_hat = a_d * dx + (1 - a_d) * self.dx_prev
+
+        # Adaptive cutoff calculation
+        cutoff = self.min_cutoff + self.beta * abs(dx_hat)
+        a = self._alpha(cutoff, dt)
+
+        # Filtered value
+        x_hat = a * x + (1 - a) * self.x_prev
+
+        self.x_prev = x_hat
+        self.dx_prev = dx_hat
+        return x_hat
+
+def get_centroid(pts: np.ndarray):
+    """
+    Calculates the centroid (center of mass) of a contour or set of points.
+
+    Args:
+        pts (np.ndarray): A numpy array of points (e.g., shape (N, 2) or (N, 1, 2)).
+
+    Returns:
+        tuple[float, float]: (cx, cy) coordinates of the centroid.
+    """
+    # Ensure points are in the correct format for cv2.moments
+    if pts.ndim == 3:
+        pts = pts.reshape(-1, 2)
+
+    M = cv2.moments(pts)
+
+    if M["m00"] == 0:
+        return 0.0, 0.0
+
+    cx = M["m10"] / M["m00"]
+    cy = M["m01"] / M["m00"]
+    return cx, cy
+
+def blend_alpha(foreground_bgr: np.ndarray, background_bgr: np.ndarray, alpha_channel: np.ndarray) -> np.ndarray:
+    """
+    Blends a foreground image onto a background image using a separate alpha channel.
+
+    This implements the formula: final = (alpha * foreground) + ((1 - alpha) * background).
+    
+    Args:
+        foreground_bgr: The BGR color layer of the foreground (e.g., the trail), dtype float.
+        background_bgr: The BGR color layer of the background (e.g., live cam), dtype float.
+        alpha_channel: The alpha channel (0.0 to 1.0), dtype float.
+
+    Returns:
+        The blended image as a NumPy array (dtype np.uint8).
+    """
+    # 1. Prepare alpha for broadcasting (3 channels)
+    alpha_3ch = cv2.merge([alpha_channel, alpha_channel, alpha_channel])
+
+    # 2. Apply the blending formula
+    blended_img_float = (alpha_3ch * foreground_bgr) + ((1 - alpha_3ch) * background_bgr)
+
+    # 3. Convert back to standard image format
+    return blended_img_float.astype(np.uint8)
+
+# Example use:
+# blended_frame = blend_alpha(trail_bgr.astype(float), img.astype(float), alpha_channel_normalized)
+
+
+def safe_bgra_draw(canvas_bgra: np.ndarray, draw_func: Callable[..., Any], *args, **kwargs) -> np.ndarray:
+    """
+    Safely executes an OpenCV drawing function on a BGRA canvas by splitting
+    and merging channels to ensure contiguous memory access.
+
+    Args:
+        canvas_bgra: The 4-channel BGRA canvas to draw on.
+        draw_func: The OpenCV drawing function to execute (e.g., cv2.line, cv2.circle).
+        *args, **kwargs: Arguments to pass directly to the draw_func.
+
+    Returns:
+        The modified 4-channel BGRA canvas.
+    """
+    if canvas_bgra.shape[2] != 4:
+        raise ValueError("Input canvas must be a 4-channel BGRA array.")
+
+    # 1. Split the canvas into 4 contiguous channels
+    B, G, R, A = cv2.split(canvas_bgra)
+    bgr_canvas_temp = cv2.merge((B, G, R)) # Create contiguous BGR slice
+
+    # 2. Execute the drawing function on the contiguous BGR slice
+    # Note: If drawing on Alpha is needed, it must be done separately on channel 'A'.
+    # This example focuses on BGR drawing. The output of draw_func is often None (in-place modification).
+    draw_func(bgr_canvas_temp, *args, **kwargs)
+
+    # 3. Merge the modified BGR channels back
+    B_new, G_new, R_new = cv2.split(bgr_canvas_temp)
+    return cv2.merge((B_new, G_new, R_new, A))
+
+# Example Use:
+# canvas = safe_bgra_draw(canvas, cv2.circle, (100, 100), 20, (255, 0, 0), -1)
+
+def apply_layer_fade(canvas: np.ndarray, decay_rate: float) -> np.ndarray:
+    """
+    Applies a temporal decay (fade-out) effect to a layer by blending it with black.
+
+    Args:
+        canvas: The image layer (e.g., trail canvas) to modify.
+        decay_rate: The persistence factor (e.g., 0.95 for slow fade, 0.5 for fast fade).
+
+    Returns:
+        The faded image layer.
+    """
+    # Create a black image of the same shape and type
+    black_layer = np.zeros_like(canvas)
+
+    # Blend the existing canvas with black. (1 - decay_rate) is the black weight.
+    faded_canvas = cv2.addWeighted(
+        canvas,
+        decay_rate,                 # Weight for the existing canvas
+        black_layer,
+        1.0 - decay_rate,           # Weight for the black layer
+        0                           # Gamma correction (none)
+    )
+    return faded_canvas
+
+# Example Use:
+# trail_canvas = apply_layer_fade(trail_canvas, 0.95)
+
+def interpolate_sequential(index: int, total_length: int, start_value: float, end_value: float) -> float:
+    """
+    Maps an element's index in a sequence to a proportional value between two endpoints.
+
+    Args:
+        index: The current position/age of the element (e.g., 1 to total_length).
+        total_length: The maximum length of the sequence (e.g., MAX_TRAIL_LENGTH).
+        start_value: The value corresponding to the start/oldest element (index 0 or 1).
+        end_value: The value corresponding to the end/newest element (total_length).
+
+    Returns:
+        The interpolated value.
+    """
+    # Ensure index is within bounds for interpolation
+    if index <= 0 or total_length <= 1:
+        return start_value # Or handle error
+
+    # Use numpy.interp to map the index within the [1, total_length] range
+    # to the [start_value, end_value] range.
+    return np.interp(index, [1, total_length], [start_value, end_value])
+
+# Example Use:
+# thickness = interpolate_sequential(i, MAX_TRAIL_LENGTH, 1.0, 8.0)
