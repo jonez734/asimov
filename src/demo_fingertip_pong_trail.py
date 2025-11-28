@@ -5,12 +5,10 @@ import argparse
 from cvzone.HandTrackingModule import HandDetector
 
 # --- Import Reusable Functions from the assumed module ---
-# NOTE: The 'safe_bgra_draw' logic is implemented directly in the loop 
-# using cv2.split/merge for performance, but the concept is applied.
 from asimov.util import blend_alpha, apply_layer_fade, interpolate_sequential 
 
 # --- Configuration ---
-WIDTH, HEIGHT = 1280, 720
+WIDTH, HEIGHT = 640, 480
 BALL_RADIUS = 20
 BALL_COLOR = (0, 0, 255)  
 MAX_TRAIL_LENGTH = 40 
@@ -19,8 +17,6 @@ TRAIL_FADE_RATE = 0.95
 
 # --- Runtime State Variable ---
 USE_TRUE_ALPHA = False 
-
-# NOTE: The alpha_blend function (now blend_alpha) is removed from here
 
 def main():
     """
@@ -47,7 +43,7 @@ def main():
         
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
-    detector = HandDetector(detectionCon=0.8, maxHands=2)
+    detector = HandDetector(detectionCon=0.8, maxHands=1) # Set maxHands to 1 for simplicity
     past_positions = [] 
 
     trail_canvas = np.zeros((HEIGHT, WIDTH, 4), dtype=np.uint8) 
@@ -67,24 +63,47 @@ def main():
             img = cv2.flip(img, 1)
             hands, img = detector.findHands(img, flipType=False)
             ball_center = None
+            is_index_isolatedly_up = False
             
+            # ✋ Hand Detection and Gesture Check
             if hands:
-                lmList = hands[0]['lmList']
-                x, y, _ = lmList[8]
-                ball_center = (x, y)
+                hand = hands[0]
+                lmList = hand['lmList']
+                
+                # [Thumb, Index, Middle, Ring, Pinky]
+                fingers = detector.fingersUp(hand)
+                
+                # Check for the specific gesture: Index (1) is UP, others (0, 2, 3, 4) are DOWN
+                # fingers[0] = Thumb (should be 0/down)
+                # fingers[1] = Index (should be 1/up)
+                # fingers[2] = Middle (should be 0/down)
+                # fingers[3] = Ring (should be 0/down)
+                # fingers[4] = Pinky (should be 0/down)
+                
+                if fingers == [0, 1, 0, 0, 0]:
+                    is_index_isolatedly_up = True
+                    # Position is at the Index Finger Tip (Landmark 8)
+                    x, y, _ = lmList[8]
+                    ball_center = (x, y)
 
-            if ball_center:
+            # A. Decay the entire canvas (This ensures the old trail fades regardless of gesture)
+            trail_canvas = apply_layer_fade(trail_canvas, TRAIL_FADE_RATE)
+            
+            # B. Update Trail Position List ONLY if the gesture is active
+            if is_index_isolatedly_up and ball_center:
                 past_positions.append(ball_center)
                 if len(past_positions) > MAX_TRAIL_LENGTH:
                     past_positions.pop(0)
+            else:
+                # OPTIONAL: Clear the trail list immediately when the finger goes down
+                # If you want the trail to instantly stop and disappear quickly, uncomment:
+                # past_positions = []
+                pass
 
-            # A. Decay the entire canvas using the imported util function
-            trail_canvas = apply_layer_fade(trail_canvas, TRAIL_FADE_RATE)
-            
-            # B. Draw Trail Segments with Contiguity Fix
+            # C. Draw Trail Segments 
             if len(past_positions) >= 2:
                 
-                # Split and Merge for Safe Drawing (This implements the safe_bgra_draw concept)
+                # Contiguity Fix: Split and Merge for Safe Drawing
                 B, G, R, A = cv2.split(trail_canvas)
                 bgr_canvas_temp = cv2.merge((B, G, R)) 
                 
@@ -96,7 +115,6 @@ def main():
                     thickness = int(interpolate_sequential(i, MAX_TRAIL_LENGTH, 1.0, 8.0))
                     
                     if USE_TRUE_ALPHA:
-                        # --- MODE 1: TRUE ALPHA FADE ---
                         # Use imported interpolate_sequential for alpha
                         alpha_value = int(interpolate_sequential(i, MAX_TRAIL_LENGTH, 0.0, 255.0))
                         line_color = BASE_TRAIL_COLOR
@@ -105,45 +123,43 @@ def main():
                         cv2.line(A, pt1, pt2, (alpha_value), thickness) 
                         
                     else:
-                        # --- MODE 2: COLOR GRADIENT FADE ---
+                        # Color Gradient Fade
                         intensity_factor = i / len(past_positions)
-                        
                         simulated_color = (
                             int(BASE_TRAIL_COLOR[0] * intensity_factor),
                             int(BASE_TRAIL_COLOR[1] * intensity_factor),
                             int(BASE_TRAIL_COLOR[2] * intensity_factor)
                         )
-                        
                         cv2.line(bgr_canvas_temp, pt1, pt2, simulated_color, thickness)
                 
                 # Merge the modified channels back into the main canvas
                 B_new, G_new, R_new = cv2.split(bgr_canvas_temp)
                 trail_canvas = cv2.merge((B_new, G_new, R_new, A))
                 
-            # C. Blending and Final Image
+            # D. Blending and Final Image
             
             if USE_TRUE_ALPHA:
-                # Use imported blend_alpha function
                 trail_bgr = trail_canvas[:,:,:3].astype(float)
                 alpha = trail_canvas[:,:,3].astype(float) / 255.0 
-                
                 final_img = blend_alpha(trail_bgr, img.astype(float), alpha)
             else:
-                # Color Gradient Blending
                 final_img = cv2.addWeighted(img, 1, trail_canvas[:,:,:3], 1, 0)
 
-            # D. Draw the Ball 🔴
+            # E. Draw the Ball 🔴 and Status
             if ball_center:
+                # Draw the ball only if the gesture is active
                 cv2.circle(final_img, ball_center, BALL_RADIUS, BALL_COLOR, cv2.FILLED)
+                cv2.putText(final_img, "STATUS: TRACKING (Index Isolated)", (50, HEIGHT - 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            else:
+                cv2.putText(final_img, "STATUS: IDLE (Requires Index Only)", (50, HEIGHT - 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-            # E. Hotkey and Display
+            # F. Display and Hotkeys
             mode_name = "TRUE ALPHA FADE (M)" if USE_TRUE_ALPHA else "COLOR GRADIENT FADE (M)"
             cv2.putText(final_img, f"Mode: {mode_name}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
             cv2.putText(final_img, f"Device: {device_index} | Quit: ESC/Q", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
             
             cv2.imshow("Virtual Pong Trail Demo", final_img)
             
-            # Key Press Handling
             key = cv2.waitKey(1) & 0xFF
             
             if key == ord('m'):
@@ -154,11 +170,9 @@ def main():
             if key == ord('q') or key == 27:
                 break
 
-            # Send to Virtual Camera
             cam.send(cv2.cvtColor(final_img, cv2.COLOR_BGR2RGB))
             cam.sleep_until_next_frame()
 
-    # --- 4. Cleanup ---
     cap.release()
     cv2.destroyAllWindows()
 
