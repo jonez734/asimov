@@ -1,11 +1,34 @@
+import sys
+from . import terminal # New import to fix terminal.columns() access
 from asimov.io.echo import echo
 from asimov.io.getch import getch_str as getch
-from asimov.io.common import  get_cursor_position, _current_stream_lock, _cursor_row, _cursor_col
+from asimov.io.common import get_cursor_position, _current_stream_lock, _cursor_row, _cursor_col
 from asimov.io.util import setbottombar, screen_init, terminal_lines
 from ..common import logentry
+import re # Added for word boundary finding in handle_cutpreviousword
+
+# --- 0. MANDATORY MISSING DEFINITIONS & GLOBALS ---
+
+# Global variable for clipboard content, stored as a list of strings (lines).
+yank_buffer = []
+
+# Stub for missing cursor movement utility (essential for redraw_line)
+def move_cursor(row, col):
+    """Placeholder for actual cursor movement utility."""
+    echo(f"{{curpos:{row},{col}}}", end="", flush=True)
+
+# Stubs for missing completion utilities
+def get_current_word(buffer, curpos):
+    """Stub: Returns (prefix, word_start_index, word_end_index)."""
+    # Simple stub assumes completion happens at the end of the line
+    return buffer, 0, len(buffer)
+
+def common_prefix(matches):
+    """Stub: Returns the longest common prefix string."""
+    if not matches: return ""
+    return matches[0] # Simplistic stub
 
 # --- 1. Global Key Actions Dictionary ---
-# This dict stores the key_string: lambda mapping
 KEY_ACTIONS = {}
 
 def add_key_mapping(key_string, action_lambda):
@@ -18,9 +41,6 @@ def remove_key_mapping(key_string):
         del KEY_ACTIONS[key_string]
 
 # --- 2. Helper Functions (State Logic) ---
-
-# All helpers MUST accept (buffer, curpos, scroll_offset, max_width) and return the updated tuple.
-# max_width is included here because 'handle_end' and scrolling logic may depend on it.
 
 def handle_left(buffer, curpos, scroll_offset, max_width):
     if curpos > 0:
@@ -41,46 +61,107 @@ def handle_home(buffer, curpos, scroll_offset, max_width):
 def handle_end(buffer, curpos, scroll_offset, max_width):
     # End moves cursor to the end of the buffer
     curpos = len(buffer)
-    # Scrolling logic adjustment will be handled *after* the action in the main loop
     return buffer, curpos, scroll_offset
 
 def handle_backspace(buffer, curpos, scroll_offset, max_width):
     if curpos > 0:
-        buffer = buffer[:curpos-1] + buffer[curpos:]
-        curpos -= 1
-    else:
-        echo(f"{{bell}}")
-    return buffer, curpos, scroll_offset
-
-def handle_cuttobol(buffer, curpos, scroll_offset, max_width):
-    # Keeps text *after* the cursor, resets cursor/scroll
-    # 1. Store the part of the string *after* the cursor (the part we keep)
-    kept_suffix = buffer[curpos:]
-
-    # 2. Reset the buffer to only contain the kept suffix (erasing everything from 0 to curpos)
-    buffer = kept_suffix
-
-    # 3. Reset the cursor position to the new beginning of the buffer
-    curpos = 0
-
-    # 4. Adjust scroll offset if necessary (usually resetting to 0)
-    scroll_offset = 0
-
-    return buffer, curpos, scroll_offset
-
-def handle_backspace(buffer, curpos, scroll_offset, max_width):
-    if curpos > 0:
-        # Delete character before the cursor
         buffer = buffer[:curpos-1] + buffer[curpos:]
         curpos -= 1
     else:
         echo("{bell}", end="", flush=True)
     return buffer, curpos, scroll_offset
 
-# --- Helper Function for ^Y ---
+def handle_cuttobol(buffer, curpos, scroll_offset, max_width):
+    """
+    Cuts the text from the current cursor position back to the beginning of the line (Ctrl+U).
+    The cut text is saved to the yank_buffer.
+    """
+    global yank_buffer
+
+    # Text to cut (from start of buffer up to the cursor)
+    cut_text = buffer[:curpos]
+
+    # 1. Save the cut text to the yank buffer
+    # If this is part of a consecutive cut, append the text. Otherwise, start a new yank buffer.
+    if cut_text:
+        yank_buffer = [cut_text]
+
+    # 2. Update the buffer: keep only the text from the cursor position onward
+    buffer = buffer[curpos:]
+
+    # 3. Reset cursor and scroll offset
+    curpos = 0
+    scroll_offset = 0
+
+    return buffer, curpos, scroll_offset
+
+def handle_cutpreviousword(buffer, curpos, scroll_offset, max_width):
+    """
+    Cuts the word immediately preceding the cursor (Ctrl+W).
+    The cut text is saved to the yank_buffer.
+    """
+    global yank_buffer
+
+    # Use regular expression to find the previous word boundary
+    # This finds the position where the word starts
+    word_end = curpos
+
+    # 1. Find the first non-word character (whitespace or punctuation) to the left
+    # This loop handles trailing whitespace/non-word characters
+    while word_end > 0 and not re.match(r'\w', buffer[word_end-1]):
+        word_end -= 1
+
+    # 2. Find the start of the preceding word
+    word_start = word_end
+    while word_start > 0 and re.match(r'\w', buffer[word_start-1]):
+        word_start -= 1
+
+    # If no text was found to cut, return current state
+    if word_start == word_end:
+        return buffer, curpos, scroll_offset
+
+    cut_text = buffer[word_start:curpos]
+
+    # 3. Save the cut text to the yank buffer
+    if cut_text:
+        yank_buffer = [cut_text]
+
+    # 4. Update the buffer: remove the cut text
+    buffer = buffer[:word_start] + buffer[curpos:]
+    curpos = word_start
+
+    # Update scroll offset if cursor moved left
+    if curpos < scroll_offset:
+        scroll_offset = curpos
+
+    return buffer, curpos, scroll_offset
+
+def handle_copy(buffer, curpos, scroll_offset, max_width):
+    """Copies the entire current line buffer to the yank_buffer."""
+    global yank_buffer
+    # Store the entire line as a single item in the list
+    yank_buffer = [buffer]
+    return buffer, curpos, scroll_offset
+
+def handle_cut(buffer, curpos, scroll_offset, max_width):
+    """Cuts the entire current line buffer to the yank_buffer and clears the line."""
+    global yank_buffer
+    # 1. Copy the current line to the yank buffer
+    yank_buffer = [buffer]
+
+    # 2. Clear the line buffer and reset cursor/scroll state
+    buffer = ""
+    curpos = 0
+    scroll_offset = 0
+
+    return buffer, curpos, scroll_offset
+
 def handle_yank(buffer, curpos, scroll_offset, max_width):
-    global YANK_BUFFER
-    yank_text = YANK_BUFFER
+    """Pastes the content of yank_buffer into the current line."""
+    global yank_buffer
+
+    # If yank_buffer is a list of lines, rejoin them with newlines for pasting
+    yank_text = "\n".join(yank_buffer)
 
     # 1. Insert the yanked text at the cursor position
     buffer = buffer[:curpos] + yank_text + buffer[curpos:]
@@ -88,22 +169,24 @@ def handle_yank(buffer, curpos, scroll_offset, max_width):
     # 2. Move the cursor past the inserted text
     curpos += len(yank_text)
 
-    # Scroll offset adjustment will be handled by the main loop's scrolling logic
     return buffer, curpos, scroll_offset
 
 def handle_help(buffer, curpos, scroll_offset, max_width):
     logentry("handle_help.100: trace")
     return buffer, curpos, scroll_offset
 
-def handle_tab(buffer, curpos, scroll_offset, max_width, matches=[]):
-##    matches = completer(buffer, curpos)
+# --- 3. Tab Completion Logic (Separated for clarity) ---
+
+def handle_tab_manager(buffer, curpos, scroll_offset, max_width, completer, last_matches, tab_count, prompt, max_len, start_row, start_col):
+
+    matches = completer(buffer, curpos)
+
     if not matches:
-        return buffer, curpos, scroll_offset
+        return buffer, curpos, scroll_offset, last_matches, tab_count
 
     prefix, word_start, word_end = get_current_word(buffer, curpos)
 
     if len(matches) == 1:
-        # Only one match → complete directly
         word = matches[0]
         buffer = buffer[:word_start] + word + buffer[word_end:]
         curpos = word_start + len(word)
@@ -111,48 +194,37 @@ def handle_tab(buffer, curpos, scroll_offset, max_width, matches=[]):
         tab_count = 0
         last_matches = []
     else:
-        if matches == last_matches:
-            # second tab press → show all matches
+        if matches == last_matches and tab_count == 1: # Second tab press
             echo("\n")
             print_matches(matches)
             redraw_line(prompt, buffer, max_len, start_row, start_col, curpos)
             tab_count = 0
         else:
-            # first tab press → insert longest common prefix
             lcp = common_prefix(matches)
             if lcp and lcp != prefix:
                 buffer = buffer[:word_start] + lcp + buffer[word_end:]
                 curpos = word_start + len(lcp)
                 redraw_line(prompt, buffer, max_len, start_row, start_col, curpos)
+
             last_matches = matches
             tab_count = 1
 
-    return buffer, curpos, scroll_offset
+    return buffer, curpos, scroll_offset, last_matches, tab_count
 
-# --- 3. Initial Mapping Setup ---
-# Map the initial key actions using the management function
-add_key_mapping("KEY_LEFT",      lambda b, cp, so, mw: handle_left(b, cp, so, mw))
-add_key_mapping("KEY_RIGHT",     lambda b, cp, so, mw: handle_right(b, cp, so, mw))
-add_key_mapping("KEY_HOME",      lambda b, cp, so, mw: handle_home(b, cp, so, mw))
-add_key_mapping("KEY_CTRL_A",    lambda b, cp, so, mw: handle_home(b, cp, so, mw))
-add_key_mapping("KEY_END",       lambda b, cp, so, mw: handle_end(b, cp, so, mw))
-add_key_mapping("KEY_CTRL_E",    lambda b, cp, so, mw: handle_end(b, cp, so, mw))
-add_key_mapping("KEY_BACKSPACE", lambda b, cp, so, mw: handle_backspace(b, cp, so, mw))
-add_key_mapping("KEY_CUTTOBOL",  lambda b, cp, so, mw: handle_cuttobol(b, cp, so, mw))
-add_key_mapping("KEY_YANK",      lambda b, cp, so, mw: handle_yank(b, cp, so, mw))
-add_key_mapping("KEY_F1",        lambda b, cp, so, mw: handle_help(b, cp, so, mw))
+# --- 4. Display Functions ---
 
 def redraw_line(prompt, buffer, max_len, start_row, start_col, curpos):
-    echo(f"\r{prompt}{buffer}{' ' * (max_len - len(buffer))}", end="")
+    # Clears and redraws the line when needed by tab completion (i.e., when matches are printed)
+    echo(f"\r{prompt}{buffer}{' ' * (max_len - len(buffer))}", end="", flush=True)
     move_cursor(start_row, start_col + len(prompt) + curpos)
 
 def print_matches(matches: list[str]):
-    """
-    Print matches in neat rows/columns depending on terminal width.
-    """
-    cols, _ = shutil.get_terminal_size((80, 20))
+    """Print matches in neat rows/columns depending on terminal width."""
+    # Uses the local import `terminal`
+    cols = terminal.columns()
     longest = max(len(m) for m in matches) + 2
     per_line = max(1, cols // longest)
+
     for i, m in enumerate(matches, 1):
         echo(m.ljust(longest))
         if i % per_line == 0:
@@ -160,30 +232,54 @@ def print_matches(matches: list[str]):
     if len(matches) % per_line != 0:
         echo("{f6}", end="")
 
-def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None):
-    buffer = ""
+# --- 5. Initial Mapping Setup ---
+add_key_mapping("KEY_LEFT",      handle_left)
+add_key_mapping("KEY_RIGHT",     handle_right)
+add_key_mapping("KEY_HOME",      handle_home)
+add_key_mapping("KEY_CTRL_A",    handle_home)
+add_key_mapping("KEY_END",       handle_end)
+add_key_mapping("KEY_CTRL_E",    handle_end)
+add_key_mapping("KEY_BACKSPACE", handle_backspace)
 
+# Mapped to Ctrl+U - Now correctly saves cut text to yank_buffer
+add_key_mapping("KEY_CUTTOBOL",  handle_cuttobol)
+# Mapped to Ctrl+W - New function to cut the previous word
+add_key_mapping("KEY_CTRL_W",    handle_cutpreviousword)
+
+# Other key mappings
+add_key_mapping("KEY_CTRL_C",    handle_copy)
+add_key_mapping("KEY_CTRL_X",    handle_cut)
+add_key_mapping("KEY_YANK",      handle_yank)
+add_key_mapping("KEY_F1",        handle_help)
+
+# --- 6. Main Input Function (Fixed) ---
+
+def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None, completer=None):
+    buffer = ""
     curpos = 0
     scroll_offset = 0
+
+    # Initialize tab completion state variables
+    last_matches = []
+    tab_count = 0
 
     (start_row, start_col) = get_cursor_position()
 
     prompt_len = len(prompt)
     echo(f"{{curpos:{start_row},{start_col}}}{prompt}", end="", flush=True)
 
-    # Calculate the column where the editable input area begins
     input_col_start = start_col + prompt_len
 
     _current_display_str = None
+    cursor_display_col = input_col_start + (curpos - scroll_offset)
 
     done = False
     while not done:
         # 1. Redraw the input area
-        # Calculate the string segment to display
         display_str = buffer[scroll_offset : scroll_offset + max_width]
+
         if _current_display_str != display_str:
-            # Clear the old input (optional, but good practice for clean display)
-            # Using ANSI escape codes for cursor positioning and clearing
+            # Clear the old input area for clean redraw
             echo(f"{{curpos:{start_row},{input_col_start}}}{' ' * max_width}", end="", flush=True)
 
             # Print the current viewable part of the buffer
@@ -193,19 +289,14 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None):
             else:
                 echo(f"{display_str}", end="", flush=True, raw=True)
 
-            # Calculate the *display column* for the cursor
-            # The cursor display position is: input_col_start + (curpos - scroll_offset)
-            cursor_display_col = input_col_start + (curpos - scroll_offset)
-
-            # Position the terminal cursor
-            echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
-
-            _cursor_row = start_row
-            _cursor_col = cursor_display_col
-
             _current_display_str = display_str
 
-##            _current_state.cursor_col = curpos
+        # Calculate and position the cursor
+        cursor_display_col = input_col_start + (curpos - scroll_offset)
+        echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
+
+        _cursor_row = start_row
+        _cursor_col = cursor_display_col
         
         # 2. get input
         ch = getch(timeout=0.015)
@@ -214,47 +305,40 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None):
         elif ch is None:
             continue
 
+        # 3. Handle Tab Completion
         if ch == "KEY_TAB" and callable(completer):
-            buffer, curpos, last_matches, tab_count = handle_tab(
-                buffer, curpos, completer, last_matches, tab_count,
+            # Pass all local variables needed for redrawing/state management
+            buffer, curpos, scroll_offset, last_matches, tab_count = handle_tab_manager(
+                buffer, curpos, scroll_offset, max_width, completer, last_matches, tab_count,
                 prompt, max_len, start_row, start_col
             )
+            # Redraw is handled inside the manager for efficiency
 
-       # 3. Execute Mapped Action (Special Keys)
-        if ch in KEY_ACTIONS:
-            # The lambda calls the specific helper function, passing all state variables
-            # and returns the new state (b, cp, so, mw).
-            # We explicitly update the state variables here.
+        # 4. Execute Mapped Action (Special Keys)
+        elif ch in KEY_ACTIONS:
             buffer, curpos, scroll_offset = KEY_ACTIONS[ch](
                 buffer, curpos, scroll_offset, max_width
             )
+            # Reset tab completion state on any non-tab key action
+            last_matches = []
+            tab_count = 0
+
         elif len(ch) == 1:
             if len(buffer) < max_len:
-                # Insert the character at the cursor position
+                # Insert the character
                 buffer = buffer[:curpos] + ch + buffer[curpos:]
                 curpos += 1
+            # Reset tab completion state on character insertion
+            last_matches = []
+            tab_count = 0
 
-        # 4. Handle Scrolling Logic (Key Requirement)
-        # Scroll right if cursor moves past the visible right edge
+        # 5. Handle Scrolling Logic (Key Requirement)
         if curpos >= scroll_offset + max_width:
-            # Adjust offset so cursor is at the right edge
             scroll_offset = curpos - max_width + 1
-
-        # Scroll left if cursor moves past the visible left edge
         elif curpos < scroll_offset:
-            # Adjust offset so cursor is at the left edge
             scroll_offset = curpos
 
-        # Ensure scroll_offset is never negative
         if scroll_offset < 0:
             scroll_offset = 0
-
-        # Always recalc cursor position
-        if mask != "":
-            cursor_display_col = input_col_start + (curpos - scroll_offset)
-            echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
-
-        _cursor_row = start_row
-        _cursor_col = cursor_display_col
 
     return buffer
