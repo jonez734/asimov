@@ -2,7 +2,7 @@ from asimov.io.echo import echo
 from asimov.io.getch import getch_str as getch
 from asimov.io.common import  get_cursor_position, _current_stream_lock, _cursor_row, _cursor_col
 from asimov.io.util import setbottombar, screen_init, terminal_lines
-from asimov.util import logentry
+from ..common import logentry
 
 # --- 1. Global Key Actions Dictionary ---
 # This dict stores the key_string: lambda mapping
@@ -143,7 +143,7 @@ add_key_mapping("KEY_YANK",      lambda b, cp, so, mw: handle_yank(b, cp, so, mw
 add_key_mapping("KEY_F1",        lambda b, cp, so, mw: handle_help(b, cp, so, mw))
 
 def redraw_line(prompt, buffer, max_len, start_row, start_col, curpos):
-    echo(f"\r{prompt}{buffer}{' ' * (max_len - len(buffer))}")
+    echo(f"\r{prompt}{buffer}{' ' * (max_len - len(buffer))}", end="")
     move_cursor(start_row, start_col + len(prompt) + curpos)
 
 def print_matches(matches: list[str]):
@@ -156,9 +156,9 @@ def print_matches(matches: list[str]):
     for i, m in enumerate(matches, 1):
         echo(m.ljust(longest))
         if i % per_line == 0:
-            echo("{f6}")
+            echo("{f6}", end="")
     if len(matches) % per_line != 0:
-        echo("{f6}")
+        echo("{f6}", end="")
 
 def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None):
     buffer = ""
@@ -187,11 +187,11 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None):
             echo(f"{{curpos:{start_row},{input_col_start}}}{' ' * max_width}", end="", flush=True)
 
             # Print the current viewable part of the buffer
-            echo(f"{{curpos:{start_row},{input_col_start}}}")
+            echo(f"{{curpos:{start_row},{input_col_start}}}", end="")
             if mask is not None:
                 echo(f"{mask*len(display_str)}", end="", flush=True)
             else:
-                echo(f"{display_str}", flush=True, raw=True)
+                echo(f"{display_str}", end="", flush=True, raw=True)
 
             # Calculate the *display column* for the cursor
             # The cursor display position is: input_col_start + (curpos - scroll_offset)
