@@ -8,7 +8,7 @@ from collections import deque
 
 
 from .common import _current_input_stream, _current_stream_lock, _input_queue, _read_current_input_stream
-from ..util import logentry
+from ..common import logentry #!
 from .keymap import KEY_MAP
 from .const import ESC, ETX, EOF
 
@@ -65,7 +65,7 @@ def _proc_char(char:str) -> str:
     # 5. Return a regular character
     return char
 
-def getch_str(timeout=3.0):
+def getch_str(timeout=1.0):
     """Reads a single keypress without blocking and handles control/extended keys."""
     
     with _current_stream_lock:
@@ -84,11 +84,12 @@ def getch_str(timeout=3.0):
                 # --- INITIAL READ SETUP ---
                 # Use select to wait for the first byte with the specified timeout
                 # select() will block until data is available or the timeout is reached.
-                ready, _, _ = select.select([_current_input_stream], [], [], timeout)
+                if timeout > 0:
+                    ready, _, _ = select.select([_current_input_stream], [], [], timeout)
 
-                if not ready:
-                    # Timeout occurred before the first character was available
-                    return None
+                    if not ready:
+                        # Timeout occurred before the first character was available
+                        return None
 
                 # 2. Set Non-Blocking I/O
                 # Save old flags and set O_NONBLOCK flag on the file descriptor
