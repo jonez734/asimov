@@ -32,7 +32,7 @@ _skin = {
 
 "optioncolor": "{white}{bggray}",
 "currentoptioncolor": "{bgwhite}{gray}",
-"bottombarcolor": "{bggray}{white}",
+"bottombarcolor": "{bgwhite}{black}",
 "promptcolor": "{/bgcolor}{white}", # {lightgray}",
 "inputcolor": "{/bgcolor}{green}",
 "normalcolor": "{/bgcolor}{lightgray}",
@@ -329,7 +329,10 @@ def _handle_decsc(token):
 
 def _handle_decrc(token):
     global _color, _cursor_col, _cursor_row, _wordwrap, _terminal_states
-##    print(f"_handle_decrc.100: {_terminal_states=}")
+    
+    logentry(f"_handle_decrc.100: {_terminal_states=}")
+    if len(_terminal_states) == 0:
+      logentry("_handle_decrc.120: _terminal_states length of 0, decsc called?")
     if len(token.args) == 1:
         state = _terminal_states.pop()
     else:
@@ -396,7 +399,7 @@ def _acs_on():
 
   if not _acs:
     _acs = True
-##    yield Token(kind="ACS", repeat=1, text=f"{ESC}(0")
+    yield Token(kind="ACS", repeat=1, text=f"{ESC}(0")
 ##    print("ACSON")
   return iter(())
 
@@ -496,14 +499,13 @@ def _handle_ed(token):
 # 2 = clear whole line
 # EL0 – Erase in Line (cursor to end of line)
 def _handle_elo(token):
-    print(f"**** _handle_ed.100: {token=}")
     mode = int(token.args[0]) if len(token.args) == 1 else 0
     token.text = f"{CSI}{mode}K"
     yield token
 
 def _handle_cuu(token):
     repeat = token.args[0] or 1
-    token.repeat = repeat
+    token.repeat = 1
     token.text = f"{CSI}{repeat}A"
     yield token
 
@@ -515,13 +517,13 @@ def _handle_cud(token):
     return
 
 def _handle_cuf(token):
-    token.repeat = int(token.args[0]) or 1
+    repeat = int(token.args[0]) or 1
+    token.repeat = 1
     token.text = f"{CSI}{repeat}C"
     yield token
 
 def _handle_cub(token):
     repeat = int(token.args[0]) or 1
-    print(f"_handle_cub.100: {token=}")
     token.repeat = 1
     token.text = f"{CSI}{repeat}D"
     yield token
@@ -535,23 +537,31 @@ def _handle_decstbm(token):
         return
 
     t = token.args[0]
-    b = token.args[1]
-    if t == "0" and b == "0":
-        token.text = f"{CSI}r"
-    else:
-        token.text = f"{CSI}{t};{b}r"
+    b = token.args[1] if len(token.args) == 2 else "1"
+#    if t == "1" and b == "1":
+#        token.text = f"{CSI}r"
+#    else:
+    token.text = f"{CSI}{t};{b}r"
     yield token
+    logentry(f"asimov.io.echo._handle_decstbm.100: {t=} {b=} {token.text=}", level="debug")
     return
 
 def _handle_reset(token):
   global _raw
 
-  token.repeat = 1
-  token.text = f"{ESC}[0m" # reset fg and bg color
-  yield token
-
+  mode = "color" if len(token.args) == 0 else token.args[0]
+  if mode == "color":
+    token.repeat = 1
+    token.text = f"{ESC}[0m" # reset fg and bg color
+    yield token
+  
   if not _raw:
     yield from _acs_off()
+  
+  if mode == "all":
+    token.args = ()
+    yield from _handle_decstbm(token)
+
   return
 
 def _handle_unknown(token):
@@ -678,7 +688,7 @@ def handler_dispatch(token):
     return False
 
 def _handle_bel(token):
-    token.text = BELL
+    token.text = BEL
     yield token
 
 _unicode = {
@@ -1014,9 +1024,9 @@ def echo(text="", *, palette:dict=None, width:int=None, wordwrap:bool=True, raw:
     
     _raw = raw
 
-    loglevel = kwargs.get("level", None)
-    if loglevel is not None:
-      return logentry(text, loglevel=loglevel)
+    level = kwargs.get("level", None)
+    if level is not None:
+      return logentry(text, level=level)
 
     for token in echo_iter(text, width=width, wordwrap=wordwrap, raw=raw, palette=palette):
         _write_token(token, flush=flush)
@@ -1027,11 +1037,11 @@ def echo(text="", *, palette:dict=None, width:int=None, wordwrap:bool=True, raw:
         if end == "\n":
           _cursor_col = 0
 
-def echo_file(filepath, page_size=20, raw=False):
+def echo_file(filepath, page_size=20, raw=False, wordwrap=True):
     with open(filepath, 'r') as f:
         line_count = 0
         for line in f:
-            echo(line, end='', raw=raw)  # don't add extra newline
+            echo(line, end='', raw=raw, wordwrap=wordwrap)  # don't add extra newline
             line_count += 1
             if line_count % page_size == 0:
                 input("More?")  # wait every page
