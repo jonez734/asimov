@@ -51,7 +51,7 @@ def handle_right(buffer, curpos, scroll_offset, max_width):
     if curpos < len(buffer):
         curpos += 1
     else:
-        echo(f"{{bell}}")
+        echo(f"{{bell}}", end="")
     return buffer, curpos, scroll_offset
 
 def handle_home(buffer, curpos, scroll_offset, max_width):
@@ -178,7 +178,6 @@ def handle_help(buffer, curpos, scroll_offset, max_width):
 # --- 3. Tab Completion Logic (Separated for clarity) ---
 
 def handle_tab_manager(buffer, curpos, scroll_offset, max_width, completer, last_matches, tab_count, prompt, max_len, start_row, start_col):
-
     matches = completer(buffer, curpos)
 
     if not matches:
@@ -190,33 +189,72 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width, completer, last
         word = matches[0]
         buffer = buffer[:word_start] + word + buffer[word_end:]
         curpos = word_start + len(word)
-        redraw_line(prompt, buffer, max_len, start_row, start_col, curpos)
+
+        # --- Recalculate scroll_offset after completion (New logic) ---
+        if curpos >= scroll_offset + max_width:
+            scroll_offset = curpos - max_width + 1
+        elif curpos < scroll_offset:
+            scroll_offset = curpos
+        if scroll_offset < 0:
+            scroll_offset = 0
+        # ----------------------------------------------------
+
+        # Pass the new scroll state to redraw_line
+        redraw_line(prompt, buffer, max_len, start_row, start_col, curpos, scroll_offset, max_width)
         tab_count = 0
         last_matches = []
     else:
         if matches == last_matches and tab_count == 1: # Second tab press
             echo("\n")
             print_matches(matches)
-            redraw_line(prompt, buffer, max_len, start_row, start_col, curpos)
+            # Restore line, respecting the current scroll position
+            redraw_line(prompt, buffer, max_len, start_row, start_col, curpos, scroll_offset, max_width)
             tab_count = 0
         else:
             lcp = common_prefix(matches)
             if lcp and lcp != prefix:
                 buffer = buffer[:word_start] + lcp + buffer[word_end:]
                 curpos = word_start + len(lcp)
-                redraw_line(prompt, buffer, max_len, start_row, start_col, curpos)
+
+                # --- Recalculate scroll_offset after LCP insertion (New logic) ---
+                if curpos >= scroll_offset + max_width:
+                    scroll_offset = curpos - max_width + 1
+                elif curpos < scroll_offset:
+                    scroll_offset = curpos
+                if scroll_offset < 0:
+                    scroll_offset = 0
+                # ----------------------------------------------------
+
+                # Pass the new scroll state to redraw_line
+                redraw_line(prompt, buffer, max_len, start_row, start_col, curpos, scroll_offset, max_width)
 
             last_matches = matches
             tab_count = 1
 
     return buffer, curpos, scroll_offset, last_matches, tab_count
 
+
 # --- 4. Display Functions ---
 
-def redraw_line(prompt, buffer, max_len, start_row, start_col, curpos):
-    # Clears and redraws the line when needed by tab completion (i.e., when matches are printed)
-    echo(f"\r{prompt}{buffer}{' ' * (max_len - len(buffer))}", end="", flush=True)
-    move_cursor(start_row, start_col + len(prompt) + curpos)
+def redraw_line(prompt, buffer, max_len, start_row, start_col, curpos, scroll_offset, max_width):
+    """
+    Clears and redraws only the visible portion of the line.
+    This is used primarily for cleaning up after printing tab matches.
+    """
+    input_col_start = start_col + len(prompt)
+
+    # 1. Clear the old line from the prompt start
+    echo(f"\r{prompt}{' ' * max_width}", end="", flush=True)
+
+    # 2. Calculate and print the displayable part
+    display_str = buffer[scroll_offset : scroll_offset + max_width]
+
+    echo(f"{{curpos:{start_row},{input_col_start}}}", end="")
+    echo(f"{display_str}", end="", flush=True, raw=True)
+
+    # 3. Position the cursor
+    move_cursor(start_row, input_col_start + (curpos - scroll_offset))
+
 
 def print_matches(matches: list[str]):
     """Print matches in neat rows/columns depending on terminal width."""
@@ -246,9 +284,9 @@ add_key_mapping("KEY_CUTTOBOL",  handle_cuttobol)
 # Mapped to Ctrl+W - New function to cut the previous word
 add_key_mapping("KEY_CTRL_W",    handle_cutpreviousword)
 
-# Other key mappings
-add_key_mapping("KEY_CTRL_C",    handle_copy)
-add_key_mapping("KEY_CTRL_X",    handle_cut)
+# Other key mappings (Commented out Ctrl+C and Ctrl+X as requested)
+# add_key_mapping("KEY_CTRL_C",    handle_copy)
+# add_key_mapping("KEY_CTRL_X",    handle_cut)
 add_key_mapping("KEY_YANK",      handle_yank)
 add_key_mapping("KEY_F1",        handle_help)
 
@@ -270,6 +308,7 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None, compl
 
     input_col_start = start_col + prompt_len
 
+    # State variable to track the *visible* part of the line.
     _current_display_str = None
     cursor_display_col = input_col_start + (curpos - scroll_offset)
 
@@ -278,6 +317,7 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None, compl
         # 1. Redraw the input area
         display_str = buffer[scroll_offset : scroll_offset + max_width]
 
+        # Optimization: Only redraw the visible text if it has changed
         if _current_display_str != display_str:
             # Clear the old input area for clean redraw
             echo(f"{{curpos:{start_row},{input_col_start}}}{' ' * max_width}", end="", flush=True)
@@ -301,18 +341,21 @@ def inputstring(prompt="> ", max_len:int=255, max_width=80, mask:str=None, compl
         # 2. get input
         ch = getch(timeout=0.015)
         if ch == "KEY_ENTER":
+            echo("{f6}", end="", flush=True) # Reset terminal state/colors on Enter
             return buffer
         elif ch is None:
             continue
 
         # 3. Handle Tab Completion
         if ch == "KEY_TAB" and callable(completer):
-            # Pass all local variables needed for redrawing/state management
+            # The manager now handles scroll_offset recalculation and passes it to redraw_line
             buffer, curpos, scroll_offset, last_matches, tab_count = handle_tab_manager(
                 buffer, curpos, scroll_offset, max_width, completer, last_matches, tab_count,
                 prompt, max_len, start_row, start_col
             )
-            # Redraw is handled inside the manager for efficiency
+            # Redraw is handled inside the manager for efficiency,
+            # but we still reset the display string cache here.
+            _current_display_str = None
 
         # 4. Execute Mapped Action (Special Keys)
         elif ch in KEY_ACTIONS:
