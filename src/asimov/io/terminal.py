@@ -1,18 +1,37 @@
-import os
-from .const import MAX_TERMINAL_WIDTH
+from .const import MAX_TERMINAL_WIDTH, FALLBACK_TERMINAL_WIDTH
 
 def size():
-    try:
-        sz = os.get_terminal_size()
-        return sz.columns, sz.lines
-    except OSError:
-        return 100, 30
+  import shutil
+  return shutil.get_terminal_size()
 
 def columns():
+    """
+    Return terminal width in columns. If MAX_TERMINAL_SIZE is None, return the
+    terminal's actual width. If MAX_TERMINAL_SIZE is an int, clamp to it.
+    On OSError (unable to determine size) return a sane fallback (100).
+    """
     try:
-        sz = size()
-        return sz[0]
+        w = size()[0]
     except OSError:
-        return MAX_TERMINAL_WIDTH
+        # Couldn't query terminal size — return fallback.
+        return FALLBACK_TERMINAL_WIDTH
 
-width = columns
+    # If MAX_TERMINAL_SIZE is None -> use actual width.
+    if MAX_TERMINAL_SIZE is None:
+        return w
+
+    # Otherwise clamp to the configured maximum (ensure it's an int)
+    try:
+        max_sz = int(MAX_TERMINAL_SIZE)
+    except (TypeError, ValueError):
+        # If it's somehow invalid, fall back to the terminal width.
+        return w
+
+    return min(w, max_sz)
+
+##width = columns
+
+def lines():
+  return size().lines
+
+##height = lines
