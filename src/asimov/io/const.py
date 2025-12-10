@@ -1,5 +1,6 @@
 ESC   = "\x1b" # \x9b
 CSI   = f"{ESC}["
+OSC   = f"{ESC}]"
 BEL  = "\007"
 ETX = '\x03' # ctrl-c
 EOF = '\x04' # ctrl-d
