@@ -1,5 +1,5 @@
 from .echo import echo
-from .common import terminal_lines, terminal_columns
+from .terminal import lines as terminal_lines, columns as terminal_columns
 from .const import MAX_TERMINAL_WIDTH
 from ..common import logentry
 
@@ -7,7 +7,7 @@ from ..common import logentry
 # screen related functions
 # ------------------------
 
-def screen_init(topmargin=1, bottommargin=1):
+def init(topmargin=1, bottommargin=1):
   echo("{f6:3}{cursorup:3}", end="", flush=True)
   h = terminal_lines() - bottommargin
   logentry(f"asimov.io.util.screen_init.100: {topmargin=} {h=}", level="debug")
@@ -110,3 +110,46 @@ def setbottombar(left, right=None, stack: bool = False, width: int = None, **kwa
 
     if stack:
         bottombarstack.insert(0, buf)
+
+# @since 20240708
+# @since 20240517
+# @since 20251208
+setarea = setbottombar
+
+# @since 20230523 copied from bbsengine5
+def popbottombar():
+  global bottombarstack
+
+  if len(bottombarstack) == 0:
+    return
+
+  terminalwidth = io.getterminalwidth()
+
+  if len(bottombarstack) > 0:
+    buf = bottombarstack.pop()
+    if buf != "":
+      updatebottombar(f"{{var:areacolor}}{buf}{{/all}}")
+      # updatebottombar(f"{{var:areacolor}}{buf.ljust(terminalwidth-2, '')}{{/all}}")
+
+  return
+
+# @since 20240708
+poparea = popbottombar
+
+# @since 20230523
+##def title(buf):
+##  return io.terminal.title(buf)
+
+# @since 20210301
+# @see https://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console
+# @since 20240102 copied to bbsengine6
+def updateprogress(iteration, total, fill="#"):
+  terminalwidth = io.terminal.width()
+  decimals = 0
+  length = terminalwidth-20
+  percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+  filledLength = length * iteration // total
+  bar = fill * filledLength + '.' * (length - filledLength)
+  buf = f"{{var:labelcolor}}Progress [{{var:valuecolor}}{percent:3s}%{{var:labelcolor}}]: [{bar}]{{/fgcolor}}"
+  updatebottombar(buf)
+  return
