@@ -1,4 +1,5 @@
 from .const import MAX_TERMINAL_WIDTH, FALLBACK_TERMINAL_WIDTH
+from .echo import echo
 
 def size():
   import shutil
@@ -17,21 +18,25 @@ def columns():
         return FALLBACK_TERMINAL_WIDTH
 
     # If MAX_TERMINAL_SIZE is None -> use actual width.
-    if MAX_TERMINAL_SIZE is None:
+    if MAX_TERMINAL_WIDTH is None:
         return w
 
     # Otherwise clamp to the configured maximum (ensure it's an int)
     try:
-        max_sz = int(MAX_TERMINAL_SIZE)
+        max_sz = int(MAX_TERMINAL_WIDTH)
     except (TypeError, ValueError):
         # If it's somehow invalid, fall back to the terminal width.
         return w
 
     return min(w, max_sz)
 
-##width = columns
+width = columns
 
 def lines():
   return size().lines
 
-##height = lines
+height = lines
+
+def title(t:str) -> None:
+  echo(f"{{title:{t}}}", flush=True, end="")
+  return
