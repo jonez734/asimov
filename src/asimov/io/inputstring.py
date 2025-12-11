@@ -192,11 +192,7 @@ def handle_key_enter(buffer, curpos, scroll_offset, max_width,
         return buffer, curpos, scroll_offset, True, True
 
     # Run verify
-##    try:
     ok = verify(buffer, **kwargs)
-##    except Exception:
-##        echo("exception")
-##        ok = False
 
     if ok:
         return buffer, curpos, scroll_offset, True, True
