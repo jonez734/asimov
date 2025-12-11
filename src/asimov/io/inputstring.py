@@ -1,9 +1,9 @@
-import sys
-from . import terminal
-from asimov.io.echo import echo
-from asimov.io.getch import getch_str as getch
-from asimov.io.common import get_cursor_position, _current_stream_lock, _cursor_row, _cursor_col
-from asimov.io.util import setbottombar, screen_init, terminal_lines
+from . import terminal, screen
+
+from .echo import echo
+from .getch import getch_str as getch
+from .common import get_cursor_position, _current_stream_lock, _cursor_row, _cursor_col
+###from asimov.io.screen import setbottombar, screen_init, terminal_lines
 from ..common import logentry
 import re
 
@@ -177,7 +177,7 @@ def handle_help(buffer, curpos, scroll_offset, max_width):
 
 def handle_key_enter(buffer, curpos, scroll_offset, max_width,
                      *, verify, prompt, mask,
-                     start_row, start_col, input_col_start):
+                     start_row, start_col, input_col_start, **kwargs):
     """
     Standard signature, with extra args via partial().
     Returns (buffer, curpos, scroll_offset, accepted, force_redraw)
@@ -185,15 +185,18 @@ def handle_key_enter(buffer, curpos, scroll_offset, max_width,
 
     echo("{f6}", end="", flush=True)
 
+##    echo(f"handle_key_enter.100: {kwargs=}", level="debug")
+
     # No verification → accept
     if not callable(verify):
         return buffer, curpos, scroll_offset, True, True
 
     # Run verify
-    try:
-        ok = verify(buffer)
-    except Exception:
-        ok = False
+##    try:
+    ok = verify(buffer, **kwargs)
+##    except Exception:
+##        echo("exception")
+##        ok = False
 
     if ok:
         return buffer, curpos, scroll_offset, True, True
@@ -389,12 +392,12 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
 
     enter_handler = partial(
         handle_key_enter,
-        verify=verify,
         prompt=prompt,
         mask=mask,
         start_row=start_row,
         start_col=start_col,
-        input_col_start=input_col_start
+        input_col_start=input_col_start,
+        **kwargs
     )
 
     KEY_ACTIONS["KEY_ENTER"] = enter_handler
@@ -470,7 +473,6 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
             tab_count = 0
 
         elif len(ch) == 1:
-###            logentry(f"{buffer=} {max_len=}", level="debug")
             if len(buffer) < max_len:
                 # Insert the character
                 buffer = buffer[:curpos] + ch + buffer[curpos:]
