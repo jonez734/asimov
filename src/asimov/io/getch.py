@@ -65,7 +65,7 @@ def _proc_char(char:str) -> str:
     # 5. Return a regular character
     return char
 
-def getch_str(timeout=1.0):
+def getch_str(timeout=1.0, **kwargs):
     """Reads a single keypress without blocking and handles control/extended keys."""
     
     with _current_stream_lock:
