@@ -1,5 +1,6 @@
-from .echo import echo
-from .terminal import lines as terminal_lines, columns as terminal_columns
+from .echo import echo, rendered_length
+from . import terminal
+#terminal import lines as terminal_lines, columns as terminal_columns
 from .const import MAX_TERMINAL_WIDTH
 from ..common import logentry
 
@@ -9,7 +10,7 @@ from ..common import logentry
 
 def init(topmargin=1, bottommargin=1):
   echo("{f6:3}{cursorup:3}", end="", flush=True)
-  h = terminal_lines() - bottommargin
+  h = terminal.lines() - bottommargin
   logentry(f"asimov.io.util.screen_init.100: {topmargin=} {h=}", level="debug")
   echo(f"{{savecursor}}{{decstbm:{topmargin},{h}}}{{restorecursor}}", flush=True, end="")
 
@@ -20,96 +21,33 @@ def init(topmargin=1, bottommargin=1):
 
 def updatebottombar(buf: str) -> None:
     """Render the bottom bar on the last terminal line without line wrapping."""
-    echo(f"{{savecursor}}{{bottombarcolor}}{{curpos:{terminal_lines()},0}}{buf}{{restorecursor}}", wordwrap=False, end="", flush=True)
+    echo(f"{{savecursor}}{{bottombarcolor}}{{curpos:{terminal.lines()},0}}{buf}{{restorecursor}}", wordwrap=False, end="", flush=True)
     return
 
 # @since 20230523 copied from bbsengine5
 # @since 20250517 rewrite
 #from wcwidth import wcswidth, wcwidth
-def setbottombar(left, right=None, stack: bool = False, width: int = None, **kwargs):
-    global bottombarstack
+def setbottombar(left, right=None, **kwargs):
+    terminalwidth = terminal.width() - 2
 
-    wcswidth = len
-    wcwidth = len
-
-    terminalwidth = (width or kwargs.get("width") or terminal_columns()) - 1
-
-    def wc_rjust(text, length, padding=' '):
-      # from wcwidth import wcswidth
-      return padding * max(0, (length - wcswidth(text))) + text
-
-    def resolve_content(value, default, label):
-        if callable(value):
-            return value()
-        elif isinstance(value, str):
-            return value
-        elif value is None:
-            return default
-        else:
-            echo(f"setbottombar: Unexpected {label} type: {type(value)}", level="debug")
-            return "ERROR"
-
-    def truncate_to_display_width(text: str, max_width: int) -> str:
-        """Truncate a string by display width, ignoring ANSI escape sequences."""
-        stripped = text # io.strip_commands(text)
-        result = ""
-        current_width = 0
-        for char in stripped:
-            char_width = wcwidth(char)
-            if char_width < 0:
-                char_width = 0
-            if current_width + char_width > max_width:
-                break
-            result += char
-            current_width += char_width
-        if current_width < wcswidth(stripped):
-            if max_width >= 3:
-                return result[:-3] + "..."
-            else:
-                return result
-        return result
-
-    # Get values
-    left_raw = resolve_content(left, "", "left")
-    right_raw = resolve_content(right, "here", "right")
-
-    # Final strings (with formatting)
-    left_str = left_raw
-    right_str = str(right_raw)
-
-    # Strip ANSI for width calculations
-    visible_left = left_str # io.strip_commands(left_str)
-    visible_right = right_str # io.strip_commands(right_str)
-
-    right_width = wcswidth(visible_right)
-    max_total_width = terminalwidth
-
-    # Determine how much space we can give the left
-    space_for_left = max_total_width - right_width - 1  # 1 space between left and right
-
-    if space_for_left < 0:
-      # Not enough room for left side at all
-      buf = f"{right_str.rjust(max_total_width)}"
+    if callable(left) is True:
+      left_buf = left(**kwargs)
     else:
-      truncated_visible_left = truncate_to_display_width(visible_left, space_for_left)
-      visible_truncated_left_width = wcswidth(truncated_visible_left)
-      left_padding = " " * (space_for_left - visible_truncated_left_width)
-      buf = f" {truncated_visible_left}{left_padding} {right_str} "
+      left_buf = left
 
-#    right_width = wcswidth(visible_right)
-#    space_for_left = terminalwidth - right_width - 2
-#
-#    if space_for_left < 0:
-#        buf = f" {right_str} "
-#    else:
-#        truncated_visible_left = truncate_to_display_width(visible_left, space_for_left)
-#        padding = " " * (space_for_left - wcswidth(truncated_visible_left))
-#        buf = f" {truncated_visible_left}{padding}{right_str} "
+    if callable(right) is True:
+      right_buf =  right(**kwargs)
+    else:
+      right_buf = right
 
-    updatebottombar(f"{{bottombarcolor}}{buf}{{/all}}")
-
-    if stack:
-        bottombarstack.insert(0, buf)
+    left_len = rendered_length(left_buf)
+    right_len = rendered_length(right_buf)
+    max_left_len = terminalwidth - right_len
+    if left_len > max_left_len:
+      left_buf = left_buf[:max_left_len-5]+"..."
+    padding = " " * (terminalwidth - left_len - right_len)
+    updatebottombar(f"{{bottombarcolor}}{left_buf}{padding}{right_buf}{{/all}}")
+    return True
 
 # @since 20240708
 # @since 20240517
