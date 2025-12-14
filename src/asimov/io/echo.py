@@ -16,10 +16,11 @@ from typing import List, Dict, Optional
 
 from .const import CSI, BEL, ESC, ECHO_END, OSC
 
-from .common import Token, write_current_output_stream, get_cursor_position, _cursor_row, _cursor_col, terminal_columns
+from .common import Token, write_current_output_stream, get_cursor_position, _cursor_row, _cursor_col ###, terminal_columns
 from ..common import logentry
-
 from .palette import c64_palette, get_current_palette, get_palette_entry, rgb
+
+from . import terminal
 
 _previous_token = Token("UNKNOWN")
 
@@ -106,6 +107,9 @@ _command_handlers = {
     "acs":     r'acs',
     "f6":      r'f6',
 
+    "literalopen" : r'\{\{',
+    "literalclose" : r'\}\}',
+
     # runtime variables
     "var": r'var',
     "attr": r'attr',
@@ -134,7 +138,8 @@ _command_handlers = {
     "cha": r'cha',
 
     "slashall": r'/all',
-    "title": r'title',
+
+    "settitle": r'settitle',
 }
 
 _compiled_command_handlers = [(kind, re.compile(pattern, re.IGNORECASE)) for kind, pattern in _command_handlers.items()]
@@ -158,7 +163,7 @@ command_aliases = {}
 # ----------------------------
 # Tokenizer
 # ----------------------------
-def tokenize(text):
+def tokenize(text, **kwargs):
     """Yields Token(kind, value, args, kwargs, raw)"""
     pos = 0
     while pos < len(text):
@@ -243,7 +248,7 @@ def to_fullwidth(s: str) -> str:
 def _handle_word(token, **kwargs):
     global _acs, _raw, _decdhl, _wordwrap, _cursor_col
 
-    width = kwargs.get("width", terminal_columns())
+    width = kwargs.get("width", terminal.columns())
 
     token.text = token.value
     token.raw = token.value
@@ -335,7 +340,7 @@ def _handle_decsc(token):
 def _handle_decrc(token):
     global _color, _cursor_col, _cursor_row, _wordwrap
     
-    logentry(f"_handle_decrc.100: {_terminal_state=}")
+##    logentry(f"_handle_decrc.100: {_terminal_state=}")
 
     token.args = (_terminal_state.cursor_row, _terminal_state.cursor_col)
     yield from _handle_curpos(token)
@@ -508,26 +513,42 @@ def _handle_elo(token):
     yield token
 
 def _handle_cuu(token):
-    repeat = token.args[0] or 1
+    if len(token.args) == 0:
+      repeat = 1
+    else:
+      repeat = token.args[0] or 1
+
     token.repeat = 1
     token.text = f"{CSI}{repeat}A"
     yield token
 
 def _handle_cud(token):
-    repeat = token.args[0] or 1
+    if len(token.args) == 0:
+      repeat = 1
+    else:
+      repeat = token.args[0] or 1
+
     token.repeat = 1
     token.text = f"{CSI}{repeat}B"
     yield token
     return
 
 def _handle_cuf(token):
-    repeat = int(token.args[0]) or 1
+    if len(token.args) == 0:
+      repeat = 1
+    else:
+      repeat = int(token.args[0])
+
     token.repeat = 1
     token.text = f"{CSI}{repeat}C"
     yield token
 
 def _handle_cub(token):
-    repeat = int(token.args[0]) or 1
+    if len(token.args) == 0:
+      repeat = 1
+    else:
+      repeat = int(token.args[0])
+
     token.repeat = 1
     token.text = f"{CSI}{repeat}D"
     yield token
@@ -538,7 +559,7 @@ def _handle_decstbm(token):
     if len(token.args) == 0:
         token.text = f"{CSI}r"
         yield token
-        logentry(f"_handle_decstbm.100: resetting", level="debug")
+##        logentry(f"_handle_decstbm.100: resetting", level="debug")
         return
 
     t = token.args[0]
@@ -546,15 +567,15 @@ def _handle_decstbm(token):
 
     token.text = f"{CSI}{t};{b}r"
     yield token
-    logentry(f"asimov.io.echo._handle_decstbm.100: {t=} {b=} {token.text=}", level="debug")
+##    logentry(f"asimov.io.echo._handle_decstbm.100: {t=} {b=} {token.text=}", level="debug")
 ##    return
 
-def _handle_title(token):
+def _handle_settitle(token):
   if len(token.args) == 0:
     return iter()
 
   token.repeat = 1
-  token.text = f"{OSC}0;{' '.join(token.args)}\007"
+  token.text = f"{OSC}0;{' '.join(token.args)}{BEL}"
   yield token
 
 def _handle_slashall(token):
@@ -602,6 +623,19 @@ def _handle_cha(token):
   token.kind = "CURSOR"
   token.repeat = 1
   token.text = f"{CSI}{repeat}G"
+  yield token
+
+def _handle_literalopen(token):
+  print("literalopen", flush=True)
+  token.kind = "WORD"
+  token.repeat = 1
+  token.text = "{"
+  yield token
+
+def _handle_literalclose(token):
+  token.kind = "WORD"
+  token.repeat = 1
+  token.text = "}"
   yield token
 
 options = {}
@@ -996,7 +1030,7 @@ def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=Fals
     _raw = raw
 
     if width is None:
-        width = terminal_columns()  # default or queried width
+        width = terminal.columns()  # default or queried width
     
     palette = palette or c64_palette
     _runtime_vars = _runtime_vars or {}
@@ -1059,7 +1093,7 @@ def echo(text="", *, flush:bool=True, end=ECHO_END, **kwargs):
       elif level == "info":
         prefix = "{level.info}I: " # {bgwhite}{blue}"
 
-      text = prefix + text
+      text = prefix + text + "{/all}"
 
     for token in echo_iter(text, width=width, wordwrap=wordwrap, raw=_raw, palette=palette):
         _write_token(token, flush=flush)
@@ -1071,7 +1105,6 @@ def echo(text="", *, flush:bool=True, end=ECHO_END, **kwargs):
           _cursor_col = 0
           _cursor_row += 1
 
-    level = kwargs.get("level", None)
     if level is not None:
       return logentry(text, level=level)
 
@@ -1083,3 +1116,52 @@ def echo_file(filepath, page_size=20, raw=False, wordwrap=True):
             line_count += 1
             if line_count % page_size == 0:
                 input("More?")  # wait every page
+
+# @since 20251212
+def rendered_length(text, **kwargs):
+    """
+    Calculates the length of the text as it would be rendered, ignoring
+    control sequences, commands, and variable/color expansions.
+
+    This is necessary to correctly determine the cursor position for
+    functions like curpos.
+    """
+    length = 0
+
+##    echo(f"{text=}", flush=True)
+    for token in echo_iter(text, wordwrap=False, raw=False):
+        # Get the effective repeat count, default to 1
+        repeat = int(token.repeat) if token.repeat is not None else 1
+
+        # Only count tokens that produce visible text on the terminal:
+##        print(f"{token=}", flush=True)
+        if token.kind == "WORD":
+            # WORD: Count visible characters.
+            # Note: If {fullwidth} is active, len(token.text) might be
+            # the number of full-width characters (e.g., to_fullwidth("A") is "\uFF21"),
+            # and it's assumed that each character in token.text is 1 column
+            # for calculation here unless double-width is explicitly handled
+            # by checking the _decdhl global, which is risky in a pure length calculation.
+            # Assuming terminal output width is what we want.
+            length += len(token.text) * repeat
+
+        elif token.kind in ("EMOJI", "ACS"):
+            # EMOJI/ACS: Emojis are usually 1 or 2 columns, ACS is 1 column.
+            # We count based on the number of times they were repeated.
+            # Assuming 1 column per instance for ACS and EMOJI for simplicity.
+            length += repeat
+
+        elif token.kind == "WHITESPACE":
+            # Only count spaces/tabs, ignore newlines ('\n') which don't consume horizontal space.
+            # The *actual visible width* is determined by the repeat count.
+            if token.value != "\n":
+                length += repeat
+
+        elif token.kind == "F6":
+            # Hard newline (F6) doesn't consume horizontal space.
+            pass
+
+        # All other token kinds (COMMAND, COLOR, ATTR, UNKNOWN) are ignored
+        # as they typically represent non-printing control sequences or metadata.
+
+    return length
