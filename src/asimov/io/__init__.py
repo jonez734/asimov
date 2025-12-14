@@ -15,18 +15,21 @@ Features:
 - Recursive command expansion and aliases
 """
 
-from .util import setbottombar
+from .screen import setbottombar
+from . import terminal
 
 from .const import ESC
 
-## from . import common
-from .echo import echo, echo_file
+from .echo import echo, echo_file, setvar, getvar, rendered_length
 ## from .inputstr import inputstr
 from .getch import getch_str as getch
 from .inputstring import inputstring
+from .inputinteger import inputinteger
+from .inputboolean import inputboolean
+from .inputchoice import inputchoice
 from .palette import set_palette
 
-__all__ = ["echo", "inputstring", "getch", "set_palette"]
+__all__ = ["echo", "inputstring", "getch", "set_palette", "setvar", "getvar", "inputboolean", "inputchoice", "rendered_length"]
 
 # ----------------------------
 # End of io.py
