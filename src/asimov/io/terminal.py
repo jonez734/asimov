@@ -1,5 +1,5 @@
 from .const import MAX_TERMINAL_WIDTH, FALLBACK_TERMINAL_WIDTH
-from .echo import echo
+###from .echo import echo
 
 def size():
   import shutil
@@ -37,6 +37,6 @@ def lines():
 
 height = lines
 
-def title(t:str) -> None:
-  echo(f"{{title:{t}}}", flush=True, end="")
-  return
+###def title(t:str) -> None:
+###  echo(f"{{settitle:{t}}}", flush=True, end="")
+###  return
