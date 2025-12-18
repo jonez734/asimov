@@ -72,81 +72,91 @@ class ThreadSafeContext(dict):
         with self._lock:
             return super().copy()
 
+# --- 2. Capture Thread (Hardware Owner) ---
 class CameraCapture:
-    def __init__(self, device=0):
-        self.cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
-        self.lock = threading.Lock() # Create a lock
-        self.ret, self.frame = self.cap.read()
+    def __init__(self, src):
+        self.src = src
+        self.frame = None
         self.stopped = False
+        self.lock = threading.Lock()
         self.thread = None
-
-    def get(self, cap):
-        return self.cap.get(cap)
-    
-    def set(self, cap, val):
-        return cv2.cap.set(cap, val)
+        self.actual_width = 0
+        self.actual_height = 0
+        self.actual_fps = 0
 
     def start(self):
-        """Starts the thread to read frames from the video stream."""
-        # daemon=True ensures the thread dies when the main program exits
-        self.thread = threading.Thread(target=self.update, args=(), daemon=True).start()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+        # Wait for hardware to warm up so Main has dimensions
+        timeout = time.time() + 7.0
+        while self.frame is None and time.time() < timeout:
+            time.sleep(0.1)
+        if self.frame is None:
+            raise RuntimeError("Webcam failed to initialize.")
         return self
 
-##        cap.set(cv2.CAP_PROP_FRAME_WIDTH, conf.CAP_WIDTH)
-##        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, conf.CAP_HEIGHT)
-##        if cap.set(cv2.CAP_PROP_FPS, conf.CAP_FPS) is False:
-##            io.echo(f"could not set FPS to {conf.FPS}")
+    def _run(self):
+        """Background thread: Opens, Reads, and Closes the camera."""
+        cap = cv2.VideoCapture(self.src, cv2.CAP_V4L2)
+        
+        # Verify hardware before starting loop
+        if not cap.isOpened() or not camera_ready(cap):
+            io.echo("{{error}}Capture: Hardware not available.{{/all}}")
+            self.stopped = True
+            cap.release()
+            return
 
-    def update(self):
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, conf.CAP_WIDTH)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, conf.CAP_HEIGHT)
+        cap.set(cv2.CAP_PROP_FPS, conf.CAP_FPS)
+
+        self.actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self.actual_fps = cap.get(cv2.CAP_PROP_FPS)
+
         while not self.stopped:
-            ret, frame = self.cap.read()
-            if ret:
-                flipped = cv2.flip(frame, 1)
-                with self.lock: # Ensure the assignment is isolated
-                    self.frame = flipped
-            else:
-                self.stopped = True
+            ret, frame = cap.read()
+            if not ret or frame is None: break
+            
+            flipped = cv2.flip(frame, 1)
+            with self.lock:
+                self.frame = flipped
+        
+        cap.release()
+        io.echo("Capture: Hardware released.")
 
     def read(self):
-        with self.lock: # Ensure the read is isolated
+        with self.lock:
             return self.frame.copy() if self.frame is not None else None
 
     def stop(self):
-        """Stops the thread and releases the hardware."""
         self.stopped = True
-        if hasattr(self, "thread") and self.thread is not None:
-            self.thread.join(timeout=1.0)
-        self.cap.release()
+        if self.thread: self.thread.join(timeout=2.0)
 
-    def isOpened(self) -> bool:
-        return self.cap.isOpened()
-
+# --- 3. Processing Thread (The Brain) ---
 class ProcessingWorker:
-    """The 'Brain' thread: handles heavy detection logic."""
     def __init__(self, capture, context):
         self.capture = capture
         self.context = context
         self.stopped = False
-        self.thread = None
 
     def start(self):
-        self.thread = threading.Thread(target=self._run, daemon=True).start()
+        threading.Thread(target=self._run, daemon=True).start()
         return self
 
     def _run(self):
         while not self.stopped:
             frame = self.capture.read()
             if frame is not None:
-                # Perform the heavy lifting without blocking the camera output
+                # Heavy lifting on pristine frames
                 indexfingertip.detect(frame, self.context)
                 eyes.detect(frame, self.context)
+                glitch.scheduler() # Decides to glitch
             else:
                 time.sleep(0.01)
-
     def stop(self):
         self.stopped = True
-        if hasattr(self, "thread") and self.thread is not None:
-            self.thread.join(timeout=1.0)
+
 
 def apply_title(frame, context):
     return draw_text(frame, 10, 15, conf.TITLE, color=conf.WATERMARK_COLOR, font_scale=0.50, alpha=0.75, shadow_alpha=0.75, shadow_offset=2)
@@ -182,40 +192,39 @@ def main(args, **kwargs):
     global OVERLAYS
 
     context = ThreadSafeContext()
+
     capture = CameraCapture(conf.CAP_DEVICE).start()
     processing = ProcessingWorker(capture, context).start()
     
     # cap = cv2.VideoCapture(conf.CAP_DEVICE, cv2.CAP_V4L2)
 
     try:
-        if camera_ready(capture) is False:
-            raise RuntimeError("Camera is not ready after 5s")
+        # Make sure the webcam opens correctly
+#        if not capture.src.isOpened():
+#            raise RuntimeError("Could not open webcam. check group membership.")
 
         for name in glitch.GLITCH_LIST:
             kwargs = glitch.GLITCH_CONFIG.get(name, {})
             glitch.register(name, **kwargs)
 
-        # Make sure the webcam opens correctly
-        if not capture.isOpened():
-            raise RuntimeError("Could not open webcam. check group membership.")
+##        actual_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+##        actual_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+##        actual_fps = capture.get(cv2.CAP_PROP_FPS)
 
-        actual_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-        actual_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        actual_fps = capture.get(cv2.CAP_PROP_FPS)
-
-        # Get the frame size
-        frame = capture.read()
+##        # Get the frame size
+##        frame = capture.read()
 
         # get virtual camera device by label
         device = get_device_by_label(conf.VIRTCAM_LABEL)
 ##        io.echo(f"{{labelcolor}}virtualcam label {{valuecolor}}{conf.VIRTCAM_LABEL} {{labelcolor}}, device {{valuecolor}}{device}{{/all}}")
 ##        playingcard.init(args.basedir, args.set_name, context)
         # Start the virtual camera
-        device = get_device_by_label(conf.VIRTCAM_LABEL)
+##        device = get_device_by_label(conf.VIRTCAM_LABEL)
         io.echo(f"----> virtual camera device: {device}")
-        with pyvirtualcam.Camera(width=actual_width, height=actual_height, fps=actual_fps, print_fps=True, device=device) as cam:
-            capture.start()
-            io.echo(f"{{labelcolor}}Capture: {{valuecolor}}{conf.CAP_DEVICE}, virtcam: ({cam.device}) {actual_width}{{labelcolor}}x{{valuecolor}}{actual_height} {{labelcolor}}@ {{valuecolor}}{actual_fps} {{labelcolor}}fps{{/all}}")
+        with pyvirtualcam.Camera(width=capture.actual_width, height=capture.actual_height, fps=capture.actual_fps, print_fps=True, device=device) as cam:
+#            capture.start()
+#            processing.start()
+            io.echo(f"{{labelcolor}}Capture: {{valuecolor}}{conf.CAP_DEVICE}, virtcam: ({cam.device}) {capture.actual_width}{{labelcolor}}x{{valuecolor}}{capture.actual_height} {{labelcolor}}@ {{valuecolor}}{capture.actual_fps} {{labelcolor}}fps{{/all}}")
             while True:
                 raw_frame = capture.read()
                 if raw_frame is None:
@@ -224,8 +233,8 @@ def main(args, **kwargs):
                 render_context = context.copy()
 
                 display_frame = raw_frame.copy()
-                display_frame = apply_overlays(display_frame, context)
-                display_frame = apply_title(display_frame, context)
+                display_frame = apply_overlays(display_frame, render_context)
+                display_frame = apply_title(display_frame, render_context)
 
                 cv2.imshow(conf.TITLE, display_frame)
 
