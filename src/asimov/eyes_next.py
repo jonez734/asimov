@@ -104,13 +104,13 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
     return frame
 
 def main(args, **kwargs):
-    io.echo("eyes_next: namespaced robust mode active")
+###    io.echo("eyes_next: namespaced robust mode active")
     return True
 
 def init(args, **kwargs):
     return True
 
-def access(args, op, **kwargs):
+def access(args, op, /, **kwargs):
     return True
 
 def buildargs(args, **kwargs):
