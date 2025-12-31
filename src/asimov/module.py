@@ -2,323 +2,319 @@ import sys
 import argparse
 import importlib
 import inspect
-from typing import get_type_hints, Callable
+from typing import get_type_hints, Callable, Union, Any, Optional
+from types import ModuleType
+from dataclasses import dataclass
 
 from . import io
 
-# @since 20251128
+@dataclass
+class SignatureError:
+    func_name: str
+    expected: str
+    found: str
+    reason: str | None = None
+    def __str__(self):
+        msg = (
+            f"{self.func_name}() signature mismatch{f6}"
+            f"Expected:{f6}  {self.expected}{f6}"
+            f"Found:{f6}  {self.found}"
+        )
+        if self.reason:
+            msg += f"{f6}Reason:{f6}  {self.reason}"
+        return msg
+
+# --- Utility Functions ---
+
+# @since 20251221
+def get_module(module_input: Union[str, ModuleType], args: Any = None) -> ModuleType:
+    """
+    Utility to resolve a module reference.
+    If input is a string, it loads the module via load().
+    If it's already a module object, it returns it.
+    """
+    if isinstance(module_input, ModuleType):
+        return module_input
+
+    if isinstance(module_input, str):
+        return load(args, module_input)
+
+    raise ValueError(f"Expected module name (str) or module object, got {type(module_input)}")
+
+# @since 20230510
+def load(args: Any, modulepath: str) -> ModuleType:
+    """
+    Loads a module from a string path.
+    Preserves BC and handles conditional reloading in debug mode.
+    """
+    debug = getattr(args, 'debug', False) if args else False
+
+    if modulepath in sys.modules and debug:
+        pass
+###        io.echo(f"{modulepath=} is in sys.modules. reloading.", level="debug")
+###        importlib.reload(sys.modules[modulepath])
+
+    try:
+        m = importlib.import_module(modulepath)
+        return m
+    except Exception:
+        # Integrated echo_traceback for import failures
+        io.echo_traceback(f"module {modulepath=} not importable")
+        raise
+
+# --- Logic and Validation ---
+
 def _check_params(func_name: str, params: dict, required: list, optional_kwargs: bool = False):
-    """
-    Helper to check for required parameters by name (e.g., 'args', 'op')
-    and the presence of a keyword argument catcher ('kw' or 'kwargs').
-    Returns True on success, False on failure.
-    """
+    """Internal helper to verify function signatures."""
     for p in required:
         if p not in params:
             io.echo(f"missing '{p}' from {func_name}()", level="error")
             return False
-
-    # Check for keyword arguments catcher ('kw' or 'kwargs') unless optional_kwargs is True
     if not optional_kwargs and "kw" not in params and "kwargs" not in params:
         io.echo(f"missing 'keyword args' in {func_name}()", level="error")
         return False
     return True
 
-# @since 20220826
-def check(args, modulename, op="run", **kwargs):
-  debug = args.debug if args is not None and args.debug is True else False
-  silent = kwargs.get("silent", True)
+def _check_func_return(func_ann, stub_ann):
+    # Stub doesn't care → accept anything
+    if stub_ann is inspect._empty:
+        return True
 
-  # --- Module Import and Reload (Reloading is now conditional on debug) ---
-  if modulename in sys.modules:
-    if debug is True:
-      io.echo(f"{modulename=} is in sys.modules. reloading.", level="debug")
-      importlib.reload(sys.modules[modulename])
-
-  if debug is True:
-    io.echo(f"bbsengine.module.check.120: {modulename=}", level="debug")
-
-  try:
-    m = importlib.import_module(modulename)
-  except ModuleNotFoundError:
-    if silent is False:
-      io.echo(f"module {modulename=} not importable", level="error")
-    return False
-  except Exception as e:
-    import traceback
-    traceback.print_exc(file=sys.stdout)
-    return False
-
-  if debug is True:
-    io.echo(f"bbsengine6.module.check.100: {type(m)=} {m=}", level="debug")
-
-  # -----------------------------------------------
-  # --- 1. Check Existence and Callability (REQUIRED FUNCTIONS) ---
-  # -----------------------------------------------
-
-  # --- Check init() ---
-  if hasattr(m, "init") is False:
-    if debug is True:
-      io.echo("no init function", level="warn")
-    return False
-  if callable(m.init) is False:
-    io.echo("init function is not callable", level="error")
-    return False
-
-  # --- Check access() ---
-  if hasattr(m, "access") is False:
-    if debug is True:
-      io.echo("no access function", level="error")
-    return False
-  if (callable(m.access)) is False:
-    io.echo("no callable access function", level="error")
-    return False
-
-  try:
-    # Use **kwargs here instead of **kw
-    if m.access(args, op, **kwargs) is True:
-      if silent is False:
-        io.echo("access check passed", level="debug")
-    else:
-      if silent is False:
-        io.echo("access check failed", level="error")
-      return False
-  except Exception as e:
-    import traceback
-    traceback.print_exc(file=sys.stdout)
-    io.echo("call to access function failed", level="error")
-    return False
-
-  # --- Check buildargs() (REQUIRED) ---
-  if hasattr(m, "buildargs") is False:
-    io.echo("no buildargs function found (required)", level="error")
-    return False
-  if callable(m.buildargs) is False:
-    io.echo("buildargs function is not callable", level="error")
-    return False
-
-  # --- Check main() ---
-  if hasattr(m, "main") is False:
-    io.echo("no working main function", level="error")
-    return False
-  if callable(m.main) is False:
-    io.echo("no working main function", level="error")
-    return False
-
-  if debug is True:
-    io.echo("checking signatures", level="debug")
-
-  # -----------------------------------------------
-  # --- 2. Setup and Check Signatures ---
-  # -----------------------------------------------
-
-  # All core functions are required and verified as callable.
-  functions_to_check = ["init", "access", "buildargs", "main"]
-
-  # Check for optional version()
-  if hasattr(m, "version"):
-    if callable(m.version) is False:
-      io.echo("version function is not callable", level="error")
-      return False
-    functions_to_check.append("version")
-
-  # --- Parameter Signature Check Loop ---
-  for f in functions_to_check:
-    sig = inspect.signature(eval(f"m.{f}"))
-    params = sig.parameters
-
-    if args.debug is True:
-      io.echo(f"{sig=} {params=}", level="debug")
-
-    # Define required parameters for the helper
-    required_params = ["args"]
-    if f == "access":
-      required_params.append("op")
-
-    # All checked functions must have 'args' and **kwargs
-    if not _check_params(f, params, required_params):
-      return False
-
-  return True
-
-#@since 20230510 copied from bbsengine5
-def load(args:object, modulepath:str):
-  try:
-      m = importlib.import_module(modulepath)
-  except ModuleNotFoundError:
-      io.echo(f"bbsengine6.module.load.180: module {modulepath} not found", level="error")
-      raise
-  return m
-  
-# @since 20230510 copied from bbsengine5
-def runcallback(args:object, callback:callable, optional:bool=False, **kwargs): # s:argparse.Namespace, callback, argparser=None, **kwargs):
-  debug = args.debug if args is not None else True
-  if debug is True:
-    io.echo(f"bbsengine6.runcallback.100: {args=} {kwargs=}", level="debug")
-#  if argparser is not None:
-#    args = argparser.parse_args()
-
-  if callback is None:
-    if debug is True:
-      io.echo("runcallback.140: callback is None", level="debug")
-    return None
-
-  if callable(callback) is True:
-    if debug is True:
-      io.echo("runcallback.160: callback is callable", level="debug")
-    return callback(args, **kwargs)
-
-  s = callback.split(".")
-  if len(s) > 1:
-    modulepath = ".".join(s[:-1])
-    funcname = s[len(s)-1:][0]
-  else:
-    modulepath = s[0] # None
-    funcname = "main" # s[0]
-
-  if debug is True:
-    io.echo("runcallback.160: modulepath=%r funcname=%r" % (modulepath, funcname), level="debug")
-
-  if modulepath is None:
-    try:
-      func = eval(funcname)
-      io.echo("runcallback.320: func=%r" % (func))
-    except NameError:
-      io.echo("runcallback.340: %r not found." % (funcname), level="error")
-      return None
-
-    if callable(func) is True:
-      if debug is True:
-        io.echo("runcallback.260: callable", level="debug")
-      return func(args, **kwargs)
-    else:
-      if debug is True:
-        io.echo("runcallback.280: not callable", level="debug")
-      return None
-
-  m = load(args, modulepath)
-  if debug is True:
-    io.echo(f"runcallback.200: {m=} {funcname=}", level="debug")
-
-  try:
-    func = getattr(m, funcname)
-  except AttributeError:
-#    ttyio.echo("runcallback.240: function %s.%s() not found" % (modulepath, funcname))
-    return None
-  else:
-    if debug is True:
-      io.echo("runcallback.220: func=%r" % (func), level="debug")
-    if callable(func) is True:
-      return func(args, **kwargs)
-
-  return None
-
-# @since 20220727
-# @since 20230508 added to bbsengine6
-def run(args, modulename, **kwargs):
-  debug = args.debug if "debug" in args else False
-  buildargs = True
-
-  if check(args, modulename, **kwargs) is False:
-    io.echo(f"check of {modulename=} failed. module not run.", level="error")
-    return False
-
-  if debug is True:
-    io.echo(f"bbsengine6.module.run.100: {args=}", level="debug")
-
-  res = runcallback(args, f"{modulename}.init", **kwargs)
-  if debug is True:
-    io.echo(f"{modulename}.init() {res=}", level="debug")
-
-  if buildargs is True:
-    argv = kwargs["argv"] if "argv" in kwargs else []
-    if debug is True:
-      io.echo(f"bbsengine6.module.run.120: {argv=}", level="debug")
-    prgargparser = runcallback(args, f"{modulename}.buildargs", **kwargs)
-
-    if debug is True:
-      io.echo(f"bbsengine6.module.run.130: {prgargparser=}", level="debug")
-
-    if prgargparser is not None:
-      try:
-        argv = [a.strip() for a in argv[1:]]
-        prgargs = prgargparser.parse_args(argv) # argv[1:])
-        if debug is True:
-          io.echo(f"bbsengine6.module.run.140: {prgargs=} {argv=}", level="debug")
-#        prgargs = [s.strip() for s in prgargs]
-      except SystemExit:
-        return False
-      except argparse.ArgumentError:
-        io.echo("argument error", level="error")
+    # Function didn't annotate → reject
+    if func_ann is inspect._empty:
         return False
 
-      if debug is True:
-        io.echo(f"bbsengine6.module.run.220: {prgargs=}", level="debug")
+    # Exact match
+    if func_ann == stub_ann:
+        return True
 
-      # return runcallback(prgargs, f"{modulename}.main", **kwargs)
+    # Handle Optional[T] == Union[T, None]
+    from typing import get_origin, get_args, Union
 
-  res = runcallback(args, f"{modulename}.main", **kwargs)
+    def normalize(ann):
+        origin = get_origin(ann)
+        if origin is Union:
+            return set(get_args(ann))
+        return {ann}
 
-  if debug is True:
-    io.echo(f"{modulename}.main() {res=}", level="debug")
-  return res
+    return normalize(func_ann) == normalize(stub_ann)
 
-# @since 20240709
-# @project:9332
-runmodule = run
-
-# @since 20220828
-#def runsubmodule(args, module, **kw):
-#  if args.debug is True:
-#    io.echo("bbsengine6.module.runsubmodule.100: trace", level="debug")
-#  return runmodule(args, module, **kw)
-
-# @since 20250316
-def validate_function(module_name: str, func_name: str, required_signature: Callable):
-    module = importlib.import_module(module_name)
-
-    # Check if function exists
-    if not hasattr(module, func_name):
-        raise ValueError(f"Function '{func_name}' not found in module '{module_name}'")
-
-    func = getattr(module, func_name)
-
-    if not callable(func):
-        raise ValueError(f"'{func_name}' in module '{module_name}' is not callable")
-
-    # Inspect signature
+def _format_signature(func, name=None):
     sig = inspect.signature(func)
-    required_sig = inspect.signature(required_signature)
+    fname = name or func.__name__
+    return f"{fname}{sig}"
 
-    # Compare parameters
-    if sig.parameters.keys() != required_sig.parameters.keys():
-        raise ValueError(f"'{func_name}' has wrong parameters: {sig.parameters.keys()}")
+def _kind_compatible(func_kind, stub_kind):
+    if stub_kind is inspect.Parameter.POSITIONAL_ONLY:
+        return func_kind is inspect.Parameter.POSITIONAL_ONLY
 
-    # Compare types
-    func_hints = get_type_hints(func)
-    required_hints = get_type_hints(required_signature)
+    if stub_kind in (
+        inspect.Parameter.POSITIONAL_ONLY,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+    ):
+        return func_kind in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        )
 
-    for param, required_type in required_hints.items():
-        if param == 'return':
-            continue
-        if param not in func_hints:
-            raise ValueError(f"Missing type annotation for '{param}' in '{func_name}'")
-        if func_hints[param] != required_type:
-            raise ValueError(f"Wrong type for '{param}': expected {required_type}, got {func_hints[param]}")
+    return func_kind == stub_kind
 
-    # Compare return type
-    if func_hints.get('return', None) != required_hints.get('return', None):
-        raise ValueError(f"Wrong return type for '{func_name}': expected {required_hints.get('return')}, got {func_hints.get('return')}")
+def _check_func_signature(func, stub, *, name=None, allow_extra=True, enforce_return=True):
+    sig_func = inspect.signature(func)
+    sig_stub = inspect.signature(stub)
 
-    io.echo(f"'{func_name}' in '{module_name}' is valid!", level="debug")
+    f_params = list(sig_func.parameters.values())
+    s_params = list(sig_stub.parameters.values())
+
+    f_name = name or func.__name__
+
+    def fail(reason=None):
+        return SignatureError(
+            func_name=f_name,
+            expected=f"{f_name}{sig_stub}",
+            found=f"{f_name}{sig_func}",
+            reason=reason,
+        )
+
+    if len(f_params) < len(s_params):
+        return False
+
+    for i, s in enumerate(s_params):
+        f = f_params[i]
+
+        if f.name != s.name:
+             return fail(f"parameter {i+1} should be '{s.name}'")
+
+        if not _kind_compatible(f.kind, s.kind):
+            return fail(f"'{s.name}' must be positional-only")
+
+        if s.default is inspect._empty and f.default is not inspect._empty:
+            return fail(f"'{s.name}' must not have a default")
+
+    if not allow_extra and len(f_params) != len(s_params):
+        return fail("too many parameters")
+
+    if enforce_return:
+        if not _check_func_return(
+            sig_func.return_annotation,
+            sig_stub.return_annotation
+        ):
+            return fail("return type mismatch")
+
     return True
 
+# @since 20220826
+def check(args: argparse.Namespace, mod_ref: Union[str, ModuleType], **kwargs) -> bool|None:
+    """
+    Validates module interface and functional access.
+    """
+    debug = getattr(args, 'debug', False) if args else False
+    silent = kwargs.get("silent", True)
+    op = kwargs.pop("op", "run")
 
-# Example usage:
-#def required_init(config: dict, verbose: bool) -> None:
-#    pass
+    m = get_module(mod_ref, args)
 
-#validate_function('my_module', 'init', required_init)
+    # 1. Interface Check
+    for func_name in ["init", "access", "buildargs", "main"]:
+        if not hasattr(m, func_name):
+            if not silent:
+                io.echo(f"no {func_name} function", level="error")
+            return False
+        if not callable(getattr(m, func_name)):
+            if not silent:
+                io.echo(f"{func_name} is not callable", level="error")
+            return False
 
-#def init(args: argparse.Namespace, **kwargs) -> bool: pass
+    # 2. Signature verification
+    if not _check_func_signature(m.init, _stub_init):
+        io.echo("init() signature invalid", level="error")
+        return False
 
+    if not _check_func_signature(m.buildargs, _stub_buildargs):
+        io.echo("buildargs() signature invalid", level="error")
+        return False
+
+    if not _check_func_signature(m.main, _stub_main):
+        io.echo("main() signature invalid", level="error")
+        return False
+
+    if not _check_func_signature(m.access, _stub_access):
+        if not silent:
+            io.echo(
+                "access() signature mismatch{f6:2}"
+                f"Expected:{{f6}}  {_format_signature(_access_stub, 'access')}{{f6:2}}"
+                f"Found:{{f6}}  {_format_signature(m.access)}",
+                level="error"
+            )
+        return False
+
+    # 3. Functional Access Check
+    try:
+        if m.access(args, op, **kwargs) is not True:
+            if not silent:
+                io.echo(f"access check failed for op: {op}", level="error")
+            return False
+    except Exception:
+        if not silent:
+            # Integrated echo_traceback for access function crashes
+            io.echo_traceback("call to access function failed. traceback:")
+        return False
+
+    return True
+
+# @since 20230510
+def runcallback(args: argparse.Namespace, callback: Union[Callable, str], optional: bool = False, **kwargs):
+    """
+    Executes a callback. Supports 'module.func' strings OR direct callables for BC.
+    """
+    if callback is None:
+        return None
+
+    if callable(callback):
+        try:
+            return callback(args, **kwargs)
+        except Exception:
+            io.echo_traceback(f"runcallback: callable {getattr(callback, '__name__', 'anon')} failed")
+            return None
+
+    parts = callback.split(".")
+    modpath = ".".join(parts[:-1]) if len(parts) > 1 else parts[0]
+    fname = parts[-1] if len(parts) > 1 else "main"
+
+    try:
+        m = load(args, modpath)
+        func = getattr(m, fname)
+        if callable(func):
+            return func(args, **kwargs)
+    except Exception:
+        if not optional:
+            io.echo_traceback(f"runcallback: string-path {callback} failed")
+        return None
+
+# @since 20220727
+def run(args: argparse.Namespace, mod_ref: Union[str, ModuleType], **kwargs):
+    """
+    Main lifecycle: check (with access) -> init -> buildargs -> main.
+    """
+    m = get_module(mod_ref, args)
+    
+    if check(args, m, **kwargs) is False:
+        return False
+
+    try:
+        runcallback(args, m.init, **kwargs)
+        
+        argv = kwargs.get("argv", [])
+        prgargparser = runcallback(args, m.buildargs, **kwargs)
+        if prgargparser:
+            try:
+                prgargparser.parse_args([a.strip() for a in argv[1:]])
+            except (SystemExit, argparse.ArgumentError):
+                return False
+
+        return runcallback(args, m.main, **kwargs)
+    except Exception:
+        # Integrated echo_traceback for module lifecycle crashes
+        io.echo(f"CRITICAL: Module '{getattr(m, '__name__', 'unknown')}' crashed.", level="critical")
+        if getattr(args, 'debug', False):
+            io.echo_traceback()
+        return False
+
+runmodule = run
+
+# @since 20250316
+def validate_function(mod_ref: Union[str, ModuleType], func_name: str, required_signature: Callable):
+    """
+    Deep validation of function signatures and type hints.
+    """
+    try:
+        module = get_module(mod_ref)
+        if not hasattr(module, func_name):
+            raise ValueError(f"Function '{func_name}' not found")
+
+        func = getattr(module, func_name)
+        sig = inspect.signature(func)
+        req_sig = inspect.signature(required_signature)
+
+        if sig.parameters.keys() != req_sig.parameters.keys():
+            raise ValueError(f"'{func_name}' parameter mismatch")
+
+        f_hints = get_type_hints(func)
+        r_hints = get_type_hints(required_signature)
+
+        for p, t in r_hints.items():
+            if p == 'return': continue
+            if f_hints.get(p) != t:
+                raise ValueError(f"Type mismatch for '{p}'")
+
+        return True
+    except Exception:
+        io.echo_traceback(f"Validation failed for {func_name}")
+        raise
+
+
+def _stub_access(args:argparse.Namespace, op:str, /, **kwargs:dict) -> bool | None: pass
+def _stub_init(args:argparse.Namespace, /, **kwargs:dict) -> bool | None: pass
+def _stub_buildargs(args:argparse.Namespace, **kwargs:dict) -> argparse.ArgumentParser | None: pass
+def _stub_main(args:argparse.Namespace, /, **kwargs:dict) -> bool | None: pass
+def _stub_version(args:argparse.Namespace, /, **kwargs:dict) -> str: pass
