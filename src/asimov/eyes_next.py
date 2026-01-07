@@ -29,9 +29,9 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
         context["EYES"] = {
             "detector": FaceMeshDetector(
                 staticMode=False,
-                maxFaces=conf.EYES["FACE_MESH"]["MAX_FACES"],
-                minDetectionCon=conf.EYES["FACE_MESH"]["DETECTION_CON"],
-                minTrackCon=conf.EYES["FACE_MESH"]["TRACKING_CON"]
+                maxFaces=conf.EYES["FACEMESH"]["MAX_FACES"],
+                minDetectionCon=conf.EYES["FACEMESH"]["DETECTION_CON"],
+                minTrackCon=conf.EYES["FACEMESH"]["TRACKING_CON"]
             ),
             "ema": {
                 key: OneEuroFilter(freq=f_params["FREQ"], min_cutoff=f_params["MIN_CUTOFF"], beta=f_params["BETA"])
@@ -50,8 +50,8 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
 
     if faces:
         face = faces[0]
-        l_idx = conf.EYES["INDICES"]["LEFT_EYE"]
-        r_idx = conf.EYES["INDICES"]["RIGHT_EYE"]
+        l_idx = conf.EYES["FACEMESH"]["LANDMARKS"]["LEFT_EYE"]
+        r_idx = conf.EYES["FACEMESH"]["LANDMARKS"]["RIGHT_EYE"]
         
         left_pts = np.array([face[i] for i in l_idx])
         right_pts = np.array([face[i] for i in r_idx])
@@ -86,7 +86,7 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
 
     ns["data"] = bar
 
-def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
+def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     """Draw the privacy bar using namespaced context data."""
     ns = context.get("EYES")
     if not ns or not ns.get("data"):
