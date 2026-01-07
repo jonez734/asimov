@@ -1,106 +1,123 @@
-# asimov/indexfingertip.py
-
-import cv2
-import numpy as np
 import time
-from cvzone.HandTrackingModule import HandDetector
-from . import io, conf, module
+import cv2
+from . import io, conf
 from .common import ThreadSafeContext, OneEuroFilter
+import numpy as np
 
-# Constants
+# MediaPipe landmark index
 INDEX_FINGER_TIP_LM = 8
+
+# Finger-up pattern from cvzone semantics
 INDEX_UP_PATTERN = [0, 1, 0, 0, 0]
+
 ERR_TEXT_ORG = (10, 30)
 ERR_TEXT_SCALE = 0.6
 ERR_TEXT_THICKNESS = 2
 
-def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
-###    io.echo("asimov.indexfingertip.detect.100: trace", level="debug")
+
+def detect(frame, context: ThreadSafeContext, **kwargs):
     try:
-        # Resource Initialization
-        if "FINGERTIP" not in context:
-            io.echo("Initializing Fingertip Detector resources...", level="info")
-            f_params = conf.FINGERTIP["FILTER"]
-            # Store in context under a namespace
-            context["FINGERTIP"] = {
-                "detector": HandDetector(
-                    detectionCon=conf.FINGERTIP.get("DETECTION_CON", 0.8),
-                    maxHands=conf.FINGERTIP.get("MAX_HANDS", 1)
-                ),
+        # ---- Init -----------------------------------------------------------
+        if "INDEXFINGERTIP" not in context:
+            f_params = conf.INDEXFINGERTIP["FILTER"]
+            context["INDEXFINGERTIP"] = {
                 "ema": {
-                    "x": OneEuroFilter(freq=f_params["FREQ"], min_cutoff=f_params["MIN_CUTOFF"], beta=f_params["BETA"]),
-                    "y": OneEuroFilter(freq=f_params["FREQ"], min_cutoff=f_params["MIN_CUTOFF"], beta=f_params["BETA"])
+                    "x": OneEuroFilter(
+                        freq=f_params["FREQ"],
+                        min_cutoff=f_params["MIN_CUTOFF"],
+                        beta=f_params["BETA"],
+                    ),
+                    "y": OneEuroFilter(
+                        freq=f_params["FREQ"],
+                        min_cutoff=f_params["MIN_CUTOFF"],
+                        beta=f_params["BETA"],
+                    ),
                 },
+                "active": False,
                 "data": None,
-                "error_state": False
+                "error_state": False,
             }
 
-        ns = context["FINGERTIP"]
-        ns["error_state"] = False # Reset error state on new attempt
+        ns = context["INDEXFINGERTIP"]
+        ns["error_state"] = False
+        ns["active"] = False
+        ns["data"] = None
 
-        hands, frame = ns["detector"].findHands(frame, draw=True)
+        # ---- Consume HAND module -------------------------------------------
+        hand_ns = context.get("HAND")
+        if not hand_ns or not hand_ns.get("hands"):
+            return
 
-        if hands:
-            hand = hands[0]
-            if ns["detector"].fingersUp(hand) == INDEX_UP_PATTERN:
-                raw_x, raw_y = hand['lmList'][INDEX_FINGER_TIP_LM][:2]
-                ns["data"] = {
-                    "x": ns["ema"]["x"].update(raw_x),
-                    "y": ns["ema"]["y"].update(raw_y),
-                    "timestamp": time.time(),
-                }
-                # Update context to ensure thread visibility
-                context["FINGERTIP"] = ns
-                return
+        hand = hand_ns["hands"][0]
 
-        # Check grace period for data persistence
-        if ns["data"]:
-            if (time.time() - ns["data"]["timestamp"] > conf.FINGERTIP.get("GRACE_PERIOD", 0.5)):
-                ns["data"] = None
+        # cvzone finger state (geometry-only, no detection)
+        fingers = hand_ns["detector"].fingersUp(hand)
+        if fingers != INDEX_UP_PATTERN:
+            return
 
-        context["FINGERTIP"] = ns
+        # ---- Extract + smooth ----------------------------------------------
+        raw_x, raw_y = hand["lmList"][INDEX_FINGER_TIP_LM][:2]
+
+        ns["data"] = {
+            "x": ns["ema"]["x"].update(raw_x),
+            "y": ns["ema"]["y"].update(raw_y),
+            "timestamp": time.time(),
+        }
+        ns["active"] = True
+
+        context["INDEXFINGERTIP"] = ns
 
     except Exception:
-        if "FINGERTIP" in context:
-            context["FINGERTIP"]["error_state"] = True
-        io.echo_traceback("Fingertip logic exception")
+        if "INDEXFINGERTIP" in context:
+            context["INDEXFINGERTIP"]["error_state"] = True
+        io.echo_traceback("Indexfingertip detect exception")
 
-def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
-    ns = context.get("FINGERTIP")
+
+def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
+    ns = context.get("INDEXFINGERTIP")
     if not ns:
         return frame
 
     if ns.get("error_state"):
-        cv2.putText(frame, "FINGERTIP ERROR", ERR_TEXT_ORG,
-                    cv2.FONT_HERSHEY_SIMPLEX, ERR_TEXT_SCALE, (0, 0, 255), ERR_TEXT_THICKNESS)
+        cv2.putText(
+            frame,
+            "INDEXFINGERTIP ERROR",
+            ERR_TEXT_ORG,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            ERR_TEXT_SCALE,
+            (0, 0, 255),
+            ERR_TEXT_THICKNESS,
+        )
         return frame
 
-    try:
-        data = ns.get("data")
-        if data:
-            cv2.circle(
-                frame,
-                (int(data["x"]), int(data["y"])),
-                conf.FINGERTIP.get("CIRCLE_RADIUS", 10),
-                conf.FINGERTIP.get("COLOR", (0, 255, 0)),
-                cv2.FILLED
-            )
+    if not ns.get("active"):
         return frame
-    except Exception:
-        io.echo_traceback("Fingertip draw exception")
-        return frame # Return original frame instead of None to prevent flickering
+
+    data = ns.get("data")
+    if not data:
+        return frame
+
+    cv2.circle(
+        frame,
+        (int(data["x"]), int(data["y"])),
+        conf.INDEXFINGERTIP.get("CIRCLE_RADIUS", 10),
+        conf.INDEXFINGERTIP.get("COLOR", (0, 255, 0)),
+        cv2.FILLED,
+    )
+
+    return frame
 
 def init(args, **kwargs):
-###    io.echo("asimov.indexfingertip.init.100: trace", level="debug")
     return True
+
 
 def buildargs(args, **kwargs):
     return None
 
+
 def access(args, op, /, **kwargs):
     return True
 
-def main(args, **kwargs):
-    # This acts as the lifecycle 'run' entry point for indexfingertip
 
+def main(args, **kwargs):
     return True
