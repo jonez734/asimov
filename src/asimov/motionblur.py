@@ -68,14 +68,19 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
 def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     ns = context.get(CTX_KEY)
-    if not ns:
+    if not ns or ns.get("error_state") or not ns.get("active"):
         return frame
 
-    if ns.get("error_state"):
+    ft = context.get("INDEXFINGERTIP")
+    if not ft or not ft.get("active"):
         return frame
 
-    if not ns.get("active"):
+    data = ft.get("data")
+    if not data:
         return frame
+
+    x = int(data["x"])
+    y = int(data["y"])
 
     velocity = ns.get("velocity", 0.0)
 
@@ -89,26 +94,39 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     frames = ns["frames"]
     frames.append(frame.copy())
 
-##    if len(frames) < 2:
-##        return frame
+    if len(frames) < 2:
+        return frame
 
     frames_snapshot = list(frames)
-    
-    out = np.zeros_like(frame, dtype=np.float32)
+
+    # ---- Build fingertip mask --------------------------------------------
+    h, w = frame.shape[:2]
+    radius = conf.MOTIONBLUR.get("RADIUS", 12)
+
+    yy, xx = np.ogrid[:h, :w]
+    mask = (xx - x) ** 2 + (yy - y) ** 2 <= radius ** 2
+    mask = mask.astype(np.float32)[..., None]  # shape (H, W, 1)
+
+    # ---- Accumulate blurred fingertip only -------------------------------
+    blurred = np.zeros_like(frame, dtype=np.float32)
 
     weights = np.linspace(
         alpha,
         conf.MOTIONBLUR["TAIL_ALPHA"],
-        len(frames),
+        len(frames_snapshot),
     )
     weights /= weights.sum()
 
-    for w, f in zip(weights, frames_snapshot):
-        out += f.astype(np.float32) * w
+    for wgt, f in zip(weights, frames_snapshot):
+        blurred += f.astype(np.float32) * wgt
 
-    frame[:] = out.astype(np.uint8)
+    # ---- Composite --------------------------------------------------------
+    frame[:] = (
+        frame.astype(np.float32) * (1.0 - mask) +
+        blurred * mask
+    ).astype(np.uint8)
+
     return frame
-
 
 # ------------------------------------------------------------
 # Required lifecycle hooks
