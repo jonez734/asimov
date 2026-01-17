@@ -1,17 +1,17 @@
+import re
+
 from . import terminal, screen
 
 from .echo import echo, rendered_length
 from .getch import getch_str as getch
-from .common import get_cursor_position, _current_stream_lock, _cursor_row, _cursor_col
-from ..common import logentry
-import re
+from .common import get_cursor_position, _current_stream_lock, _terminal_state # _cursor_row, _cursor_col
+from .util import logentry
 
 # --- 0. MANDATORY DEFINITIONS & GLOBALS ---
 
 yank_buffer = []  # Clipboard
 
 def move_cursor(row, col):
-    """Placeholder for actual cursor movement utility."""
     echo(f"{{curpos:{row},{col}}}", end="", flush=True)
 
 def get_current_word(buffer, curpos):
@@ -291,6 +291,22 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
     done = False
 
     while not done:
+        with _current_stream_lock:
+            if _input_dirty:
+                refresh_input_view(
+                    prompt=prompt,
+                    buffer=buffer,
+                    mask=mask,
+                    start_row=start_row,
+                    start_col=start_col,
+                    input_col_start=input_col_start,
+                    curpos=curpos,
+                    scroll_offset=scroll_offset,
+                    max_width=max_width,
+                )
+                _input_dirty = False
+                _current_display_str = None
+
         display_str = buffer[scroll_offset:scroll_offset+max_width]
 
         if _current_display_str != display_str:
@@ -308,8 +324,9 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
         cursor_display_col = input_col_start + (curpos - scroll_offset)
         echo(f"{{curpos:{start_row},{cursor_display_col}}}", end="", flush=True)
 
-        _cursor_row = start_row
-        _cursor_col = cursor_display_col
+        with _current_stream_lock:
+            _terminal_state.cursor_row = start_row
+            _terminal_state.cursor_col = cursor_display_col
 
         ch = getch(timeout=0.015)
         if ch is None:
