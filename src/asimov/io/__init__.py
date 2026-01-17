@@ -20,16 +20,17 @@ from . import terminal
 
 from .const import ESC
 
-from .echo import echo, echo_file, setvar, getvar, rendered_length
+from .echo import echo, echo_file, setvar, getvar, rendered_length, echo_traceback
 ## from .inputstr import inputstr
 from .getch import getch_str as getch
 from .inputstring import inputstring
 from .inputinteger import inputinteger
 from .inputboolean import inputboolean
 from .inputchoice import inputchoice
+from .inputchoice import inputchoice as inputchar
 from .palette import set_palette
 
-__all__ = ["echo", "inputstring", "getch", "set_palette", "setvar", "getvar", "inputboolean", "inputchoice", "rendered_length"]
+__all__ = ["echo", "inputstring", "getch", "set_palette", "setvar", "getvar", "inputboolean", "inputchoice", "rendered_length", "echo_traceback"]
 
 # ----------------------------
 # End of io.py
