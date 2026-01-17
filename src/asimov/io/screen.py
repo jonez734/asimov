@@ -2,7 +2,7 @@ from .echo import echo, rendered_length
 from . import terminal
 #terminal import lines as terminal_lines, columns as terminal_columns
 from .const import MAX_TERMINAL_WIDTH
-from ..common import logentry
+from .util import logentry
 
 # ------------------------
 # screen related functions
