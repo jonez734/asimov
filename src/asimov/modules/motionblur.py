@@ -9,7 +9,6 @@ from .common import ThreadSafeContext
 
 CTX_KEY = "MOTIONBLUR"
 
-
 # ------------------------------------------------------------
 # Detect phase (state update only)
 # ------------------------------------------------------------
@@ -46,6 +45,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         # ---- Velocity ------------------------------------------------------
         last = ns["last_pos"]
         if last is None:
+            dx = dy = 0.0
             velocity = 0.0
         else:
             dx = x - last[0]
@@ -54,6 +54,8 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
         ns["last_pos"] = (x, y)
         ns["velocity"] = velocity
+        ns["dx"] = dx
+        ns["dy"] = dy
         ns["active"] = True
 
     except Exception:
@@ -83,6 +85,8 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     y = int(data["y"])
 
     velocity = ns.get("velocity", 0.0)
+    dx = ns.get("dx", 0.0)
+    dy = ns.get("dy", 0.0)
 
     # ---- Blur strength ----------------------------------------------------
     alpha = np.clip(
@@ -94,31 +98,57 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     frames = ns["frames"]
     frames.append(frame.copy())
 
-    if len(frames) < 2:
+    if len(frames) < 2 or velocity < 1e-3:
         return frame
 
-    frames_snapshot = list(frames)
+    # ---- Normalize direction ---------------------------------------------
+    mag = max((dx * dx + dy * dy) ** 0.5, 1e-6)
+    ux = dx / mag
+    uy = dy / mag
 
-    # ---- Build fingertip mask --------------------------------------------
+    max_offset = conf.MOTIONBLUR["MAX_OFFSET"]
+    total = len(frames)
+
+    # ---- Base fingertip mask ---------------------------------------------
     h, w = frame.shape[:2]
-    radius = conf.MOTIONBLUR.get("RADIUS", 12)
+###    radius = conf.MOTIONBLUR["RADIUS"]
+    radius = int(np.clip(velocity * 0.4, 6, 24))
 
     yy, xx = np.ogrid[:h, :w]
-    mask = (xx - x) ** 2 + (yy - y) ** 2 <= radius ** 2
-    mask = mask.astype(np.float32)[..., None]  # shape (H, W, 1)
+    base_mask = (xx - x) ** 2 + (yy - y) ** 2 <= radius ** 2
+    base_mask = base_mask.astype(np.float32)[..., None]
 
-    # ---- Accumulate blurred fingertip only -------------------------------
+    # ---- Optional yellow color gate --------------------------------------
+    if conf.MOTIONBLUR.get("COLOR_GATE", False):
+        import cv2
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        lo = np.array(conf.MOTIONBLUR["YELLOW_MIN"], dtype=np.uint8)
+        hi = np.array(conf.MOTIONBLUR["YELLOW_MAX"], dtype=np.uint8)
+        color_mask = cv2.inRange(hsv, lo, hi).astype(np.float32) / 255.0
+        color_mask = color_mask[..., None]
+        mask = base_mask * color_mask
+    else:
+        mask = base_mask
+
+    # ---- Directional accumulation ----------------------------------------
     blurred = np.zeros_like(frame, dtype=np.float32)
 
     weights = np.linspace(
         alpha,
         conf.MOTIONBLUR["TAIL_ALPHA"],
-        len(frames_snapshot),
+        total,
     )
     weights /= weights.sum()
 
-    for wgt, f in zip(weights, frames_snapshot):
-        blurred += f.astype(np.float32) * wgt
+    for i, (wgt, f) in enumerate(zip(weights, frames)):
+        t = i / max(total - 1, 1)
+        offset = int(t * max_offset)
+
+        ox = int(-ux * offset)
+        oy = int(-uy * offset)
+
+        shifted = np.roll(f, shift=(oy, ox), axis=(0, 1))
+        blurred += shifted.astype(np.float32) * wgt
 
     # ---- Composite --------------------------------------------------------
     frame[:] = (
