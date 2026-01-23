@@ -8,7 +8,7 @@ from . import conf as _global_conf
 from .common import ThreadSafeContext, OneEuroFilter
 
 # ------------------------------------------------------------
-# Scene metadata (ignored by legacy runners)
+# Scene metadata
 # ------------------------------------------------------------
 
 REQUIRES = {"FACE"}
@@ -120,7 +120,7 @@ def _update_logic(context: ThreadSafeContext, *, conf):
 
 
 # ------------------------------------------------------------
-# Legacy API (UNCHANGED behavior)
+# Original API
 # ------------------------------------------------------------
 
 def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
@@ -156,7 +156,7 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
 
 # ------------------------------------------------------------
-# Scene API (NEW, additive)
+# Scene API
 # ------------------------------------------------------------
 
 def update(context: ThreadSafeContext, *, conf=None, **kwargs):
@@ -195,7 +195,7 @@ def render_layer(context: ThreadSafeContext, shape, *, conf=None, **kwargs):
 
 
 # ------------------------------------------------------------
-# Boilerplate lifecycle hooks (unchanged)
+# Boilerplate lifecycle hooks
 # ------------------------------------------------------------
 
 def main(args, **kwargs):
