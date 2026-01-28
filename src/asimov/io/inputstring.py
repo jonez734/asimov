@@ -2,9 +2,9 @@ import re
 
 from . import terminal, screen
 
-from .echo import echo, rendered_length
+from .echo import echo, rendered_length, echo_traceback
 from .getch import getch_str as getch
-from .common import get_cursor_position, _current_stream_lock, _terminal_state # _cursor_row, _cursor_col
+from .common import get_cursor_position, _current_stream_lock, _terminal_state, _input_dirty
 from .util import logentry
 
 # --- 0. MANDATORY DEFINITIONS & GLOBALS ---
@@ -101,7 +101,7 @@ def handle_help(buffer, curpos, scroll_offset, max_width):
 
 def handle_key_enter(buffer, curpos, scroll_offset, max_width,
                      *, verify, args, prompt, mask,
-                     start_row, start_col, input_col_start):
+                     start_row, start_col, input_col_start, **kwargs):
     """
     Returns (buffer, curpos, scroll_offset, accepted, need_redraw)
     """
@@ -114,13 +114,15 @@ def handle_key_enter(buffer, curpos, scroll_offset, max_width,
 
     # Run verify as: verify(buffer, *, args=args)
     try:
-        ok = verify(buffer, args=args)
-    except TypeError as e:
-        echo(f"\n[verify ERROR: {e}]{bel}", end="", flush=True, level="error")
+        ok = verify(args, buffer, **kwargs)
+    except Exception as e:
+        echo_traceback(f"[verify ERROR: {e}]")
         ok = False
 
     if ok:
         return buffer, curpos, scroll_offset, True, True
+    else:
+        echo("{BEL:1}", end="", flush=True)
 
     # Verification failed — redraw
     refresh_input_view(
@@ -249,6 +251,8 @@ add_key_mapping("KEY_F1",        handle_help)
 # --- 6. MAIN INPUT FUNCTION ---
 
 def inputstring(prompt="> ", oldvalue="", **kwargs):
+    global _input_dirty
+
     max_len:int = kwargs.get("max_len", 255)
     max_width:int = kwargs.get("max_width", 80)
     mask:str = kwargs.get("mask", None)
@@ -283,6 +287,7 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
             start_row=start_row,
             start_col=start_col,
             input_col_start=input_col_start,
+            **kwargs,
         )
 
     KEY_ACTIONS["KEY_ENTER"] = enter_handler
