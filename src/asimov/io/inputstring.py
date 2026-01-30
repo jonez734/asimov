@@ -101,10 +101,15 @@ def handle_help(buffer, curpos, scroll_offset, max_width):
 
 def handle_key_enter(buffer, curpos, scroll_offset, max_width,
                      *, verify, args, prompt, mask,
-                     start_row, start_col, input_col_start, **kwargs):
+                     start_row, start_col, input_col_start, noneok, **kwargs):
     """
     Returns (buffer, curpos, scroll_offset, accepted, need_redraw)
     """
+
+#    if (buffer is None or buffer == ""):
+#        if noneok is False:
+#            echo("{BEL}", end="", flush=True)
+#            return None, curpos, scroll_offset, True, False
 
     echo("{f6}", end="", flush=True)
 
@@ -112,17 +117,18 @@ def handle_key_enter(buffer, curpos, scroll_offset, max_width,
     if not callable(verify):
         return buffer, curpos, scroll_offset, True, True
 
-    # Run verify as: verify(buffer, *, args=args)
+    # Run verify as: verify(args, buffer, **kwargs)
     try:
         ok = verify(args, buffer, **kwargs)
     except Exception as e:
-        echo_traceback(f"[verify ERROR: {e}]")
+        echo_traceback(f"io.inputstring.handle_key_enter.100: {e}]")
         ok = False
 
     if ok:
         return buffer, curpos, scroll_offset, True, True
     else:
-        echo("{BEL:1}", end="", flush=True)
+        echo("{BEL}", end="", flush=True)
+
 
     # Verification failed — redraw
     refresh_input_view(
@@ -261,6 +267,8 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
     verify = kwargs.pop("verify", None)
     args = kwargs.pop("args", None)  # argparse.Namespace()
 
+    noneok = kwargs.pop("noneok", False)
+
     buffer = oldvalue if oldvalue is not None else ""
     curpos = len(buffer)
 
@@ -275,8 +283,6 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
     prompt_len = rendered_length(prompt)
     input_col_start = start_col + prompt_len
 
-    # --- CLEAN INLINE ENTER HANDLER (no partial, no class) ---
-
     def enter_handler(buffer, curpos, scroll_offset, max_width):
         return handle_key_enter(
             buffer, curpos, scroll_offset, max_width,
@@ -287,6 +293,7 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
             start_row=start_row,
             start_col=start_col,
             input_col_start=input_col_start,
+            noneok=noneok,
             **kwargs,
         )
 
