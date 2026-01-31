@@ -8,8 +8,8 @@ from importlib import import_module
 from collections import deque
 from typing import Dict, Any
 
-from . import io, conf
-from .common import ThreadSafeContext
+from .. import io, conf
+from ..common import ThreadSafeContext
 
 # ---------------------------------------------------------------------
 # Internal helpers

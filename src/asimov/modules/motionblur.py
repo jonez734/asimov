@@ -1,7 +1,7 @@
 import numpy as np
 from collections import deque
-from . import conf, io
-from .common import ThreadSafeContext
+from .. import conf, io
+from ..common import ThreadSafeContext
 
 # ------------------------------------------------------------
 # Context key (ABI-STABLE)

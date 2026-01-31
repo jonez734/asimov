@@ -4,8 +4,8 @@ import cv2
 import time
 import numpy as np
 
-from . import conf as _global_conf
-from .common import ThreadSafeContext, OneEuroFilter
+from .. import conf as _global_conf
+from ..common import ThreadSafeContext, OneEuroFilter
 
 # ------------------------------------------------------------
 # Scene metadata
@@ -44,7 +44,7 @@ def _expire_bar(ns, cfg):
     if not bar:
         return
 
-    if time.time() - bar["timestamp"] > cfg["EYES"]["BAR"]["GRACE_PERIOD"]:
+    if time.time() - bar["timestamp"] > cfg.EYES["BAR"]["GRACE_PERIOD"]:
         ns["data"] = None
 
 
@@ -71,7 +71,7 @@ def _update_logic(context: ThreadSafeContext, *, conf):
 
     # Lazy init
     if "EYES" not in context:
-        f = conf["EYES"]["FILTER"]
+        f = _global_conf.EYES["FILTER"]
         context["EYES"] = {
             "ema": {
                 k: OneEuroFilter(
@@ -86,7 +86,7 @@ def _update_logic(context: ThreadSafeContext, *, conf):
 
     ns = context["EYES"]
 
-    lm = conf["EYES"]["FACEMESH"]["LANDMARKS"]
+    lm = _global_conf.EYES["FACEMESH"]["LANDMARKS"]
 
     left_pts = np.array([face[i] for i in lm["LEFT_EYE"]], dtype=np.float32)
     right_pts = np.array([face[i] for i in lm["RIGHT_EYE"]], dtype=np.float32)
@@ -112,8 +112,8 @@ def _update_logic(context: ThreadSafeContext, *, conf):
     ns["data"] = {
         "cx": ema["cx"].update(cx),
         "cy": ema["cy"].update(cy),
-        "w": ema["w"].update(raw_w * conf["EYES"]["BAR"]["WIDTH_SCALE"]),
-        "h": ema["h"].update(raw_h * conf["EYES"]["BAR"]["HEIGHT_SCALE"]),
+        "w": ema["w"].update(raw_w * _global_conf.EYES["BAR"]["WIDTH_SCALE"]),
+        "h": ema["h"].update(raw_h * _global_conf.EYES["BAR"]["HEIGHT_SCALE"]),
         "angle": ema["angle"].update(angle),
         "timestamp": time.time(),
     }
@@ -148,8 +148,8 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         center=(int(bar["cx"]), int(bar["cy"])),
         size=(int(bar["w"]), int(bar["h"])),
         angle_deg=bar["angle"],
-        color=cfg["EYES"]["BAR"]["COLOR"],
-        alpha=cfg["EYES"]["BAR"]["ALPHA"],
+        color=cfg.EYES["BAR"]["COLOR"],
+        alpha=cfg.EYES["BAR"]["ALPHA"],
     )
 
     return frame
@@ -165,7 +165,6 @@ def update(context: ThreadSafeContext, *, conf=None, **kwargs):
     """
     cfg = _get_conf(conf)
     _update_logic(context, conf=cfg)
-
 
 def render_layer(context: ThreadSafeContext, shape, *, conf=None, **kwargs):
     """
@@ -187,8 +186,8 @@ def render_layer(context: ThreadSafeContext, shape, *, conf=None, **kwargs):
         center=(int(bar["cx"]), int(bar["cy"])),
         size=(int(bar["w"]), int(bar["h"])),
         angle_deg=bar["angle"],
-        color=(*cfg["EYES"]["BAR"]["COLOR"], 255),
-        alpha=cfg["EYES"]["BAR"]["ALPHA"],
+        color=(*cfg.EYES["BAR"]["COLOR"], 255),
+        alpha=cfg.EYES["BAR"]["ALPHA"],
     )
 
     return layer

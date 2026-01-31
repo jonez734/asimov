@@ -3,8 +3,8 @@ import time
 import numpy as np
 from cvzone.FaceMeshModule import FaceMeshDetector
 
-from . import conf
-from .common import ThreadSafeContext
+from .. import conf
+from ..common import ThreadSafeContext
 
 # Context namespace key
 _NS = "FACE"

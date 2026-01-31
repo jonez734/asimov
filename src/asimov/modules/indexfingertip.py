@@ -1,7 +1,7 @@
 import time
 import cv2
-from . import io, conf
-from .common import ThreadSafeContext, OneEuroFilter
+from .. import io, conf
+from ..common import ThreadSafeContext, OneEuroFilter
 import numpy as np
 
 # MediaPipe landmark index
@@ -13,7 +13,6 @@ INDEX_UP_PATTERN = [0, 1, 0, 0, 0]
 ERR_TEXT_ORG = (10, 30)
 ERR_TEXT_SCALE = 0.6
 ERR_TEXT_THICKNESS = 2
-
 
 def detect(frame, context: ThreadSafeContext, **kwargs):
     try:
