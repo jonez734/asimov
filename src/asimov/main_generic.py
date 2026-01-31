@@ -236,6 +236,8 @@ def main(args, **kwargs):
                             f"draw() failure in module '{item['name']}'"
                         )
 
+                frame = cv2.flip(frame, 1)
+
                 # Output
                 vcam.send(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 vcam.sleep_until_next_frame()
