@@ -1,67 +1,86 @@
 import tkinter as tk
 
 class ColorCheckBox(tk.Canvas):
-    def __init__(self, master, label_text="", variable=None, command=None, **kwargs):
-        self.width = kwargs.pop('width', 100)  # Wider to accommodate text
-        self.height = kwargs.pop('height', 30)
-        
+    def __init__(self, master, label_text="", variable=None, **kwargs):
+        self.width = kwargs.pop('width', 150)
+        self.height = kwargs.pop('height', 40)
         super().__init__(master, width=self.width, height=self.height, 
                          highlightthickness=0, bd=0, **kwargs)
         
-        self.command = command
         self.variable = variable if variable else tk.BooleanVar(value=False)
         
-        # Draw the checkbox (the small square)
-        # Positioned at the left (x=5)
-        self.rect = self.create_rectangle(5, 5, 25, 25, outline="black", width=1)
-        
-        # Draw the text label next to the box
-        self.text_id = self.create_text(35, 15, text=label_text, anchor="w", font=("Arial", 10))
-        
-        self.variable.trace_add("write", self._update_color)
-        self._update_color()
-        
-        # Bindings
-        self.bind("<Button-1>", self._on_click)
-        self.bind("<Enter>", self._on_hover_enter)
-        self.bind("<Leave>", self._on_hover_leave)
+        # Colors: (Box Color, Background Color)
+        self.off_colors = ("#e74c3c", "#fdedec") # Red palette
+        self.on_colors  = ("#2ecc71", "#e8f8f0") # Green palette
 
-    def _update_color(self, *args):
-        """Updates both the box and the widget background."""
+        # UI Elements
+        self.rect = self.create_rectangle(10, 10, 30, 30, outline="#333333", width=1)
+        self.text = self.create_text(40, 20, text=label_text, anchor="w", font=("Arial", 10, "bold"))
+        
+        # Animation state
+        self._animation_job = None
+        
+        self.variable.trace_add("write", lambda *a: self.animate_transition())
+        self._set_initial_state()
+        
+        self.bind("<Button-1>", lambda e: self.variable.set(not self.variable.get()))
+        self.bind("<Enter>", lambda e: self.itemconfig(self.rect, width=2))
+        self.bind("<Leave>", lambda e: self.itemconfig(self.rect, width=1))
+
+    def _set_initial_state(self):
+        box, bg = self.on_colors if self.variable.get() else self.off_colors
+        self.itemconfig(self.rect, fill=box)
+        self.config(bg=bg)
+
+    def animate_transition(self):
+        """Starts the color interpolation process."""
+        if self._animation_job:
+            self.after_cancel(self._animation_job)
+
+        # Determine start and end targets
         if self.variable.get():
-            main_color = "#2ecc71"    # Vivid Green
-            bg_color = "#e8f8f0"      # Very Light Green
+            start_box, start_bg = self.off_colors
+            end_box, end_bg = self.on_colors
         else:
-            main_color = "#e74c3c"    # Vivid Red
-            bg_color = "#fdedec"      # Very Light Red
+            start_box, start_bg = self.on_colors
+            end_box, end_bg = self.off_colors
             
-        # Update the box fill
-        self.itemconfig(self.rect, fill=main_color)
-        # Update the entire widget's background
-        self.config(bg=bg_color)
+        self._step_transition(start_box, end_box, start_bg, end_bg, 0)
 
-    def _on_click(self, event=None):
-        self.variable.set(not self.variable.get())
-        if self.command:
-            self.command(self.variable.get())
+    def _step_transition(self, s_box, e_box, s_bg, e_bg, step):
+        """Interpolates colors over 10 steps (200ms total)."""
+        total_steps = 10
+        ratio = step / total_steps
 
-    def _on_hover_enter(self, event=None):
-        self.itemconfig(self.rect, width=2)
-        self.config(cursor="hand2")
+        # Calculate intermediate hex codes
+        current_box = self._interpolate_color(s_box, e_box, ratio)
+        current_bg = self._interpolate_color(s_bg, e_bg, ratio)
 
-    def _on_hover_leave(self, event=None):
-        self.itemconfig(self.rect, width=1)
+        self.itemconfig(self.rect, fill=current_box)
+        self.config(bg=current_bg)
 
-# --- Usage Example ---
+        if step < total_steps:
+            self._animation_job = self.after(20, self._step_transition, s_box, e_box, s_bg, e_bg, step + 1)
+
+    def _interpolate_color(self, c1, c2, ratio):
+        """Mathematical blend between two hex colors."""
+        r1, g1, b1 = self.winfo_rgb(c1)
+        r2, g2, b2 = self.winfo_rgb(c2)
+
+        # winfo_rgb returns 16-bit values (0-65535), we need 8-bit (0-255)
+        r = int(r1 + (r2 - r1) * ratio) >> 8
+        g = int(g1 + (g2 - g1) * ratio) >> 8
+        b = int(b1 + (b2 - b1) * ratio) >> 8
+
+        return f'#{r:02x}{g:02x}{b:02x}'
+
+# --- Usage ---
 root = tk.Tk()
-root.geometry("300x150")
-root.title("Themed Widget")
+root.title("Smooth Transition Checkbox")
+root.geometry("300x200")
 
-# Create two instances with different labels
-cb1 = ColorCheckBox(root, label_text="Power System", width=150)
-cb1.pack(pady=10)
+cb = ColorCheckBox(root, label_text="System Online")
+cb.pack(pady=20)
 
-cb2 = ColorCheckBox(root, label_text="Safety Lock", width=150)
-cb2.pack(pady=10)
-
+tk.Label(root, text="Click the box above to see the fade!").pack()
 root.mainloop()
