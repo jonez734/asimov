@@ -189,6 +189,8 @@ The `handle_tab_manager` function processes tab completion:
 1. First tab: Show common prefix of matches
 2. Second tab on same matches: Print all matches
 3. Single match: Insert match automatically
+4. No matches: Bell sound
+5. Tab on single match (no other options): Bell sound
 
 **Callback signature:**
 ```python
@@ -196,6 +198,11 @@ def completer(buffer, curpos) -> list[str]
 ```
 
 Returns list of possible completions for the current word.
+
+**Behavior:**
+- The completer receives the current word (not prefix) as the first argument
+- Supports `**kwargs` for database parameters (conn, pool, etc.)
+- Returns list of matching strings
 
 ## Input Verification
 
