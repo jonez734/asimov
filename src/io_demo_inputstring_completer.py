@@ -36,14 +36,12 @@ def main():
         class PlayerCompleter(Completer):
             """Completer that returns player names from 'database'."""
             
-            def get_matches(self, prefix, conn=None, pool=None, **kwargs):
+            def get_matches(self, prefix, **kwargs):
                 """Return player names matching prefix.
                 
                 Args:
                     prefix: The text prefix to match
-                    conn: Database connection (example kwarg)
-                    pool: Connection pool (example kwarg)
-                    **kwargs: Catch-all for other args
+                    **kwargs: Additional args (conn, pool, etc.)
                 """
                 if not prefix:
                     return PLAYERS  # Return all when empty
@@ -53,7 +51,6 @@ def main():
         
         name1 = inputstring("Select player: ", completer=PlayerCompleter())
         echo(f"{{f6}}Selected: {name1}{{f6}}")
-        echo("{f6}")
         
         # Demo 2: Function passed to constructor with kwargs
         echo("{cyan}Demo 2: Pass function to Completer with kwargs{f6}")
