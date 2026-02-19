@@ -17,15 +17,11 @@ import hashlib
 
 from asimov import conf
 from asimov.common import ThreadSafeContext
-from asimov.util import safe_path
+from asimov.playingcard import cards
 from asimov.modules import glitch
 
-# ------------------------------------------------------------
-# Constants
-# ------------------------------------------------------------
-
-RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
-SUITS = ["hearts", "diamonds", "clubs", "spades"]
+RANKS = cards.RANKS
+SUITS = cards.SUITS
 
 # ------------------------------------------------------------
 # Module state (private)
@@ -79,8 +75,10 @@ def ui_schema(args=None, context=None):
 def init(args, context=None, **kwargs):
     global _basedir, _set_name
 
-    _basedir = safe_path(os.path.expandvars(os.path.expanduser(getattr(args, "basedir", "$HOME/projects/playingcarddata"))))
-    _set_name = getattr(args, "set_name", "bicycle")
+    _basedir = os.path.expandvars(os.path.expanduser(
+        getattr(args, "basedir", conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata"))
+    ))
+    _set_name = getattr(args, "set_name", conf.PLAYINGCARD.get("SET_NAME", "bicycle"))
 
     glitch.set_max_concurrent(2)
     glitch.register("scanlines")
@@ -106,9 +104,7 @@ def main(args, **kwargs):
 # ------------------------------------------------------------
 
 def _load_card_from_assets(rank, suit):
-    filename = f"{rank}_of_{suit}.png"
-    card_path = safe_path(os.path.join(_basedir, "sets", _set_name, filename))
-    return cv2.imread(card_path, cv2.IMREAD_UNCHANGED)
+    return cards.load_card_image(rank, suit, _basedir, _set_name)
 
 
 def _load_card_from_config():
@@ -116,7 +112,11 @@ def _load_card_from_config():
 
     path = conf.FLOAT_PLAYINGCARD.get("IMAGE")
     if not path:
-        path = safe_path(os.path.join(_basedir, "sets", _set_name, "queen_of_spades.png"))
+        img = cards.load_card_image("queen", "spades", _basedir, _set_name)
+        if img is not None:
+            _card_image = img
+            _last_path = "default"
+        return img
 
     if path == _last_path and _card_image is not None:
         return _card_image

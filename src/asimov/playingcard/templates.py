@@ -8,7 +8,10 @@ import os
 import cv2
 import numpy as np
 from ..common import get_safe_path
+from .. import conf
 from ..io import echo
+
+
 # ------------------------------------------------------------
 # Globals
 # ------------------------------------------------------------
@@ -21,10 +24,14 @@ _loaded_set = None
 # Load all precomputed templates
 # ------------------------------------------------------------
 
-def load_templates(basedir, set_name):
+def load_templates(basedir=None, set_name=None):
     """
     Loads all precomputed templates from scaled/ under the given set.
     """
+    if basedir is None:
+        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+    if set_name is None:
+        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
     global _loaded_templates, _corner_size, _loaded_set
 
     set_dir = get_safe_path(basedir, "sets", set_name)

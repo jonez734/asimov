@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 from glob import glob
 from ..common import get_safe_path, logentry
+from .. import conf
 
 from ..io import echo
 
@@ -23,7 +24,11 @@ SCALES = [1.0,] # 0.5, 0.7, 0.9, 1.0, 1.1, 1.2]            # Optional scaling
 PROPORTIONAL_CORNER = 0.25           # Fraction of card size
 MIN_CORNER_SIZE = 60
 
-def extract_templates(basedir, set_name, corner_size=None):
+def extract_templates(basedir=None, set_name=None, corner_size=None):
+    if basedir is None:
+        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+    if set_name is None:
+        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
     set_dir = get_safe_path(basedir, "sets", set_name)
     templates = {}
 
@@ -70,7 +75,11 @@ def extract_templates(basedir, set_name, corner_size=None):
 # Train function
 # ------------------------------------------------------
 
-def train(basedir, set_name):
+def train(basedir=None, set_name=None):
+    if basedir is None:
+        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+    if set_name is None:
+        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
     # Extract raw templates (dynamic corner)
     templates, set_dir, corner_size = extract_templates(
         basedir, set_name, corner_size=None
@@ -129,8 +138,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--basedir", required=True, help="Base directory of playingcards")
-    parser.add_argument("--set", required=True, help="Card set name (folder)")
+    parser.add_argument("--basedir", default=None, help="Base directory of playingcards")
+    parser.add_argument("--set", dest="set_name", default=None, help="Card set name (folder)")
     args = parser.parse_args()
+
+    train(args.basedir, args.set_name)
 
     train(args.basedir, args.set)

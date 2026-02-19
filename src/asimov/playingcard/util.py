@@ -1,34 +1,10 @@
-import os
-from ..common import logentry
+# asimov/playingcard/util.py
+"""
+Playing card-specific utilities.
+"""
 
-# @since 20251118 copied from bbsengine6.util
-def get_safe_path(*components, **kwargs):
-    """
-    Constructs a safe path by joining multiple path components.
-    Expands environment variables and user home director and normalizes
-    """
-    if not components:
-        raise ValueError("At least one path component must be provided.")
+from ..common import get_safe_path, logentry
 
-    # Expand environment variables and `~` in all components
-    components = [os.path.expandvars(os.path.expanduser(component)) for component in components]
-
-    # Join all components
-    joined_path = os.path.join(*components)
-
-    # Normalize the resulting path
-    safe_path = os.path.normpath(joined_path)
-
-    # Ensure the resulting path is absolute
-    base_dir = os.path.abspath(components[0])
-    if not safe_path.startswith(base_dir):
-        raise ValueError("Invalid path: directory traversal detected.")
-
-#    # Ensure the file exists
-#    if not os.path.isfile(safe_path):
-#        raise FileNotFoundError(f"File not found: {safe_path}")
-
-    return safe_path
 
 def compute_geometry(frame_w, frame_h, png_w, png_h, border_ratio=0.25):
     """
@@ -47,13 +23,11 @@ def compute_geometry(frame_w, frame_h, png_w, png_h, border_ratio=0.25):
     # Scale PNG to fit inside inner area
     scale = min(inner_w / png_w, inner_h / png_h)
 
-    render_w = png_w * scale
-    render_h = png_h * scale
+    render_w = int(png_w * scale)
+    render_h = int(png_h * scale)
 
     # Center the PNG inside the frame — this preserves minimum borders
-    x = (frame_w - render_w) * 0.5
-    y = (frame_h - render_h) * 0.5
-    
-    logentry(f"asimov.playingcard.util.compute_geometry.100: {x=} {y=}")
+    x = int((frame_w - render_w) * 0.5)
+    y = int((frame_h - render_h) * 0.5)
 
-    return int(x), int(y), int(render_w), int(render_h)
+    return x, y, render_w, render_h

@@ -406,3 +406,12 @@ FLOAT_PLAYINGCARD = {
     "FLOAT_AMPLITUDE": 12,
     "FLOAT_FREQUENCY": 0.5,
 }
+
+# ------------------------------------------------------------
+# Playing Card shared config
+# ------------------------------------------------------------
+PLAYINGCARD = {
+    "BASEDIR": "$HOME/projects/playingcarddata",
+    "SET_NAME": "bicycle",
+    "DETECTION_THRESHOLD": 0.8,
+}

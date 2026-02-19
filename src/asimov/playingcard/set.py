@@ -1,6 +1,8 @@
+import os
 import numpy as np
 
 from ..common import get_safe_path
+from .. import conf
 from ..io import echo
 
 _loaded_set = None
@@ -47,19 +49,25 @@ def load(basedir, set_name) -> bool:
 ##    echo(f"{{checkmark}}{{labelcolor}} Successfully loaded set: {{valuecolor}}'{set_name}'{{reset}}")
     return True
 
-def save(args, filename=None) -> bool:
+def save(basedir=None, set_name=None, filename=None) -> bool:
     """
     Saves the currently loaded playing card set data (from _loaded_set) to a new NPZ file.
 
     Args:
         basedir (str): The directory where the new NPZ file will be saved.
-        filename_override (Optional[str]): An optional specific filename (e.g., 'backup.npz').
-                                           If None, the default naming convention is used.
+        set_name (str): Card set name.
+        filename (Optional[str]): An optional specific filename (e.g., 'backup.npz').
+                                  If None, the default naming convention is used.
 
     Returns:
-        Optional[str]: The path to the newly saved NPZ file, or None if save failed.
+        bool: True if save succeeded, False otherwise.
     """
     global _loaded_set, _loaded_set_name
+
+    if basedir is None:
+        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+    if set_name is None:
+        set_name = _loaded_set_name or conf.PLAYINGCARD.get("SET_NAME", "bicycle")
 
     if _loaded_set is None:
         echo(f"{{warning}}️ No card set is currently loaded in memory (_loaded_set is None). Cannot save.")
@@ -68,7 +76,7 @@ def save(args, filename=None) -> bool:
     # Determine the final filename
     if filename is None:
         filename = f"templates_{set_name}_archive.npz"
-    
+
     # Use the safe path utility for the output path
     try:
         # Ensure basedir exists before attempting to write
