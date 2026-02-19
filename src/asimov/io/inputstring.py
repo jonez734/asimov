@@ -1,6 +1,6 @@
 import re
 
-from . import terminal, screen
+from . import terminal
 
 from .echo import echo, rendered_length, echo_traceback
 from .getch import getch_str as getch
@@ -38,14 +38,14 @@ def handle_left(buffer, curpos, scroll_offset, max_width):
     if curpos > 0:
         curpos -= 1
     else:
-        echo(f"{{bell}}", end="", flush=True)
+        echo("{bell}", end="", flush=True)
     return buffer, curpos, scroll_offset
 
 def handle_right(buffer, curpos, scroll_offset, max_width):
     if curpos < len(buffer):
         curpos += 1
     else:
-        echo(f"{{bell}}", end="", flush=True)
+        echo("{bell}", end="", flush=True)
     return buffer, curpos, scroll_offset
 
 def handle_home(buffer, curpos, scroll_offset, max_width):
@@ -131,10 +131,9 @@ def handle_key_enter(buffer, curpos, scroll_offset, max_width,
 
 
     # Verification failed — redraw
-    refresh_input_view(
-        prompt, buffer, mask,
-        start_row, start_col, input_col_start,
-        curpos, scroll_offset, max_width
+    redraw_line(
+        prompt, buffer, max_width, start_row, start_col,
+        curpos, scroll_offset, max_width, mask
     )
 
     return buffer, curpos, scroll_offset, False, True
@@ -194,18 +193,21 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
 # --- 4. Display Functions ---
 
 def redraw_line(prompt, buffer, max_len, start_row, start_col,
-                curpos, scroll_offset, max_width):
+                curpos, scroll_offset, max_width, mask=None):
 
-    input_col_start = start_col + rl
+    input_col_start = start_col + rendered_length(prompt)
 
-    echo(f"{cha}{prompt}{' ' * max_width}", end="", flush=True)
+    echo(f"{{curpos:{start_row},{start_col}}}", end="", flush=True)
+    echo(f"{{curpos:{start_row},{input_col_start}}}", end="", flush=True)
 
     display_str = buffer[scroll_offset : scroll_offset + max_width]
 
-    echo(f"{{curpos:{start_row},{input_col_start}}}", end="", flush=True)
-    echo(display_str, end="", flush=True, raw=True)
+    if mask is not None:
+        echo(f"{mask * len(display_str)}", end="", flush=True)
+    else:
+        echo(display_str, end="", flush=True, raw=True)
 
-    move_cursor(start_row, input_col_start + (curpos - scroll_offset))
+    echo(f"{{curpos:{start_row},{input_col_start + (curpos - scroll_offset)}}}", end="", flush=True)
 
 def print_matches(matches):
     cols = terminal.columns()
@@ -218,27 +220,6 @@ def print_matches(matches):
             echo("{f6}", end="")
     if len(matches) % per_line != 0:
         echo("{f6}", end="")
-
-def refresh_input_view(prompt, buffer, mask,
-                       start_row, start_col, input_col_start,
-                       curpos, scroll_offset, max_width):
-
-    echo(f"{{curpos:{start_row},{start_col}}}{prompt}", end="", flush=True)
-    display_str = buffer[scroll_offset:scroll_offset+max_width]
-
-    echo(f"{{curpos:{start_row},{input_col_start}}}{' ' * max_width}",
-         end="", flush=True)
-
-    if mask is not None:
-        echo(f"{{curpos:{start_row},{input_col_start}}}"
-             f"{mask * len(display_str)}",
-             end="", flush=True)
-    else:
-        echo(f"{{curpos:{start_row},{input_col_start}}}", end="", flush=True, raw=False)
-        echo(f"{display_str}", end="", flush=True, raw=True)
-
-    echo(f"{{curpos:{start_row},{input_col_start + (curpos - scroll_offset)}}}",
-         end="", flush=True)
 
 # --- 5. Initial Key Mappings ---
 
@@ -278,7 +259,8 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
 
     (start_row, start_col) = get_cursor_position()
 
-    echo(f"{{curpos:{start_row},{start_col}}}{prompt}", end="", flush=True)
+    echo(f"{{curpos:{start_row},{start_col}}}", end="", flush=True)
+    echo(prompt, end="", flush=True)
 
     prompt_len = rendered_length(prompt)
     input_col_start = start_col + prompt_len
@@ -305,16 +287,16 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
     while not done:
         with _current_stream_lock:
             if _input_dirty:
-                refresh_input_view(
+                redraw_line(
                     prompt=prompt,
                     buffer=buffer,
-                    mask=mask,
+                    max_len=max_width,
                     start_row=start_row,
                     start_col=start_col,
-                    input_col_start=input_col_start,
                     curpos=curpos,
                     scroll_offset=scroll_offset,
                     max_width=max_width,
+                    mask=mask,
                 )
                 _input_dirty = False
                 _current_display_str = None
