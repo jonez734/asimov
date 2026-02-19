@@ -240,6 +240,11 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
     prefix, word_start, word_end = get_current_word(buffer, curpos)
     word = buffer[word_start:word_end]
 
+    # If single match and user presses tab again, ring bell (no other options)
+    if matches == last_matches and len(last_matches) == 1 and tab_count >= 1:
+        echo("{bell}", end="", flush=True)
+        return buffer, curpos, scroll_offset, last_matches, tab_count
+
     if len(matches) == 1:
         word = matches[0]
         buffer = buffer[:word_start] + word + buffer[word_end:]
@@ -254,7 +259,7 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
 
         redraw_line(prompt, buffer, max_len, start_row, start_col,
                     curpos, scroll_offset, max_width)
-        return buffer, curpos, scroll_offset, [], 0
+        return buffer, curpos, scroll_offset, matches, 1
 
     if matches == last_matches and tab_count == 1:
         echo("\n")
