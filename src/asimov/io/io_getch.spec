@@ -49,6 +49,7 @@ Reads a single keypress and returns a key name or character.
 | `\x07` (Ctrl+G, BEL) | `KEY_BELL` |
 | `\x08` (Backspace) | `KEY_BACKSPACE` |
 | `\x0d` (Carriage Return) | `KEY_ENTER` |
+| `\x09` (Tab) | `KEY_TAB` |
 | `\x15` (Ctrl+U) | `KEY_CUTTOBOL` |
 | `\x7f` (DEL) | `KEY_BACKSPACE` |
 
