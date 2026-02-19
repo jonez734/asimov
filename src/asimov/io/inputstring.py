@@ -340,7 +340,7 @@ def print_matches(matches):
     per_line = max(1, cols // longest)
 
     for i, m in enumerate(matches, 1):
-        echo(m.ljust(longest))
+        echo(m.ljust(longest), end="")
         if i % per_line == 0:
             echo("{f6}", end="")
     if len(matches) % per_line != 0:
