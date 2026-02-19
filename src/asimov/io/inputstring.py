@@ -42,11 +42,18 @@ class Completer:
         Returns:
             List of matching strings
         """
-        if self.get_matches is None:
-            return []
-        
         prefix, word_start, word_end = get_current_word(buffer, curpos)
-        return self.get_matches(prefix)
+        
+        # Check if subclass overrode get_matches (look in class dict)
+        for cls in type(self).__mro__:
+            if 'get_matches' in cls.__dict__:
+                return cls.__dict__['get_matches'](self, prefix)
+        
+        # Fallback to direct function if set
+        if self.get_matches is not None:
+            return self.get_matches(prefix)
+        
+        return []
 
 yank_buffer = []  # Clipboard
 
