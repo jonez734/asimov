@@ -45,7 +45,7 @@ def main():
                     pool: Connection pool (example kwarg)
                 """
                 if not prefix:
-                    return []
+                    return PLAYERS  # Return all when empty
                 prefix_lower = prefix.lower()
                 matches = [p for p in PLAYERS if p.startswith(prefix_lower)]
                 return matches
@@ -63,7 +63,7 @@ def main():
         def color_completer(prefix, conn=None):
             """Return colors matching prefix."""
             if not prefix:
-                return []
+                return COLORS  # Return all when empty
             prefix_lower = prefix.lower()
             return [c for c in COLORS if c.startswith(prefix_lower)]
         
@@ -95,7 +95,7 @@ def main():
         
         def veggie_completer(prefix, category=None):
             if not prefix:
-                return []
+                return VEGGIES  # Return all when empty
             return [v for v in VEGGIES if v.startswith(prefix.lower())]
         
         veg = inputstring(

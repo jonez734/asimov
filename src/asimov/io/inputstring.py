@@ -248,13 +248,21 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
                        completer_kwargs=None):
 
     completer_kwargs = completer_kwargs or {}
-    matches = completer(buffer, curpos, **completer_kwargs)
+    
+    # Get the word first to determine if we need all matches
+    prefix, word_start, word_end = get_current_word(buffer, curpos)
+    word = buffer[word_start:word_end]
+    
+    # If empty word, try to get all matches by passing empty string
+    # Completers should return all matches when called with empty string
+    if not word:
+        matches = completer("", **completer_kwargs)
+    else:
+        matches = completer(buffer, curpos, **completer_kwargs)
+    
     if not matches:
         echo("{bell}", end="", flush=True)
         return buffer, curpos, scroll_offset, last_matches, tab_count
-
-    prefix, word_start, word_end = get_current_word(buffer, curpos)
-    word = buffer[word_start:word_end]
 
     # If empty word (user pressed tab with nothing typed), show all matches
     if not word:
