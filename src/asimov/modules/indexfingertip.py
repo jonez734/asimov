@@ -106,6 +106,89 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     return frame
 
+def ui_schema(args=None, context=None) -> dict | None:
+    return {
+        "FILTER": {
+            "FREQ": {
+                "type": "float",
+                "default": 30.0,
+                "min": 1.0,
+                "max": 240.0,
+                "step": 1.0,
+                "label": "Filter Frequency (Hz)"
+            },
+            "MIN_CUTOFF": {
+                "type": "float",
+                "default": 1.0,
+                "min": 0.01,
+                "max": 10.0,
+                "step": 0.1,
+                "label": "Min Cutoff"
+            },
+            "BETA": {
+                "type": "float",
+                "default": 0.0,
+                "min": 0.0,
+                "max": 5.0,
+                "step": 0.05,
+                "label": "Beta"
+            }
+        },
+
+        "POINTER": {
+            "ENABLED": {
+                "type": "bool",
+                "default": True,
+                "label": "Enable Pointer"
+            },
+            "RADIUS": {
+                "type": "int",
+                "default": 8,
+                "min": 1,
+                "max": 50,
+                "step": 1,
+                "label": "Pointer Radius"
+            },
+            "COLOR": {
+                "type": "color",
+                "default": [0, 255, 0],  # BGR
+                "label": "Pointer Color (BGR)"
+            },
+            "ALPHA": {
+                "type": "float",
+                "default": 0.8,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.05,
+                "label": "Pointer Opacity"
+            }
+        },
+
+        "GESTURE": {
+            "PINCH_ENABLED": {
+                "type": "bool",
+                "default": False,
+                "label": "Enable Pinch Detection"
+            },
+            "PINCH_THRESHOLD": {
+                "type": "float",
+                "default": 0.05,
+                "min": 0.001,
+                "max": 0.2,
+                "step": 0.005,
+                "label": "Pinch Activation Threshold"
+            }
+        },
+
+        "DEBUG": {
+            "SHOW_TRAIL": {
+                "type": "bool",
+                "default": False,
+                "label": "Show Motion Trail"
+            }
+        }
+    }
+
 def init(args, **kwargs):
     return True
 
