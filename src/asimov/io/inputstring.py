@@ -237,6 +237,7 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
         return buffer, curpos, scroll_offset, last_matches, tab_count
 
     prefix, word_start, word_end = get_current_word(buffer, curpos)
+    word = buffer[word_start:word_end]
 
     if len(matches) == 1:
         word = matches[0]
@@ -262,7 +263,7 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
         return buffer, curpos, scroll_offset, [], 0
 
     lcp = common_prefix(matches)
-    if lcp and lcp != prefix:
+    if lcp and lcp != word:
         buffer = buffer[:word_start] + lcp + buffer[word_end:]
         curpos = word_start + len(lcp)
 
