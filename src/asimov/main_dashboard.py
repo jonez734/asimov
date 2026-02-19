@@ -13,7 +13,7 @@ from tkinter import ttk
 import json
 from PIL import Image, ImageTk
 
-from . import io, conf, module, common
+from . import io, conf, module, common, scene
 from .common import ThreadSafeContext
 
 context = ThreadSafeContext()
@@ -441,34 +441,43 @@ def _consumer(modules: list, args: argparse.Namespace):
         io.echo_traceback("CRITICAL: Consumer thread collapsed")
 
 
+_current_scene = None
+
+
 # --- Helper Functions ---
 
 def get_active_modules(args):
+    global _current_scene
+
+    scene_def = getattr(conf, "SCENE", None)
+    if not scene_def:
+        io.echo("No SCENE defined in conf", level="error")
+        return []
+
+    try:
+        _current_scene = scene.load(args, scene_def)
+    except Exception:
+        io.echo_traceback("Failed to load scene")
+        return []
+
+    if not scene.init(args, _current_scene):
+        io.echo("Scene init failed", level="error")
+        return []
+
+    if not scene.main(args, _current_scene):
+        io.echo("Scene main failed", level="error")
+        return []
+
     active = []
-    overlays = getattr(conf, "OVERLAYS", {})
-    items = sorted(overlays.items(), key=lambda x: x[1].get("order", 99))
-
-    for name, cfg in items:
-        mod_path = cfg["module_path"]
-        try:
-            mod = module.get(mod_path)
-        except Exception:
-            io.echo_traceback(f"Module rejected (exception at load): {name}")
-            raise
-
-        try:
-            if module.check(args, mod, op="run", silent=False) is False:
-                io.echo(f"get_active_modules.100: module.check() returned False")
-                continue
-        except Exception:
-            io.echo_traceback(f"Module rejected: {name}")
-            continue
+    for item in _current_scene["modules"]:
+        mod = item["module"]
 
         active.append({
-            "name": name,
-            "module_path": mod_path,
+            "name": item["name"],
             "module_ref": mod,
-            "config": cfg,
+            "config": item["config"],
+            "can_detect": hasattr(mod, "detect"),
+            "can_draw": hasattr(mod, "draw"),
         })
 
     return active
@@ -494,26 +503,6 @@ def buildargs(args=None, **kwargs): return None
 def main(args, **kwargs):
     modules = get_active_modules(args)
     io.echo(f"Loaded {len(modules)} modules", level="debug")
-
-    for item in modules:
-        mod = item["module_ref"]
-
-        item["can_detect"] = False
-        item["can_draw"] = False
-
-        try:
-            if module.run(args, mod, context=context, argv=sys.argv) is False:
-                io.echo(f"Module '{item['name']}' rejected during lifecycle", level="error")
-                continue
-
-            if hasattr(mod, "detect"):
-                item["can_detect"] = True
-            if hasattr(mod, "draw"):
-                item["can_draw"] = True
-
-        except Exception:
-            io.echo_traceback(f"Module '{item['name']}' failed during initialization")
-            continue
 
     io.echo(f"Opening camera: {args.capture_device}")
     cap = cv2.VideoCapture(args.capture_device)
