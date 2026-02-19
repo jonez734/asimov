@@ -51,7 +51,7 @@ def main():
                 return matches
         
         name1 = inputstring("Select player: ", completer=PlayerCompleter())
-        echo(f"{{f6}}Selected: {name1}{f6}")
+        echo(f"{{f6}}Selected: {name1}{{f6}}")
         echo("{f6}")
         
         # Demo 2: Function passed to constructor with kwargs
@@ -71,7 +71,7 @@ def main():
             "Select color: ", 
             completer=Completer(color_completer, conn="db_connection")
         )
-        echo(f"{{f6}}Selected: {name2}{f6}")
+        echo(f"{{f6}}Selected: {name2}{{f6}}")
         echo("{f6}")
         
         # Demo 3: Lambda function
@@ -84,7 +84,7 @@ def main():
             "Select fruit: ",
             completer=Completer(lambda p, **kwargs: [f for f in FRUITS if f.startswith(p.lower())] if p else [])
         )
-        echo(f"{{f6}}Selected: {fruit}{f6}")
+        echo(f"{{f6}}Selected: {fruit}{{f6}}")
         echo("{f6}")
         
         # Demo 4: Using completer_kwargs parameter
@@ -103,7 +103,7 @@ def main():
             completer=Completer(veggie_completer),
             completer_kwargs={"category": "root_vegetables"}
         )
-        echo(f"{{f6}}Selected: {veg}{f6}")
+        echo(f"{{f6}}Selected: {veg}{{f6}}")
         echo("{f6}")
         
         echo("{green}All demos completed!{f6}")
