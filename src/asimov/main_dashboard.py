@@ -1,0 +1,599 @@
+# asimov/main_dashboard.py
+
+import sys
+import argparse
+import threading
+import time
+import queue
+import cv2
+import numpy as np
+import pyvirtualcam
+import tkinter as tk
+from tkinter import ttk
+import json
+from PIL import Image, ImageTk
+
+from . import io, conf, module, common
+from .common import ThreadSafeContext
+
+context = ThreadSafeContext()
+logic_lock = threading.Lock()
+
+
+# --- Tkinter Dashboard UI Components ---
+
+def validate_float(proposed, min_val, max_val):
+    if proposed == "":
+        return True
+    
+    if "." in proposed:
+        parts = proposed.split(".")
+        if len(parts) != 2:
+            return None
+        if not parts[0].isdigit() or not parts[1].isdigit():
+            return None
+    else:
+        if not proposed.isdigit():
+            return None
+    
+    val = float(proposed)
+    if val < min_val or val > max_val:
+        return False
+    
+    return True
+
+
+def make_scale_field(parent, section, key, meta, config_obj):
+    frame = ttk.Frame(parent)
+    
+    var = tk.DoubleVar(value=config_obj[section][key])
+    
+    label = ttk.Label(frame, text=meta.get("label", key))
+    label.pack(anchor="w")
+    
+    scale = ttk.Scale(
+        frame,
+        from_=meta["min"],
+        to=meta["max"],
+        orient="horizontal",
+        variable=var,
+        length=200
+    )
+    scale.pack(fill="x", pady=(0, 5))
+    
+    value_label = ttk.Label(frame, text=f"Value: {var.get():.2f}")
+    value_label.pack(anchor="w")
+    
+    entry_var = tk.StringVar(value=str(config_obj[section][key]))
+    
+    def on_scale_change(*args):
+        val = var.get()
+        value_label.config(text=f"Value: {val:.2f}")
+        entry_var.set(f"{val:.2f}")
+        config_obj[section][key] = val
+    
+    def on_entry_validate(proposed):
+        result = validate_float(proposed, meta["min"], meta["max"])
+        if result is True:
+            config_obj[section][key] = float(proposed)
+            var.set(float(proposed))
+            value_label.config(text=f"Value: {proposed}")
+        elif result is False:
+            entry_var.set(str(var.get()))
+        return result
+    
+    vcmd = (frame.register(on_entry_validate), "%P")
+    
+    entry = ttk.Entry(frame, textvariable=entry_var, validate="key", validatecommand=vcmd)
+    entry.pack(fill="x")
+    
+    var.trace_add("write", on_scale_change)
+    
+    frame.pack(fill="x", padx=10, pady=5)
+    return frame
+
+
+def make_bool_field(parent, section, key, meta, config_obj):
+    frame = ttk.Frame(parent)
+    
+    var = tk.BooleanVar(value=config_obj[section][key])
+    
+    check = ttk.Checkbutton(
+        frame,
+        text=meta.get("label", key),
+        variable=var,
+        command=lambda: config_obj[section][key].__class__(var.get())
+    )
+    check.pack(anchor="w", padx=10, pady=5)
+    
+    def on_change(*args):
+        config_obj[section][key] = var.get()
+    
+    var.trace_add("write", on_change)
+    
+    frame.pack(fill="x", padx=10, pady=5)
+    return frame
+
+
+def make_int_field(parent, section, key, meta, config_obj):
+    frame = ttk.Frame(parent)
+    
+    var = tk.IntVar(value=int(config_obj[section][key]))
+    
+    label = ttk.Label(frame, text=meta.get("label", key))
+    label.pack(anchor="w")
+    
+    scale = ttk.Scale(
+        frame,
+        from_=meta["min"],
+        to=meta["max"],
+        orient="horizontal",
+        variable=var,
+        length=200
+    )
+    scale.pack(fill="x", pady=(0, 5))
+    
+    value_label = ttk.Label(frame, text=f"Value: {var.get()}")
+    value_label.pack(anchor="w")
+    
+    entry_var = tk.StringVar(value=str(config_obj[section][key]))
+    
+    def on_scale_change(*args):
+        val = var.get()
+        value_label.config(text=f"Value: {val}")
+        entry_var.set(str(val))
+        config_obj[section][key] = val
+    
+    def on_entry_validate(proposed):
+        if proposed == "":
+            return True
+        if not proposed.isdigit():
+            return None
+        val = int(proposed)
+        if val < meta["min"] or val > meta["max"]:
+            return False
+        config_obj[section][key] = val
+        var.set(val)
+        value_label.config(text=f"Value: {proposed}")
+        return True
+    
+    vcmd = (frame.register(on_entry_validate), "%P")
+    
+    entry = ttk.Entry(frame, textvariable=entry_var, validate="key", validatecommand=vcmd)
+    entry.pack(fill="x")
+    
+    var.trace_add("write", on_scale_change)
+    
+    frame.pack(fill="x", padx=10, pady=5)
+    return frame
+
+
+def make_enum_field(parent, section, key, meta, config_obj):
+    frame = ttk.Frame(parent)
+    
+    label = ttk.Label(frame, text=meta.get("label", key))
+    label.pack(anchor="w")
+    
+    var = tk.StringVar(value=config_obj[section].get(key, ""))
+    
+    combo = ttk.Combobox(
+        frame,
+        values=meta.get("enum", []),
+        textvariable=var,
+        state="readonly",
+        width=20
+    )
+    combo.pack(anchor="w", padx=10, pady=5)
+    
+    def on_select(event):
+        val = var.get()
+        config_obj[section][key] = val if val else None
+    
+    combo.bind("<<ComboboxSelected>>", on_select)
+    
+    frame.pack(fill="x", padx=10, pady=5)
+    return frame
+
+
+def build_field(parent, section, key, meta, config_obj):
+    field_type = meta.get("type", "float")
+    
+    if field_type == "float":
+        return make_scale_field(parent, section, key, meta, config_obj)
+    elif field_type == "int":
+        return make_int_field(parent, section, key, meta, config_obj)
+    elif field_type == "bool":
+        return make_bool_field(parent, section, key, meta, config_obj)
+    elif field_type == "enum":
+        return make_enum_field(parent, section, key, meta, config_obj)
+    return None
+
+
+# --- Dashboard Application ---
+
+class DashboardApp:
+    def __init__(self, root, modules):
+        self.root = root
+        self.modules = modules
+        self.module_configs = {}
+        self.running = True
+        self.frame_queue = queue.Queue(maxsize=1)
+        self.current_frame = None
+        
+        self._build_ui()
+    
+    def _build_ui(self):
+        self.root.title("Asimov Dashboard")
+        self.root.geometry("1200x800")
+        
+        # Paned window: left for preview, right for controls
+        paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
+        paned.pack(fill="both", expand=True)
+        
+        # Left: Video preview canvas
+        left_frame = ttk.Frame(paned)
+        paned.add(left_frame, weight=2)
+        
+        self.canvas = tk.Canvas(left_frame, bg="black")
+        self.canvas.pack(fill="both", expand=True)
+        
+        # Right: Control panel
+        right_frame = ttk.Frame(paned)
+        paned.add(right_frame, weight=1)
+        
+        control_frame = ttk.Frame(right_frame)
+        control_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(control_frame, text="Asimov Control Panel", 
+                  font=("Arial", 12, "bold")).pack(side="left", padx=5)
+        
+        self.status_label = ttk.Label(control_frame, text="Running", 
+                                       foreground="green")
+        self.status_label.pack(side="right", padx=5)
+        
+        enable_frame = ttk.LabelFrame(right_frame, text="Modules")
+        enable_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.module_vars = {}
+        for item in self.modules:
+            name = item["name"]
+            var = tk.BooleanVar(value=item.get("config", {}).get("enabled", True))
+            cb = ttk.Checkbutton(
+                enable_frame,
+                text=name,
+                variable=var,
+                command=lambda n=name, v=var: self._toggle_module(n, v.get())
+            )
+            cb.pack(anchor="w", padx=20, pady=2)
+            self.module_vars[name] = var
+        
+        self.notebook = ttk.Notebook(right_frame)
+        self.notebook.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        self._build_module_tabs()
+        
+        output_frame = ttk.LabelFrame(right_frame, text="Status Output")
+        output_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.output_text = tk.Text(output_frame, height=6, state="normal")
+        self.output_text.pack(fill="x", padx=5, pady=5)
+        
+        btn_frame = ttk.Frame(right_frame)
+        btn_frame.pack(fill="x", padx=10, pady=(0, 10))
+        
+        ttk.Button(btn_frame, text="Refresh Schema", 
+                   command=self._refresh_schema).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Show All Config", 
+                   command=self._show_all_config).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Stop", 
+                   command=self._stop).pack(side="right", padx=5)
+        
+        self.root.bind("<Escape>", lambda e: self._stop())
+        
+        # Start frame update loop
+        self._update_canvas()
+    
+    def _update_canvas(self):
+        """Periodically update canvas with latest frame."""
+        if not self.running:
+            return
+            
+        frame = self.current_frame
+        if frame is not None:
+            try:
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                h, w = rgb.shape[:2]
+                
+                canvas_w = self.canvas.winfo_width()
+                canvas_h = self.canvas.winfo_height()
+                
+                if canvas_w > 1 and canvas_h > 1:
+                    scale = min(canvas_w / w, canvas_h / h, 1.0)
+                    new_w = int(w * scale)
+                    new_h = int(h * scale)
+                    rgb = cv2.resize(rgb, (new_w, new_h))
+                
+                self.photo = ImageTk.PhotoImage(image=Image.fromarray(rgb))
+                
+                self.canvas.delete("all")
+                cw = self.canvas.winfo_width()
+                ch = self.canvas.winfo_height()
+                self.canvas.create_image(cw // 2, ch // 2, image=self.photo, anchor=tk.CENTER)
+            except Exception:
+                pass
+        
+        self.root.after(33, self._update_canvas)
+    
+    def push_frame(self, frame):
+        """Called from render thread to push new frame."""
+        self.current_frame = frame.copy()
+    
+    def _toggle_module(self, name, enabled):
+        for item in self.modules:
+            if item["name"] == name:
+                item["config"]["enabled"] = enabled
+                self._log(f"Module '{name}' {'enabled' if enabled else 'disabled'}")
+                break
+    
+    def _build_module_tabs(self):
+        for item in self.modules:
+            name = item["name"]
+            mod = item["module_ref"]
+            
+            config_obj = self._get_module_config(name)
+            if config_obj is None:
+                continue
+            
+            tab = ttk.Frame(self.notebook)
+            self.notebook.add(tab, text=name)
+            
+            if hasattr(mod, "ui_schema"):
+                try:
+                    schema = mod.ui_schema(args=None, context=context)
+                    if schema:
+                        self.module_configs[name] = (schema, config_obj)
+                        for section_name, section in schema.items():
+                            section_frame = ttk.LabelFrame(tab, text=section_name)
+                            section_frame.pack(fill="both", expand=True, padx=10, pady=10)
+                            
+                            for key, meta in section.items():
+                                if section_name in config_obj and key in config_obj[section_name]:
+                                    build_field(section_frame, section_name, key, meta, config_obj)
+                except Exception as e:
+                    self._log(f"Error loading schema for {name}: {e}")
+    
+    def _get_module_config(self, name):
+        name_lower = name.lower()
+        
+        if name_lower == "hand":
+            return conf.HAND
+        elif name_lower == "indexfingertip":
+            return conf.INDEXFINGERTIP
+        elif name_lower == "face":
+            return conf.FACE
+        elif name_lower == "eyes_next":
+            return conf.EYES
+        elif name_lower == "glitch":
+            return conf.GLITCH
+        elif name_lower == "motionblur":
+            return conf.MOTIONBLUR
+        elif name_lower == "float_playingcard":
+            return conf.FLOAT_PLAYINGCARD
+        
+        return None
+    
+    def _refresh_schema(self):
+        for tab_id in self.notebook.tabs():
+            self.notebook.forget(tab_id)
+        
+        self.module_configs = {}
+        self._build_module_tabs()
+        self._log("Schema refreshed")
+    
+    def _show_all_config(self):
+        output = {}
+        for name in self.module_vars.keys():
+            config_obj = self._get_module_config(name)
+            if config_obj:
+                output[name] = config_obj
+        
+        self.output_text.delete("1.0", "end")
+        self.output_text.insert("1.0", json.dumps(output, indent=2, default=str))
+    
+    def _log(self, message):
+        self.output_text.insert("end", f"{message}\n")
+        self.output_text.see("end")
+    
+    def _stop(self):
+        self.running = False
+        self.root.quit()
+    
+    def update_status(self, message):
+        self.status_label.config(text=message)
+
+
+# --- Thread Logic ---
+
+def _consumer(modules: list, args: argparse.Namespace):
+    try:
+        while True:
+            with logic_lock:
+                frame = context.get("SHARED_FRAME")
+
+            if frame is not None:
+                for item in modules:
+                    if not item.get("config", {}).get("enabled", True):
+                        continue
+
+                    try:
+                        m = item["module_ref"]
+
+                        if hasattr(m, "detect"):
+                            with logic_lock:
+                                m.detect(frame, context)
+
+                    except Exception:
+                        io.echo_traceback(f"Logic Thread Error in module: {item['name']}")
+
+            time.sleep(0.01)
+
+    except Exception:
+        io.echo_traceback("CRITICAL: Consumer thread collapsed")
+
+
+# --- Helper Functions ---
+
+def get_active_modules(args):
+    active = []
+    overlays = getattr(conf, "OVERLAYS", {})
+    items = sorted(overlays.items(), key=lambda x: x[1].get("order", 99))
+
+    for name, cfg in items:
+        mod_path = cfg["module_path"]
+        try:
+            mod = module.get(mod_path)
+        except Exception:
+            io.echo_traceback(f"Module rejected (exception at load): {name}")
+            raise
+
+        try:
+            if module.check(args, mod, op="run", silent=False) is False:
+                io.echo(f"get_active_modules.100: module.check() returned False")
+                continue
+        except Exception:
+            io.echo_traceback(f"Module rejected: {name}")
+            continue
+
+        active.append({
+            "name": name,
+            "module_path": mod_path,
+            "module_ref": mod,
+            "config": cfg,
+        })
+
+    return active
+
+
+def handle_hotkeys(key, modules):
+    char = chr(key).lower()
+    for item in modules:
+        if item.get("config", {}).get("hotkey") == char:
+            item["config"]["enabled"] = not item["config"]["enabled"]
+            io.echo(f"TOGGLE: {item['name']} is now {item['config']['enabled']}", level="info")
+
+
+# --- Lifecycle ---
+
+def init(args, **kwargs): return True
+def access(args, op="run", **kwargs): return op == "run"
+def buildargs(args=None, **kwargs): return None 
+
+
+# --- Main ---
+
+def main(args, **kwargs):
+    modules = get_active_modules(args)
+    io.echo(f"Loaded {len(modules)} modules", level="debug")
+
+    for item in modules:
+        mod = item["module_ref"]
+
+        item["can_detect"] = False
+        item["can_draw"] = False
+
+        try:
+            if module.run(args, mod, context=context, argv=sys.argv) is False:
+                io.echo(f"Module '{item['name']}' rejected during lifecycle", level="error")
+                continue
+
+            if hasattr(mod, "detect"):
+                item["can_detect"] = True
+            if hasattr(mod, "draw"):
+                item["can_draw"] = True
+
+        except Exception:
+            io.echo_traceback(f"Module '{item['name']}' failed during initialization")
+            continue
+
+    io.echo(f"Opening camera: {args.capture_device}")
+    cap = cv2.VideoCapture(args.capture_device)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.capture_width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.capture_height)
+    cap.set(cv2.CAP_PROP_FPS, args.capture_fps)
+
+    if not common.camera_ready(cap):
+        io.echo("Camera hardware failed to initialize", level="error")
+        cap.release()
+        return False
+
+    actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    actual_fps = int(cap.get(cv2.CAP_PROP_FPS)) or 1
+
+    # Start logic thread
+    t = threading.Thread(target=_consumer, args=(modules, args), daemon=True)
+    t.start()
+
+    # Start Tkinter dashboard
+    root = tk.Tk()
+    app = DashboardApp(root, modules)
+
+    # Render loop - pushes frames to dashboard
+    def render_loop():
+        try:
+            with pyvirtualcam.Camera(
+                width=actual_width,
+                height=actual_height,
+                fps=actual_fps
+            ) as vcam:
+
+                io.echo(f"Virtual Camera: {actual_width}x{actual_height} @ {actual_fps}fps", level="ok")
+                app.update_status("Running")
+
+                while app.running:
+                    success, raw_frame = cap.read()
+                    if not success:
+                        break
+
+                    frame = raw_frame.copy()
+
+                    with logic_lock:
+                        context["SHARED_FRAME"] = frame
+
+                    # Rendering phase
+                    for item in modules:
+                        if not item.get("config", {}).get("enabled", True):
+                            continue
+                        if not item.get("can_draw", False):
+                            continue
+
+                        try:
+                            result = item["module_ref"].draw(frame, context)
+                            if isinstance(result, np.ndarray):
+                                frame = result
+                        except Exception:
+                            io.echo_traceback(f"draw() failure in module '{item['name']}'")
+
+                    frame = cv2.flip(frame, 1)
+
+                    # Send to virtual camera
+                    vcam.send(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                    vcam.sleep_until_next_frame()
+                    
+                    # Push frame to dashboard canvas
+                    app.push_frame(frame)
+
+        except Exception:
+            io.echo_traceback("Render loop crash")
+
+        finally:
+            app.update_status("Stopped")
+            app.running = False
+            cap.release()
+
+    render_thread = threading.Thread(target=render_loop, daemon=True)
+    render_thread.start()
+
+    root.mainloop()
+
+    return True

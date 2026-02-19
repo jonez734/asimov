@@ -298,6 +298,66 @@ def _glitch_vertical_hold(frame, t=0, **kwargs):
 
 
 # ---------------------------------------------------------------------
+# Module-level API (for other modules)
+# ---------------------------------------------------------------------
+
+_max_concurrent = 2
+_registered_glitches = {}
+
+def set_max_concurrent(max_count: int):
+    """Set maximum concurrent glitches."""
+    global _max_concurrent
+    _max_concurrent = max_count
+
+
+def register(name: str, **kwargs):
+    """Register a glitch effect with optional parameters."""
+    _registered_glitches[name] = kwargs
+
+
+def scheduler():
+    """
+    Trigger random glitches based on GLITCH config.
+    Called once per frame in draw().
+    """
+    import random
+    
+    now = time.time()
+    
+    if random.random() > 0.02:
+        return
+    
+    enabled = [
+        name for name, cfg in conf.GLITCH.get("REGISTRY", {}).items()
+        if cfg.get("enabled", True)
+    ]
+    
+    if not enabled:
+        return
+    
+    name = random.choice(enabled)
+    _trigger_glitch(name)
+
+
+def _trigger_glitch(name: str):
+    """Trigger a specific glitch effect."""
+    pass
+
+
+def is_any_glitch_running() -> bool:
+    """Check if any glitch effect is currently active."""
+    return False
+
+
+def apply(frame: np.ndarray) -> np.ndarray:
+    """
+    Apply active glitch effects to frame.
+    Returns modified frame.
+    """
+    return frame
+
+
+# ---------------------------------------------------------------------
 # Module lifecycle (required)
 # ---------------------------------------------------------------------
 
