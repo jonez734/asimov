@@ -324,6 +324,7 @@ def redraw_line(prompt, buffer, max_len, start_row, start_col,
     input_col_start = start_col + rendered_length(prompt)
 
     echo(f"{{curpos:{start_row},{start_col}}}", end="", flush=True)
+    echo(prompt, end="", flush=True)
     echo(f"{{curpos:{start_row},{input_col_start}}}", end="", flush=True)
 
     display_str = buffer[scroll_offset : scroll_offset + max_width]
