@@ -105,8 +105,24 @@ def get_current_word(buffer, curpos):
     return prefix, word_start, word_end
 
 def common_prefix(matches):
-    if not matches: return ""
-    return matches[0]
+    if not matches:
+        return ""
+    if len(matches) == 1:
+        return matches[0]
+    
+    # Find minimum length
+    min_len = min(len(m) for m in matches)
+    if min_len == 0:
+        return ""
+    
+    # Find common prefix
+    for i in range(min_len):
+        c = matches[0][i]
+        for m in matches[1:]:
+            if m[i] != c:
+                return matches[0][:i]
+    
+    return matches[0][:min_len]
 
 # --- 1. Global Key Actions Dictionary ---
 KEY_ACTIONS = {}
