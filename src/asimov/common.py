@@ -1,8 +1,22 @@
 import os
+import time
+import math
+import threading
 
-from typing import List, Optional, Union
+from typing import Optional, Union
 
-from . import conf
+import cv2
+
+from . import conf, io
+
+def camera_ready(cap, timeout=5):
+    start_time = time.time()
+    while True:
+        if cap.read() is not None:
+            return True  # Camera gave a valid frame
+        if time.time() - start_time >= timeout:
+            return False  # Timeout reached, return failure
+        time.sleep(0.10)  # Avoid busy waiting
 
 # Define the get_safe_path function within the utility module
 def safe_path(*components: Union[str, os.PathLike], 
@@ -80,6 +94,35 @@ def safe_path(*components: Union[str, os.PathLike],
 
 get_safe_path = safe_path
 
+def safe_distance(p1, p2):
+    """
+    Compute Euclidean distance between two points.
+
+    Supports:
+    - 2D points (x, y)
+    - 3D points (x, y, z)
+    - Input as tuple, list, or numpy array
+
+    Returns:
+        float: Euclidean distance
+
+    Raises:
+        ValueError: if points are invalid or have mismatched dimensions
+    """
+    # Convert to list/tuple if NumPy array
+    try:
+        p1 = tuple(p1)
+        p2 = tuple(p2)
+    except TypeError:
+        raise ValueError(f"safe_distance: Points must be iterable, got {type(p1)} and {type(p2)}")
+
+    if len(p1) != len(p2):
+        raise ValueError(f"safe_distance: Points must have same dimensions, got {len(p1)} and {len(p2)}")
+
+    # Compute Euclidean distance
+    squared_diff_sum = sum((a - b) ** 2 for a, b in zip(p1, p2))
+    return math.sqrt(squared_diff_sum)
+
 # ---------
 # logging
 # ---------
@@ -121,44 +164,189 @@ def logentry(message, level=logging.INFO, *, handler=None, formatter=None, logge
         "warning":  logging.WARNING,
         "error":    logging.ERROR,
         "critical": logging.CRITICAL,
+        "crit":     logging.CRITICAL,
 #        "exception":logging.EXCEPTION,
     }
 
     if level in levels:
       level = levels[level]
     else:
-      level = logging.NOTSET
+      level = logging.INFO
 
     logger.log(level, message)
     return
 
-def safe_distance(p1, p2):
+class CameraCapture(threading.Thread):
+    def __init__(self, source):
+        super().__init__(name="CameraCaptureThread")
+        self.source = source
+        self.frame = None
+        self.stopped = False
+        self.lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self.thread = None
+        self.actual_width = 0
+        self.actual_height = 0
+        self.actual_fps = 0
+
+    def start(self):
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+        # Wait for hardware to warm up so Main has dimensions
+        timeout = time.time() + 7.0
+        while self.frame is None and time.time() < timeout:
+            time.sleep(0.1)
+        if self.frame is None:
+            raise RuntimeError("Webcam failed to initialize.")
+        return self
+
+    def _run(self):
+        """Background thread: Opens, Reads, and Closes the camera."""
+        self.cap = cv2.VideoCapture(self.source, cv2.CAP_V4L2)
+
+        # Verify hardware before starting loop
+        if not self.cap.isOpened() or not camera_ready(self.cap):
+            io.echo("{{error}}CameraCapture: Hardware not available.{{/all}}")
+            self.stopped = True
+            cap.release()
+            return
+
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, conf.CAP_WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, conf.CAP_HEIGHT)
+        self.cap.set(cv2.CAP_PROP_FPS, conf.CAP_FPS)
+
+        self.actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self.actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
+
+        try:
+            while not self._stop_event.is_set():
+                ret, frame = self.cap.read()
+
+                if not ret:
+                    time.sleep(0.1)
+                    continue
+
+                flipped = cv2.flip(frame, 1)
+                with self.lock:
+                    self.frame = flipped
+        except Exception as e:
+            logentry(f"CameraCapture: _run: exception {e}", level="error")
+        finally:
+            self._cleanup()
+
+    def read(self):
+        with self.lock:
+            return self.frame.copy() if self.frame is not None else None
+
+    def stop(self):
+        self._stop_event.set()
+        io.echo("CameraCapture: stop event")
+
+    def _cleanup(self):
+        """Releases the camera and logs the shutdown."""
+        if self.cap and self.cap.isOpened():
+            self.cap.release()
+        logentry("CameraCapture: Resources released and thread exiting.")
+
+
+class ThreadSafeContext(dict):
     """
-    Compute Euclidean distance between two points.
+    A dictionary subclass that uses a threading lock for all access.
+    Maintains backward compatibility with existing detection and drawing functions.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._lock = threading.Lock()
+        self._stats = {
+            "capture_fps": 0.0,
+            "processing_fps": 0.0,
+            "render_fps": 0.0,
+            "avg_fps": 0.0
+        }
+
     
-    Supports:
-    - 2D points (x, y)
-    - 3D points (x, y, z)
-    - Input as tuple, list, or numpy array
+    def set_stat(self, key, value):
+        with self._lock:
+            self._stats[key] = value
+            # Recalculate average whenever a component updates
+            self._stats["avg_fps"] = sum([
+                self._stats["capture_fps"],
+                self._stats["processing_fps"],
+                self._stats["render_fps"]
+            ]) / 3.0
 
-    Returns:
-        float: Euclidean distance
+    def get_stats(self):
+        with self._lock:
+            return self._stats.copy()
 
-    Raises:
-        ValueError: if points are invalid or have mismatched dimensions
+    def __getitem__(self, key):
+        with self._lock:
+            return super().__getitem__(key)
+
+    def __setitem__(self, key, value):
+        with self._lock:
+            super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        with self._lock:
+            super().__delitem__(key)
+
+    def __contains__(self, key):
+        with self._lock:
+            return super().__contains__(key)
+
+    def get(self, key, default=None):
+        with self._lock:
+            return super().get(key, default)
+
+    def copy(self):
+        """Returns a non-thread-safe snapshot for rendering."""
+        with self._lock:
+            return super().copy()
+
+class OneEuroFilter:
     """
-    import math
+    One Euro Filter: https://cristal.univ-lille.fr/~casiez/1euro/
+    Keeps smooth values but reacts faster to quick movements.
+    """
+    def __init__(self, freq=30, min_cutoff=1.0, beta=0.01, dcutoff=1.0, init=None):
+        self.freq = freq              # Hz, frame rate estimate
+        self.min_cutoff = min_cutoff  # baseline smoothing
+        self.beta = beta              # speed sensitivity
+        self.dcutoff = dcutoff        # derivative smoothing
+        self.last_time = None
+        self.x_prev = init
+        self.dx_prev = 0
 
-    # Convert to list/tuple if NumPy array
-    try:
-        p1 = tuple(p1)
-        p2 = tuple(p2)
-    except TypeError:
-        raise ValueError(f"safe_distance: Points must be iterable, got {type(p1)} and {type(p2)}")
+    def _alpha(self, cutoff, dt):
+        tau = 1.0 / (2 * math.pi * cutoff)
+        return 1.0 / (1.0 + tau / dt)
 
-    if len(p1) != len(p2):
-        raise ValueError(f"safe_distance: Points must have same dimensions, got {len(p1)} and {len(p2)}")
+    def update(self, x):
+        now = time.time()
+        if self.last_time is None:
+            dt = 1.0 / self.freq
+        else:
+            dt = max(now - self.last_time, 1e-6)
+        self.last_time = now
 
-    # Compute Euclidean distance
-    squared_diff_sum = sum((a - b) ** 2 for a, b in zip(p1, p2))
-    return math.sqrt(squared_diff_sum)
+        if self.x_prev is None:
+            self.x_prev = x
+            self.dx_prev = 0
+
+        # derivative
+        dx = (x - self.x_prev) / dt
+        a_d = self._alpha(self.dcutoff, dt)
+        dx_hat = a_d * dx + (1 - a_d) * self.dx_prev
+
+        # adaptive cutoff
+        cutoff = self.min_cutoff + self.beta * abs(dx_hat)
+        a = self._alpha(cutoff, dt)
+
+        # filtered value
+        x_hat = a * x + (1 - a) * self.x_prev
+
+        self.x_prev = x_hat
+        self.dx_prev = dx_hat
+        return x_hat

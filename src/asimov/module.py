@@ -16,18 +16,18 @@ class SignatureError:
     reason: str | None = None
     def __str__(self):
         msg = (
-            f"{self.func_name}() signature mismatch{f6}"
-            f"Expected:{f6}  {self.expected}{f6}"
-            f"Found:{f6}  {self.found}"
+            f"{self.func_name}() signature mismatch{{f6}}"
+            f"Expected:{{f6}}  {self.expected}{{f6}}"
+            f"Found:{{f6}}  {self.found}"
         )
         if self.reason:
-            msg += f"{f6}Reason:{f6}  {self.reason}"
+            msg += f"{{f6}}Reason:{{f6}}  {self.reason}"
         return msg
 
 # --- Utility Functions ---
 
 # @since 20251221
-def get_module(module_input: Union[str, ModuleType], args: Any = None) -> ModuleType:
+def get(module_input: Union[str, ModuleType], args: Any = None) -> ModuleType:
     """
     Utility to resolve a module reference.
     If input is a string, it loads the module via load().
@@ -39,7 +39,7 @@ def get_module(module_input: Union[str, ModuleType], args: Any = None) -> Module
     if isinstance(module_input, str):
         return load(args, module_input)
 
-    raise ValueError(f"Expected module name (str) or module object, got {type(module_input)}")
+    raise ValueError(f"Expected module name (str) or module object, got {type(module_input)=}")
 
 # @since 20230510
 def load(args: Any, modulepath: str) -> ModuleType:
@@ -172,7 +172,7 @@ def check(args: argparse.Namespace, mod_ref: Union[str, ModuleType], **kwargs) -
     silent = kwargs.get("silent", True)
     op = kwargs.pop("op", "run")
 
-    m = get_module(mod_ref, args)
+    m = get(mod_ref, args)
 
     # 1. Interface Check
     for func_name in ["init", "access", "buildargs", "main"]:
@@ -256,7 +256,7 @@ def run(args: argparse.Namespace, mod_ref: Union[str, ModuleType], **kwargs):
     """
     Main lifecycle: check (with access) -> init -> buildargs -> main.
     """
-    m = get_module(mod_ref, args)
+    m = get(mod_ref, args)
     
     if check(args, m, **kwargs) is False:
         return False
@@ -282,36 +282,68 @@ def run(args: argparse.Namespace, mod_ref: Union[str, ModuleType], **kwargs):
 
 runmodule = run
 
-# @since 20250316
-def validate_function(mod_ref: Union[str, ModuleType], func_name: str, required_signature: Callable):
+# @since 20260106
+def check_func(
+    mod_ref: Union[str, ModuleType],
+    func_name: str,
+    required_signature: Callable,
+    *,
+    allow_extra: bool = True,
+    enforce_return: bool = True,
+    silent: bool = False,
+) -> bool:
     """
-    Deep validation of function signatures and type hints.
+    Validate that a module function matches a required signature.
+
+    This uses the same compatibility rules as module.check():
+    - positional-only enforcement
+    - default value rules
+    - optional extra parameters
+    - Optional[T] / Union[T, None] return compatibility
+
+    Returns True on success, False on failure.
     """
     try:
-        module = get_module(mod_ref)
-        if not hasattr(module, func_name):
-            raise ValueError(f"Function '{func_name}' not found")
-
-        func = getattr(module, func_name)
-        sig = inspect.signature(func)
-        req_sig = inspect.signature(required_signature)
-
-        if sig.parameters.keys() != req_sig.parameters.keys():
-            raise ValueError(f"'{func_name}' parameter mismatch")
-
-        f_hints = get_type_hints(func)
-        r_hints = get_type_hints(required_signature)
-
-        for p, t in r_hints.items():
-            if p == 'return': continue
-            if f_hints.get(p) != t:
-                raise ValueError(f"Type mismatch for '{p}'")
-
-        return True
+        module = get(mod_ref)
     except Exception:
-        io.echo_traceback(f"Validation failed for {func_name}")
-        raise
+        if not silent:
+            io.echo_traceback("validate_function: failed to resolve module")
+        return False
 
+    if not hasattr(module, func_name):
+        if not silent:
+            io.echo(f"validate_function: '{func_name}' not found", level="error")
+        return False
+
+    func = getattr(module, func_name)
+    if not callable(func):
+        if not silent:
+            io.echo(f"validate_function: '{func_name}' is not callable", level="error")
+        return False
+
+    result = _check_func_signature(
+        func,
+        required_signature,
+        name=func_name,
+        allow_extra=allow_extra,
+        enforce_return=enforce_return,
+    )
+
+    if result is not True:
+        # result is a SignatureError
+        if not silent:
+            io.echo(str(result), level="error")
+        return False
+
+    return True
+
+# @since 20260106
+def validate_function(*args, **kwargs) -> bool:
+    """
+    Backward-compatible alias for check_function().
+    Prefer check_func() for new code.
+    """
+    return check_func(*args, **kwargs)
 
 def _stub_access(args:argparse.Namespace, op:str, /, **kwargs:dict) -> bool | None: pass
 def _stub_init(args:argparse.Namespace, /, **kwargs:dict) -> bool | None: pass

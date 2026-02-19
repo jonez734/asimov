@@ -8,7 +8,7 @@ import time
 
 import numpy as np
 
-from . import io
+from . import io, conf
 from .common import safe_path
 
 import cv2
@@ -362,7 +362,7 @@ def get_bottom_right_position(frame, text, font, font_scale=1.0, thickness=2, pa
 
     return x, y
 
-def get_device_by_label(label:str):
+def get_device_by_label(label:str) -> str|None:
     base = "/sys/class/video4linux"
     for dev in os.listdir(base):
         card_path = safe_path(base, dev, "name")
@@ -381,20 +381,6 @@ def get_device_by_label(label:str):
 #    print("Found:", path)
 #else:
 #    print("Not found")
-
-def camera_ready(cap, timeout=5):
-    start_time = time.time()
-    while True:
-        ret, frame = cap.read()
-        if frame is not None:
-            return True  # Camera gave a valid frame
-        print("waiting...")
-        if time.time() - start_time >= timeout:
-            print("camera_ready(): timeout")
-            return False  # Timeout reached, return failure
-        time.sleep(0.1)  # Avoid busy waiting
-
-
 
 def heading(title:str, level=1, **kwargs): # hrchar:str="{acs:hline}", llcorner="{acs:llcorner}", lrcorner="{acs:lrcorner}", ulcorner="{acs:ulcorner}", urcorner="{acs:urcorner}", vline="{acs:vline}", width=None, fillchar=" ", center=True):
 ##  if io.getoption("style", "ttyio") == "noansi":
@@ -425,11 +411,6 @@ def heading(title:str, level=1, **kwargs): # hrchar:str="{acs:hline}", llcorner=
   io.echo(f" {{llcorner}}{{hline:{width}}}{{lrcorner}}{{/all}}{{f6}}", wordwrap=False, end="")
   return
 
-import math
-import time
-import cv2
-import numpy as np
-
 class OneEuroFilter:
     """
     One Euro Filter: https://cristal.univ-lille.fr/~casiez/1euro/
@@ -453,6 +434,8 @@ class OneEuroFilter:
 
     def _alpha(self, cutoff, dt):
         """Calculates the smoothing factor based on cutoff frequency and time step."""
+        import math
+
         tau = 1.0 / (2 * math.pi * cutoff)
         return 1.0 / (1.0 + tau / dt)
 
@@ -617,3 +600,55 @@ def interpolate_sequential(index: int, total_length: int, start_value: float, en
 
 # Example Use:
 # thickness = interpolate_sequential(i, MAX_TRAIL_LENGTH, 1.0, 8.0)
+
+def draw_diagnostics_overlay(frame, diagnostics):
+    y_offset = 30
+    for key, val in diagnostics.items():
+        text = f"{key}: {val:.2f}"
+        # Use existing render_text from util.py
+        render_text(text, 10, y_offset, color=(0, 255, 255, 1.0))
+        y_offset += 20
+
+import math
+
+def stable_phase(seed, hash_base=31, scramble_shift1=16, scramble_shift2=3) -> float:
+    """
+    Generate a stable [0, 2π) phase offset from any hashable seed.
+    Close seeds produce distinct but smooth phase values.
+    
+    Parameters:
+    - seed: any hashable value (str, int, tuple)
+    - hash_base: base multiplier for rolling hash
+    - scramble_shift1: first bitwise shift for scrambling
+    - scramble_shift2: second bitwise shift for scrambling
+    """
+    # Convert seed to string to handle any hashable input
+    s = str(seed)
+    
+    # Rolling hash with positional weighting
+    v = 0
+    for i, c in enumerate(s):
+        v = (v * hash_base + ord(c) * (i + 1)) & 0xFFFFFFFF
+    
+    # Gentle scrambling for decorrelation
+    v ^= (v >> scramble_shift1)
+    v ^= (v << scramble_shift2) & 0xFFFFFFFF
+    
+    # Normalize to [0, 2π)
+    phase = (v / 2**32) * (2 * math.pi)
+    return phase
+
+def floating_bounce(seed, amplitude=0.05, frequency=1.0, time=0.0) -> float:
+    """
+    Compute a gentle floating offset using a stable phase.
+    
+    Parameters:
+    - seed: any hashable value to generate a unique phase
+    - amplitude: max vertical displacement
+    - frequency: speed of the bounce (cycles per second)
+    - time: current time in seconds
+    """
+    phase = _stable_phase(seed)
+    # Sine wave bounce with unique phase per seed
+    offset = amplitude * math.sin(2 * math.pi * frequency * time + phase)
+    return offset
