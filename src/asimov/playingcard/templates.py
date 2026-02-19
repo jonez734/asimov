@@ -32,6 +32,8 @@ def load_templates(basedir=None, set_name=None):
         basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
     if set_name is None:
         set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
+
+    basedir = os.path.expandvars(os.path.expanduser(basedir))
     global _loaded_templates, _corner_size, _loaded_set
 
     set_dir = get_safe_path(basedir, "sets", set_name)

@@ -13,7 +13,14 @@ def is_loaded(set_name):
         return True
     return False
 
-def load(basedir, set_name) -> bool:
+def load(basedir=None, set_name=None) -> bool:
+    if basedir is None:
+        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+    if set_name is None:
+        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
+
+    basedir = os.path.expandvars(os.path.expanduser(basedir))
+
     # 1. compose absolute path to npz file given set_name
     try:
         npz_path = get_safe_path(basedir, f"templates_{set_name}_archive.npz", must_exist=True)

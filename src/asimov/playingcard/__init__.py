@@ -21,10 +21,15 @@ from .detect import detect
 
 def init(args=None, context=None, **kwargs):
     """
-    Loads the playing card set from config.
+    Loads the playing card set from args or config.
     """
-    basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
-    set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
+    basedir = getattr(args, "basedir", None)
+    if basedir is None:
+        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+
+    set_name = getattr(args, "set_name", None)
+    if set_name is None:
+        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
 
     echo(f"{{reset}}- {{labelcolor}}Load set {{valuecolor}}'{set_name}{{labelcolor}}': ", end="", flush=True)
     if load_set(basedir, set_name) is True:
