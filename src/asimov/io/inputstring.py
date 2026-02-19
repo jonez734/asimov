@@ -294,6 +294,7 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
     if matches == last_matches and tab_count == 1:
         echo("\n")
         print_matches(matches)
+        echo("\n")
         redraw_line(prompt, buffer, max_len, start_row, start_col,
                     curpos, scroll_offset, max_width)
         return buffer, curpos, scroll_offset, [], 0
