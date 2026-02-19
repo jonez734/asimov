@@ -1,138 +1,171 @@
 # asimov/scene.py
 #
-# Procedural scene manager for Asimov
+# Procedural scene loader / runner.
+# A scene is a lightweight coordinator for modules + config.
 #
-# Responsibilities:
-#   - atomic scene switching at frame boundaries
-#   - reversible per-scene conf overrides
-#   - explicit lifecycle (init / shutdown)
+# Design goals:
+# - No classes
+# - Hot-reload friendly
+# - Works with module.py
+# - String module paths allowed
+# - Explicit lifecycle, minimal magic
+
+from types import ModuleType
+from typing import Any
+
+from . import module, io
+
+
+# ----------------------------------------------------------------------
+# Scene structure (dict-based, intentional)
+# ----------------------------------------------------------------------
 #
-# Non-goals:
-#   - no threading owned by scenes
-#   - no background mutation of conf
-#   - no module reload magic
+# scene = {
+#     "name": str,
+#     "modules": [
+#         {
+#             "name": str,
+#             "module": ModuleType,
+#             "config": dict,
+#         },
+#         ...
+#     ],
+#     "conf": dict,
+# }
 #
 
-import threading
-from copy import deepcopy
-from asimov import conf
 
-# ------------------------------------------------------------
-# Global scene state
-# ------------------------------------------------------------
+# ----------------------------------------------------------------------
+# Load
+# ----------------------------------------------------------------------
 
-_active_scene = None       # currently running scene dict
-_pending_scene = None      # scene requested for next frame
-_lock = threading.Lock()   # protects _pending_scene swap
-
-# stack of previous conf snapshots (LIFO)
-_conf_stack = []
-
-# ------------------------------------------------------------
-# Public API
-# ------------------------------------------------------------
-
-def request(scene: dict):
+def load(args: Any, scene_def: dict) -> dict:
     """
-    Request a scene change.
-    Safe to call from any thread.
+    Load and validate a scene definition.
+
+    Resolves module paths, validates lifecycle hooks,
+    and returns a fully-loaded scene dict.
     """
-    global _pending_scene
-    with _lock:
-        _pending_scene = scene
+
+    if not isinstance(scene_def, dict):
+        raise TypeError("scene_def must be a dict")
+
+    name = scene_def.get("name", "unnamed-scene")
+    modules_def = scene_def.get("modules", [])
+    conf = scene_def.get("conf", {})
+
+    if not isinstance(modules_def, list):
+        raise TypeError("scene['modules'] must be a list")
+
+    loaded_modules = []
+
+    for entry in modules_def:
+        if not isinstance(entry, dict):
+            raise TypeError("module entry must be a dict")
+
+        mod_name = entry.get("name", "<unnamed>")
+        mod_ref = entry.get("module")
+        mod_conf = entry.get("conf", {})
+
+        if not mod_ref:
+            raise ValueError(f"module entry '{mod_name}' missing 'module'")
+
+        try:
+            # Accept string paths OR module objects
+            mod = module.get(mod_ref, args)
+        except Exception:
+            io.echo_traceback(f"scene.load: failed to load module '{mod_name}'")
+            raise
+
+        # Validate module lifecycle once
+        if module.check(args, mod, op="run", silent=False) is False:
+            raise RuntimeError(f"scene.load: module rejected: {mod_name}")
+
+        loaded_modules.append({
+            "name": mod_name,
+            "module": mod,
+            "config": mod_conf,
+        })
+
+    scene = {
+        "name": name,
+        "modules": loaded_modules,
+        "conf": conf,
+    }
+
+    return scene
 
 
-def apply_if_needed(*, args, context):
+# ----------------------------------------------------------------------
+# Init
+# ----------------------------------------------------------------------
+
+def init(args: Any, scene: dict, **kwargs) -> bool:
     """
-    Apply a pending scene change.
-    MUST be called from the main frame loop.
+    Run init() for all modules in the scene.
     """
-    global _active_scene, _pending_scene
 
-    if _pending_scene is None:
-        return
+    for item in scene["modules"]:
+        mod = item["module"]
+        try:
+            module.runcallback(args, mod.init, optional=True, **kwargs)
+        except Exception:
+            io.echo_traceback(f"scene.init: init failed in '{item['name']}'")
+            return False
 
-    with _lock:
-        # --- shutdown old scene ---
-        if _active_scene:
-            shutdown = _active_scene.get("shutdown")
-            if callable(shutdown):
-                shutdown(context=context)
-
-            _restore_conf()
-
-        # --- reset shared state ---
-        context.reset()
-
-        # --- activate new scene ---
-        _active_scene = _pending_scene
-        _pending_scene = None
-
-        # --- apply scene conf overrides ---
-        overrides = _active_scene.get("conf")
-        if overrides:
-            _apply_conf_overrides(overrides)
-
-        # --- init new scene ---
-        init = _active_scene.get("init")
-        if callable(init):
-            init(args=args, context=context)
+    return True
 
 
-def active_modules():
+# ----------------------------------------------------------------------
+# Main (one-shot lifecycle entry)
+# ----------------------------------------------------------------------
+
+def main(args: Any, scene: dict, **kwargs) -> bool:
     """
-    Return modules for the active scene.
+    Execute full module lifecycle for the scene.
+    Intended to be called once.
     """
-    if not _active_scene:
-        return []
-    return _active_scene.get("modules", [])
+
+    for item in scene["modules"]:
+        mod = item["module"]
+        try:
+            if module.run(args, mod, **kwargs) is False:
+                io.echo(
+                    f"scene.main: module '{item['name']}' returned False",
+                    level="error",
+                )
+                return False
+        except Exception:
+            io.echo_traceback(f"scene.main: crash in '{item['name']}'")
+            return False
+
+    return True
 
 
-def active_name():
+# ----------------------------------------------------------------------
+# Access
+# ----------------------------------------------------------------------
+
+def access(args: Any, op: str = "run", **kwargs) -> bool:
     """
-    Return name of active scene or None.
+    Scene-level access gate.
+    Currently permissive by design.
     """
-    if not _active_scene:
-        return None
-    return _active_scene.get("name")
+    return True
 
 
-# ------------------------------------------------------------
-# Internal helpers
-# ------------------------------------------------------------
+# ----------------------------------------------------------------------
+# Utility
+# ----------------------------------------------------------------------
 
-def _apply_conf_overrides(overrides: dict):
-    """
-    Apply per-scene configuration overrides.
-    Stores a deep snapshot for later restoration.
-    """
-    snapshot = {}
-
-    for section, values in overrides.items():
-        if not hasattr(conf, section):
-            raise KeyError(f"conf.{section} does not exist")
-
-        original = getattr(conf, section)
-
-        if not isinstance(original, dict):
-            raise TypeError(
-                f"conf.{section} must be a dict for scene overrides"
-            )
-
-        snapshot[section] = deepcopy(original)
-        original.update(values)
-
-    _conf_stack.append(snapshot)
+def list_modules(scene: dict) -> list[str]:
+    """Return module names in load order."""
+    return [m["name"] for m in scene.get("modules", [])]
 
 
-def _restore_conf():
-    """
-    Restore configuration to the state prior to the last override.
-    """
-    if not _conf_stack:
-        return
-
-    snapshot = _conf_stack.pop()
-
-    for section, original in snapshot.items():
-        setattr(conf, section, original)
+def get_module(scene: dict, name: str):
+    """Fetch a module entry by name."""
+    for item in scene.get("modules", []):
+        if item["name"] == name:
+            return item
+    return None
