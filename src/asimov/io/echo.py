@@ -315,7 +315,6 @@ def _handle_whitespace(token):
 ###_color = True
 ###_acs = False
 ###_raw = False
-###_decdhl = False
 ###_term_width = None
 
 # DECSC / DECRC operate on software-defined TerminalState.
@@ -969,13 +968,13 @@ def _handle_attr(token: Token):
     return
 
 def _handle_decdhl(token):
-    global _decdhl
-
     if token.value.startswith("/"):
-      _decdhl = False
+      _terminal_state.decdhl = False
+      token.text = f"{ESC}[5m"  # DECSWL - single-width single-height
     else:
-      _decdhl = True
-    return iter(())
+      _terminal_state.decdhl = True
+      token.text = f"{ESC}[6m"  # DECDWL - double-width
+    yield token
 
 def _write_token(token: Token, flush: bool=True, stream=None):
     """

@@ -199,8 +199,8 @@ getoption(opt, default=None)
 
 ## Known Issues / TODOs
 
-1. Line 50 has a typo: `"{bgblue}{white]"` should be `"{bgblue}{white}"`
-2. `_handle_ed()` has debug print statement (line 540)
-3. `_handle_literalopen()` has debug print (line 671)
-4. Dead code in `_handle_box()` (lines 694-743)
-5. `_decdhl` global variable referenced but never properly initialized
+1. ~~Line 50 has a typo: `"{bgblue}{white]"` should be `"{bgblue}{white}"`~~ (FIXED)
+2. ~~`_handle_ed()` has debug print statement~~ (FIXED - commented out)
+3. ~~`_handle_literalopen()` has debug print~~ (FIXED - commented out)
+4. ~~Dead code in `_handle_box()`~~ (FIXED - removed)
+5. ~~`_decdhl` global variable referenced but never properly initialized~~ (FIXED - now uses `_terminal_state.decdhl`)
