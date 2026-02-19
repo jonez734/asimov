@@ -31,7 +31,7 @@ def main():
     try:
         # Demo 1: Callable class with override
         echo("{cyan}Demo 1: Subclass Completer with get_matches() override{f6}")
-        echo("Type a name starting with 'a', 'b', 'c', etc.{f6}")
+        echo("Type a name starting with 'a', 'b', 'c', etc. Press TAB for completions.{f6}")
         
         class PlayerCompleter(Completer):
             """Completer that returns player names from 'database'."""
@@ -56,7 +56,7 @@ def main():
         
         # Demo 2: Function passed to constructor with kwargs
         echo("{cyan}Demo 2: Pass function to Completer with kwargs{f6}")
-        echo("Type a color (red, green, blue, etc.){f6}")
+        echo("Type a color (red, green, blue, etc.) Press TAB.{f6}")
         
         COLORS = ["red", "green", "blue", "yellow", "cyan", "magenta", "orange", "purple"]
         
@@ -76,7 +76,7 @@ def main():
         
         # Demo 3: Lambda function
         echo("{cyan}Demo 3: Lambda function passed directly{f6}")
-        echo("Type a fruit (apple, banana, cherry){f6}")
+        echo("Type a fruit (apple, banana, cherry) Press TAB.{f6}")
         
         FRUITS = ["apple", "banana", "cherry", "date", "elderberry"]
         
@@ -89,7 +89,7 @@ def main():
         
         # Demo 4: Using completer_kwargs parameter
         echo("{cyan}Demo 4: Using completer_kwargs parameter{f6}")
-        echo("Type a vegetable (carrot, potato, etc.){f6}")
+        echo("Type a vegetable (carrot, potato, etc.) Press TAB.{f6}")
         
         VEGGIES = ["carrot", "potato", "tomato", "cucumber", "celery"]
         
