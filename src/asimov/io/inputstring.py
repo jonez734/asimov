@@ -18,41 +18,60 @@ class Completer:
         
     Or with a class method:
         class PlayerCompleter(Completer):
-            def get_matches(self, prefix):
+            def get_matches(self, prefix, **kwargs):
                 return db.query("SELECT name FROM players WHERE name LIKE ?", prefix + "%")
         
-        inputstring("Select player: ", completer=PlayerCompleter())
+        inputstring("Select player: ", completer=PlayerCompleter(conn=db_conn))
+        
+    Or with database parameters:
+        completer = Completer(get_matches_fn, conn=db_conn, pool=thread_pool)
+        inputstring("Prompt: ", completer=completer)
     """
     
-    def __init__(self, get_matches=None):
-        """Initialize with optional get_matches function.
+    def __init__(self, get_matches=None, **kwargs):
+        """Initialize with optional get_matches function and kwargs.
         
         Args:
-            get_matches: Function that takes a prefix string and returns list of matches.
+            get_matches: Function that takes prefix and returns list of matches.
+            **kwargs: Arbitrary parameters (e.g., conn, pool) passed to get_matches.
         """
         # Only set if explicitly passed - don't override subclass methods
         if get_matches is not None:
             self._get_matches_func = get_matches
+        # Store kwargs for use by get_matches
+        self._completer_kwargs = kwargs
     
-    def get_matches(self, prefix):
-        """Override this in subclass or pass function to constructor."""
+    def get_matches(self, prefix, **kwargs):
+        """Override this in subclass or pass function to constructor.
+        
+        Args:
+            prefix: The text prefix to match against.
+            **kwargs: Additional parameters (e.g., conn, pool) passed from inputstring.
+            
+        Returns:
+            List of matching strings.
+        """
+        # Merge constructor kwargs with call-time kwargs (call-time takes precedence)
+        merged_kwargs = {**self._completer_kwargs, **kwargs}
+        
         # Check for stored function first
         if hasattr(self, '_get_matches_func') and self._get_matches_func is not None:
-            return self._get_matches_func(prefix)
+            return self._get_matches_func(prefix, **merged_kwargs)
         return None
     
-    def __call__(self, buffer, curpos):
+    def __call__(self, buffer, curpos, **kwargs):
         """Called by inputstring to get completions.
         
         Args:
             buffer: Current input buffer
             curpos: Current cursor position
+            **kwargs: Additional parameters passed to get_matches
             
         Returns:
             List of matching strings
         """
         prefix, word_start, word_end = get_current_word(buffer, curpos)
-        result = self.get_matches(prefix)
+        result = self.get_matches(prefix, **kwargs)
         return result if result is not None else []
 
 yank_buffer = []  # Clipboard
@@ -207,9 +226,11 @@ def handle_key_enter(buffer, curpos, scroll_offset, max_width,
 
 def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
                        completer, last_matches, tab_count,
-                       prompt, max_len, start_row, start_col):
+                       prompt, max_len, start_row, start_col,
+                       completer_kwargs=None):
 
-    matches = completer(buffer, curpos)
+    completer_kwargs = completer_kwargs or {}
+    matches = completer(buffer, curpos, **completer_kwargs)
     if not matches:
         return buffer, curpos, scroll_offset, last_matches, tab_count
 
@@ -309,6 +330,7 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
     max_width:int = kwargs.get("max_width", 80)
     mask:str = kwargs.get("mask", None)
     completer = kwargs.get("completer", None)
+    completer_kwargs = kwargs.get("completer_kwargs", {})
 
     verify = kwargs.pop("verify", None)
     args = kwargs.pop("args", None)  # argparse.Namespace()
@@ -395,7 +417,8 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
             buffer, curpos, scroll_offset, last_matches, tab_count = \
                 handle_tab_manager(buffer, curpos, scroll_offset, max_width,
                                    completer, last_matches, tab_count,
-                                   prompt, max_len, start_row, start_col)
+                                   prompt, max_len, start_row, start_col,
+                                   completer_kwargs)
             _current_display_str = None
 
         elif ch in KEY_ACTIONS:
