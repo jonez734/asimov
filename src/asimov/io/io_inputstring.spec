@@ -23,24 +23,26 @@
 class Completer:
     """Callable class for tab completion."""
     
-    def __init__(self, get_matches=None):
-        """Initialize with optional get_matches function.
+    def __init__(self, get_matches=None, **kwargs):
+        """Initialize with optional get_matches function and kwargs.
         
         Args:
             get_matches: Function that takes prefix and returns list of matches.
+            **kwargs: Arbitrary parameters (e.g., conn, pool) passed to get_matches.
         """
         
-    def get_matches(self, prefix):
+    def get_matches(self, prefix, **kwargs):
         """Override this in subclass to provide completions.
         
         Args:
             prefix: The text prefix to match against.
+            **kwargs: Additional parameters (e.g., conn, pool) passed from inputstring.
             
         Returns:
             List of matching strings.
         """
         
-    def __call__(self, buffer, curpos) -> list[str]:
+    def __call__(self, buffer, curpos, **kwargs) -> list[str]:
         """Called by inputstring to get completions."""
 ```
 
@@ -49,18 +51,19 @@ class Completer:
 **Database-backed (override get_matches):**
 ```python
 class PlayerCompleter(Completer):
-    def get_matches(self, prefix):
-        return db.query("SELECT name FROM players WHERE name LIKE ?", prefix + "%")
+    def get_matches(self, prefix, **kwargs):  # noqa: PLE
+        return db.query("SELECT name FROM players WHERE name LIKE ?", prefix + "%", **kwargs)
 
-inputstring("Select player: ", completer=PlayerCompleter())
+inputstring("Select player: ", completer=PlayerCompleter(conn=db_conn))
 ```
 
-**Function passed to constructor:**
+**Function passed to constructor with kwargs:**
 ```python
-def name_completer(prefix):
-    return ["alice", "bob", "charlie"]
+def name_completer(prefix, conn=None):
+    return db.query("...", prefix, conn)
 
-inputstring("Name: ", completer=Completer(name_completer))
+inputstring("Name: ", completer=Completer(name_completer, conn=db_conn))
+
 ```
 
 ## Public API
@@ -79,10 +82,12 @@ Returns the input string.
 - `max_len`: Maximum input length (default: 255)
 - `max_width`: Display width for scrolling (default: 80)
 - `mask`: If set, mask input (e.g., `mask="*"` for password)
-- `completer`: Callback for tab completion: `completer(buffer, curpos) -> list[str]`
+- `completer`: Callback for tab completion: `completer(buffer, curpos, **kwargs) -> list[str]`
 - `verify`: Callback for input validation: `verify(args, buffer, **kwargs) -> bool`
 - `args`: Arguments passed to verify callback
 - `noneok`: Allow empty input (default: False)
+- `**kwargs`: Additional arguments are passed to the `completer` callback.
+
 
 ---
 
@@ -194,15 +199,16 @@ The `handle_tab_manager` function processes tab completion:
 
 **Callback signature:**
 ```python
-def completer(buffer, curpos) -> list[str]
+def completer(buffer, curpos, **kwargs) -> list[str]
 ```
 
 Returns list of possible completions for the current word.
 
 **Behavior:**
-- The completer receives the current word (not prefix) as the first argument
-- Supports `**kwargs` for database parameters (conn, pool, etc.)
+- The completer receives the current word (not prefix) as the first argument, OR an empty string if no word is present.
+- Additional `**kwargs` passed to `inputstring` are forwarded to the completer.
 - Returns list of matching strings
+
 
 ## Input Verification
 

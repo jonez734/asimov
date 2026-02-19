@@ -36,13 +36,14 @@ def main():
         class PlayerCompleter(Completer):
             """Completer that returns player names from 'database'."""
             
-            def get_matches(self, prefix, conn=None, pool=None):
+            def get_matches(self, prefix, conn=None, pool=None, **kwargs):
                 """Return player names matching prefix.
                 
                 Args:
                     prefix: The text prefix to match
                     conn: Database connection (example kwarg)
                     pool: Connection pool (example kwarg)
+                    **kwargs: Catch-all for other args
                 """
                 if not prefix:
                     return PLAYERS  # Return all when empty
@@ -87,21 +88,21 @@ def main():
         echo(f"{{f6}}Selected: {fruit}{{f6}}")
         echo("{f6}")
         
-        # Demo 4: Using completer_kwargs parameter
-        echo("{cyan}Demo 4: Using completer_kwargs parameter{f6}")
-        echo("Type a vegetable (carrot, potato, etc.) Press TAB.{f6}")
+        # Demo 4: Using direct kwargs for completer
+        echo("{cyan}Demo 4: Using direct kwargs for completer{f6}")
+        echo("Type a vegetable (carrot, potato, etc.){f6}")
         
         VEGGIES = ["carrot", "potato", "tomato", "cucumber", "celery"]
         
         def veggie_completer(prefix, category=None):
             if not prefix:
-                return VEGGIES  # Return all when empty
+                return []
             return [v for v in VEGGIES if v.startswith(prefix.lower())]
         
         veg = inputstring(
             "Select veggie: ",
             completer=Completer(veggie_completer),
-            completer_kwargs={"category": "root_vegetables"}
+            category="root_vegetables"
         )
         echo(f"{{f6}}Selected: {veg}{{f6}}")
         echo("{f6}")

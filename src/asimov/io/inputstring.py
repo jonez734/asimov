@@ -38,8 +38,8 @@ class Completer:
         # Only set if explicitly passed - don't override subclass methods
         if get_matches is not None:
             self._get_matches_func = get_matches
-        # Store kwargs for use by get_matches
-        self._completer_kwargs = kwargs
+        # Store kwargs for use by get_matches in subclass
+        self.kwargs = kwargs
     
     def get_matches(self, prefix, **kwargs):
         """Override this in subclass or pass function to constructor.
@@ -51,8 +51,8 @@ class Completer:
         Returns:
             List of matching strings.
         """
-        # Merge constructor kwargs with call-time kwargs (call-time takes precedence)
-        merged_kwargs = {**self._completer_kwargs, **kwargs}
+        # Merge stored kwargs with call-time kwargs (call-time takes precedence)
+        merged_kwargs = {**self.kwargs, **kwargs}
         
         # Check for stored function first
         if hasattr(self, '_get_matches_func') and self._get_matches_func is not None:
@@ -245,10 +245,8 @@ def handle_key_enter(buffer, curpos, scroll_offset, max_width,
 def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
                        completer, last_matches, tab_count,
                        prompt, max_len, start_row, start_col,
-                       completer_kwargs=None):
+                       **kwargs):
 
-    completer_kwargs = completer_kwargs or {}
-    
     # Get the word first to determine if we need all matches
     prefix, word_start, word_end = get_current_word(buffer, curpos)
     word = buffer[word_start:word_end]
@@ -256,9 +254,9 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
     # If empty word, try to get all matches by passing empty string
     # Completers should return all matches when called with empty string
     if not word:
-        matches = completer("", **completer_kwargs)
+        matches = completer("", **kwargs)
     else:
-        matches = completer(buffer, curpos, **completer_kwargs)
+        matches = completer(buffer, curpos, **kwargs)
     
     if not matches:
         echo("{bell}", end="", flush=True)
@@ -375,11 +373,10 @@ add_key_mapping("KEY_F1",        handle_help)
 def inputstring(prompt="> ", oldvalue="", **kwargs):
     global _input_dirty
 
-    max_len:int = kwargs.get("max_len", 255)
-    max_width:int = kwargs.get("max_width", 80)
-    mask:str = kwargs.get("mask", None)
-    completer = kwargs.get("completer", None)
-    completer_kwargs = kwargs.get("completer_kwargs", {})
+    max_len:int = kwargs.pop("max_len", 255)
+    max_width:int = kwargs.pop("max_width", 80)
+    mask:str = kwargs.pop("mask", None)
+    completer = kwargs.pop("completer", None)
 
     verify = kwargs.pop("verify", None)
     args = kwargs.pop("args", None)  # argparse.Namespace()
@@ -467,7 +464,7 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
                 handle_tab_manager(buffer, curpos, scroll_offset, max_width,
                                    completer, last_matches, tab_count,
                                    prompt, max_len, start_row, start_col,
-                                   completer_kwargs)
+                                   **kwargs)
             _current_display_str = None
 
         elif ch in KEY_ACTIONS:
