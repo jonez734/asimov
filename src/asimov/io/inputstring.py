@@ -71,7 +71,9 @@ class Completer:
             List of matching strings
         """
         prefix, word_start, word_end = get_current_word(buffer, curpos)
-        result = self.get_matches(prefix, **kwargs)
+        # Get the actual word to match (not the prefix before it)
+        word = buffer[word_start:word_end]
+        result = self.get_matches(word, **kwargs)
         return result if result is not None else []
 
 yank_buffer = []  # Clipboard
