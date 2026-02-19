@@ -30,19 +30,21 @@ class Completer:
             get_matches: Function that takes prefix and returns list of matches.
         """
         
+    def get_matches(self, prefix):
+        """Override this in subclass to provide completions.
+        
+        Args:
+            prefix: The text prefix to match against.
+            
+        Returns:
+            List of matching strings.
+        """
+        
     def __call__(self, buffer, curpos) -> list[str]:
         """Called by inputstring to get completions."""
 ```
 
 ### Usage Examples
-
-**Simple function:**
-```python
-def name_completer(prefix):
-    return ["alice", "bob", "charlie"]
-
-inputstring("Name: ", completer=Completer(name_completer))
-```
 
 **Database-backed (override get_matches):**
 ```python
@@ -53,10 +55,12 @@ class PlayerCompleter(Completer):
 inputstring("Select player: ", completer=PlayerCompleter())
 ```
 
-**Direct function (auto-converted):**
+**Function passed to constructor:**
 ```python
-# Functions are automatically wrapped
-inputstring("Name: ", completer=lambda p: ["alice", "bob"])
+def name_completer(prefix):
+    return ["alice", "bob", "charlie"]
+
+inputstring("Name: ", completer=Completer(name_completer))
 ```
 
 ## Public API
@@ -165,18 +169,10 @@ def handler(buffer, curpos, scroll_offset, max_width) -> (buffer, curpos, scroll
 ## Display Functions
 
 ```python
-redraw_line(prompt, buffer, max_len, start_row, start_col, curpos, scroll_offset, max_width)
+redraw_line(prompt, buffer, max_len, start_row, start_col, curpos, scroll_offset, max_width, mask=None)
 ```
 
-Clear and redraw the input line.
-
----
-
-```python
-refresh_input_view(prompt, buffer, mask, start_row, start_col, input_col_start, curpos, scroll_offset, max_width)
-```
-
-Refresh the input display (used when `_input_dirty` flag is set).
+Clear and redraw the input line. Handles both regular and masked input.
 
 ---
 
