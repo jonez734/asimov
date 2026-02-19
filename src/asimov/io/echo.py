@@ -165,6 +165,10 @@ command_aliases = {}
 # ----------------------------
 def tokenize(text, **kwargs):
     """Yields Token(kind, value, args, kwargs, raw)"""
+
+    if text is None:
+        return
+
     pos = 0
     while pos < len(text):
         # Whitespace
@@ -594,7 +598,10 @@ def _handle_decstbm(token):
     if len(token.args) == 0:
         token.text = f"{CSI}r"
         yield token
-##        logentry(f"_handle_decstbm.100: resetting", level="debug")
+        return
+
+    if len(token.args) != 2:
+        raise ValueError(f"{token.args=}")
         return
 
     t = token.args[0]
