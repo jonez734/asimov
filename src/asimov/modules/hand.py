@@ -154,6 +154,80 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     return frame
 
 
+# ---- ui ------------------------------------------------------------------
+def ui_schema(args=None, context=None) -> dict | None:
+    return {
+        "DETECTION": {
+            "MIN_DETECTION_CONF": {
+                "type": "float",
+                "default": 0.7,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.05,
+                "label": "Min Detection Confidence"
+            },
+            "MAX_HANDS": {
+                "type": "int",
+                "default": 1,
+                "min": 1,
+                "max": 4,
+                "step": 1,
+                "label": "Maximum Hands"
+            }
+        },
+
+        "FILTER": {
+            "FREQ": {
+                "type": "float",
+                "default": 0.30,
+                "min": 1.0,
+                "max": 240.0,
+                "step": 1.0,
+                "label": "Filter Frequency (Hz)"
+            },
+            "MIN_CUTOFF": {
+                "type": "float",
+                "default": 1.0,
+                "min": 0.01,
+                "max": 10.0,
+                "step": 0.1,
+                "label": "Min Cutoff"
+            },
+            "BETA": {
+                "type": "float",
+                "default": 0.0,
+                "min": 0.0,
+                "max": 5.0,
+                "step": 0.05,
+                "label": "Beta (Speed Sensitivity)"
+            }
+        },
+
+        "DRAW": {
+            "SHOW_LANDMARKS": {
+                "type": "bool",
+                "default": True,
+                "label": "Draw Landmarks"
+            },
+            "SHOW_BBOX": {
+                "type": "bool",
+                "default": False,
+                "label": "Draw Bounding Box"
+            }
+        },
+
+        "DEBUG": {
+            "SHOW_FPS": {
+                "type": "bool",
+                "default": False,
+                "label": "Show Hand FPS"
+            }
+        }
+    }
+
+def initgui(args, root) -> bool:
+    return True
+
 # ---- Lifecycle hooks --------------------------------------------------------
 
 def init(args, **kwargs):
