@@ -256,6 +256,20 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
     prefix, word_start, word_end = get_current_word(buffer, curpos)
     word = buffer[word_start:word_end]
 
+    # If empty word (user pressed tab with nothing typed), show all matches
+    if not word:
+        if matches == last_matches and tab_count >= 1:
+            # Second tab with empty word - ring bell
+            echo("{bell}", end="", flush=True)
+            return buffer, curpos, scroll_offset, last_matches, tab_count
+        
+        # First tab with empty word - show all matches in columns
+        echo("\n")
+        print_matches(matches)
+        redraw_line(prompt, buffer, max_len, start_row, start_col,
+                    curpos, scroll_offset, max_width)
+        return buffer, curpos, scroll_offset, matches, 1
+
     # If single match and user presses tab again, ring bell (no other options)
     if matches == last_matches and len(last_matches) == 1 and tab_count >= 1:
         echo("{bell}", end="", flush=True)
