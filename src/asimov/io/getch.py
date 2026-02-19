@@ -33,6 +33,8 @@ def _proc_char(char:str, debug:bool=False) -> str | None:
         return "KEY_ENTER"
     if char == '\x15': # ctrl-u
         return "KEY_CUTTOBOL"
+    if char == '\t':
+        return "KEY_TAB"
 
     # 4. Handle Escape Sequences and Plain ESC
     if char == ESC: # ESCAPE
