@@ -79,8 +79,6 @@ def main(args, **kwargs):
                 # Draw hand landmarks on the original (unflipped) frame
                 # mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
-
-
         # Run all modules
         for mod in modules:
             if hasattr(mod, "should_run") and not mod.should_run(context):

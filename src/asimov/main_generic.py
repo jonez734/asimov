@@ -16,6 +16,9 @@ logic_lock = threading.Lock()
 
 # --- 1. Signature Callables for Validation ---
 
+def _stub_ui_schema(context: ThreadSafeContext, /, **kwargs) -> dict:
+    pass
+
 def _stub_detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
     """Template for detect() signature validation."""
     pass
@@ -143,6 +146,11 @@ def main(args, **kwargs):
             if hasattr(mod, "draw"):
                 item["can_draw"] = module.validate_function(
                     mod, "draw", _stub_draw
+                )
+
+            if hasattr(mod, "ui_schema"):
+                item["has_ui_schema"] = module.validate_function(
+                    mod, "ui_schema", _stub_ui_schema
                 )
 
         except Exception:

@@ -1,35 +1,16 @@
 import time
-# import locale
 import argparse
-##from dataclasses import dataclass, field
 
-from . import io, playingcard
+from . import io
 
 import cv2
 import pyvirtualcam
-##import numpy as np
 
-##import mediapipe as mp
 
 from .util import draw_text, get_bottom_right_position, get_device_by_label, camera_ready
 from .common import logentry
 from . import conf, glitch, fingertip, touch, eyes_next as eyes, playingcard
 from .io import echo
-
-# Constants
-#MARGIN = 20  # pixels
-#TITLE = "Project Asimov v202509.0"
-#CAP_HEIGHT = 480
-#CAP_WIDTH = 640
-#CAP_FPS = 30
-
-## moved to .conf
-##FINGERTIP_COLOR = (0, 255, 255) # yellow BGR
-##RECT_COLOR_TOUCHED = (0, 255, 0) # green
-
-##from cvzone.HandTrackingModule import HandDetector
-
-##index_finger_tip = None
 
 # 1. detect fingertip
 # 2. detect rectangles
@@ -49,7 +30,7 @@ def apply_glitches(frame, context):
 OVERLAYS = [
             { "key": "f", "enabled":True, "running":True,  "label": "fingertip",  "func": lambda frame, context: fingertip.draw(frame, context)},
 #            { "key": "r", "enabled":True, "running":True,  "label": "rects",      "func": lambda frame, context: rect.draw(frame, context)},
-            { "key": "p", "enabled":True, "running":True,  "label": "playingcards",      "func": lambda frame, context: playingcard.draw(frame, context)},
+#            { "key": "p", "enabled":True, "running":True,  "label": "playingcards",      "func": lambda frame, context: playingcard.draw(frame, context)},
             { "key": "e", "enabled":True, "running":True,  "label": "eyes",       "func": eyes.draw}, #lambda frame, context: eyes.draw(frame, context)},
 #            { "key": "w", "enabled":True, "running":True,  "label": "watermark", "func": lambda frame, context: watermark.draw(frame, context)},
             { "key": "t", "enabled":True, "running":False, "label": "title",      "func": lambda frame, context: apply_title(frame, context)},
@@ -120,11 +101,7 @@ def main(args, **kwargs):
                     break
 
 ##                frame = cv2.flip(frame, 1)
-##                logentry(f"main_virtualcam.100: {context=}")
-##                playingcard.detect(frame, context)
-##                rect.detect(frame, context)
                 fingertip.detect(frame, context)
-##                touch.detect(frame, context)
                 eyes.detect(frame, context)
 
                 frame = apply_overlays(frame, context)
