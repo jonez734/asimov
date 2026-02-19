@@ -15,8 +15,27 @@ def move_cursor(row, col):
     echo(f"{{curpos:{row},{col}}}", end="", flush=True)
 
 def get_current_word(buffer, curpos):
-    """Stub: Returns (prefix, word_start_index, word_end_index)."""
-    return buffer, 0, len(buffer)
+    """Returns (prefix, word_start_index, word_end_index).
+    
+    Finds the word at the current cursor position and returns:
+    - prefix: text before the word
+    - word_start: starting index of the word
+    - word_end: ending index of the word
+    """
+    if curpos > len(buffer):
+        curpos = len(buffer)
+    
+    # Find word boundaries (words are \w+ sequences)
+    word_end = curpos
+    while word_end < len(buffer) and buffer[word_end].isalnum():
+        word_end += 1
+    
+    word_start = curpos
+    while word_start > 0 and buffer[word_start - 1].isalnum():
+        word_start -= 1
+    
+    prefix = buffer[:word_start]
+    return prefix, word_start, word_end
 
 def common_prefix(matches):
     if not matches: return ""

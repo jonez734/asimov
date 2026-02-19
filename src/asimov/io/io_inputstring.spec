@@ -61,6 +61,29 @@ Move cursor to specified position.
 
 ---
 
+```python
+get_current_word(buffer, curpos) -> (prefix, word_start, word_end)
+```
+
+Find the word at the current cursor position.
+
+**Returns:**
+- `prefix`: Text before the word
+- `word_start`: Starting index of the word
+- `word_end`: Ending index of the word
+
+Words are defined as alphanumeric sequences (`\w+`).
+
+---
+
+```python
+common_prefix(matches) -> str
+```
+
+Return the common prefix of a list of strings.
+
+---
+
 ## Key Bindings
 
 | Key | Action |
@@ -166,5 +189,5 @@ The main loop manages display:
 
 ## Known Issues / TODOs
 
-1. `get_current_word()` is a stub - returns entire buffer instead of current word (line 17-19)
+1. ~~`get_current_word()` is a stub~~ - now properly finds word at cursor position using alphanumeric boundaries
 2. ~~Some echo calls use inconsistent escaping~~ (FIXED - standardized to `"{command}"` for static commands)
