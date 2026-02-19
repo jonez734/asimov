@@ -17,6 +17,48 @@
 - `yank_buffer`: Clipboard for cut/yank operations
 - `KEY_ACTIONS`: Dictionary mapping key names to handler functions
 
+## Completer Class
+
+```python
+class Completer:
+    """Callable class for tab completion."""
+    
+    def __init__(self, get_matches=None):
+        """Initialize with optional get_matches function.
+        
+        Args:
+            get_matches: Function that takes prefix and returns list of matches.
+        """
+        
+    def __call__(self, buffer, curpos) -> list[str]:
+        """Called by inputstring to get completions."""
+```
+
+### Usage Examples
+
+**Simple function:**
+```python
+def name_completer(prefix):
+    return ["alice", "bob", "charlie"]
+
+inputstring("Name: ", completer=Completer(name_completer))
+```
+
+**Database-backed (override get_matches):**
+```python
+class PlayerCompleter(Completer):
+    def get_matches(self, prefix):
+        return db.query("SELECT name FROM players WHERE name LIKE ?", prefix + "%")
+
+inputstring("Select player: ", completer=PlayerCompleter())
+```
+
+**Direct function (auto-converted):**
+```python
+# Functions are automatically wrapped
+inputstring("Name: ", completer=lambda p: ["alice", "bob"])
+```
+
 ## Public API
 
 ### Main Function

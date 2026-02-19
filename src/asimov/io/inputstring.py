@@ -9,6 +9,45 @@ from .util import logentry
 
 # --- 0. MANDATORY DEFINITIONS & GLOBALS ---
 
+class Completer:
+    """Callable class for tab completion.
+    
+    Usage:
+        completer = Completer(get_matches_fn)  # function that returns list of strings
+        inputstring("Prompt: ", completer=completer)
+        
+    Or with a class method:
+        class PlayerCompleter(Completer):
+            def get_matches(self, prefix):
+                return db.query("SELECT name FROM players WHERE name LIKE ?", prefix + "%")
+        
+        inputstring("Select player: ", completer=PlayerCompleter())
+    """
+    
+    def __init__(self, get_matches=None):
+        """Initialize with optional get_matches function.
+        
+        Args:
+            get_matches: Function that takes a prefix string and returns list of matches.
+        """
+        self.get_matches = get_matches
+    
+    def __call__(self, buffer, curpos):
+        """Called by inputstring to get completions.
+        
+        Args:
+            buffer: Current input buffer
+            curpos: Current cursor position
+            
+        Returns:
+            List of matching strings
+        """
+        if self.get_matches is None:
+            return []
+        
+        prefix, word_start, word_end = get_current_word(buffer, curpos)
+        return self.get_matches(prefix)
+
 yank_buffer = []  # Clipboard
 
 def move_cursor(row, col):
