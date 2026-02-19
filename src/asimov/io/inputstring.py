@@ -30,7 +30,16 @@ class Completer:
         Args:
             get_matches: Function that takes a prefix string and returns list of matches.
         """
-        self.get_matches = get_matches
+        # Only set if explicitly passed - don't override subclass methods
+        if get_matches is not None:
+            self._get_matches_func = get_matches
+    
+    def get_matches(self, prefix):
+        """Override this in subclass or pass function to constructor."""
+        # Check for stored function first
+        if hasattr(self, '_get_matches_func') and self._get_matches_func is not None:
+            return self._get_matches_func(prefix)
+        return None
     
     def __call__(self, buffer, curpos):
         """Called by inputstring to get completions.
@@ -43,17 +52,8 @@ class Completer:
             List of matching strings
         """
         prefix, word_start, word_end = get_current_word(buffer, curpos)
-        
-        # Check if subclass overrode get_matches (look in class dict)
-        for cls in type(self).__mro__:
-            if 'get_matches' in cls.__dict__:
-                return cls.__dict__['get_matches'](self, prefix)
-        
-        # Fallback to direct function if set
-        if self.get_matches is not None:
-            return self.get_matches(prefix)
-        
-        return []
+        result = self.get_matches(prefix)
+        return result if result is not None else []
 
 yank_buffer = []  # Clipboard
 
