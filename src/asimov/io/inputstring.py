@@ -18,9 +18,8 @@ class Completer:
         
     Or with a class method:
         class PlayerCompleter(Completer):
-            def get_matches(self, prefix, conn=None, pool=None):
-                # Note: **kwargs from parent class can be used
-                return db.query("SELECT name FROM players WHERE name LIKE ?", prefix + "%")
+            def get_matches(self, prefix, **kwargs):  # noqa: PLE
+                return db.query("SELECT name FROM players WHERE name LIKE ?", prefix + "%", **kwargs)
         
         inputstring("Select player: ", completer=PlayerCompleter(conn=db_conn))
         
