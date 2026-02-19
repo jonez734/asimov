@@ -234,6 +234,7 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
     completer_kwargs = completer_kwargs or {}
     matches = completer(buffer, curpos, **completer_kwargs)
     if not matches:
+        echo("{bell}", end="", flush=True)
         return buffer, curpos, scroll_offset, last_matches, tab_count
 
     prefix, word_start, word_end = get_current_word(buffer, curpos)
