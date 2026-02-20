@@ -107,6 +107,7 @@ def init(args, context=None, **kwargs):
     glitch.register("scanlines")
     glitch.register("ghost", alpha=0.3, shift=8)
     glitch.register("whitenoise", amount=0.1)
+    glitch.register("tearing")
 
     return True
 
