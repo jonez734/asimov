@@ -304,6 +304,11 @@ class DashboardApp:
         self.right_content.update_idletasks()
         self.right_canvas.config(scrollregion=self.right_canvas.bbox("all"))
         
+        # Bind mouse wheel to scroll the control panel
+        def on_mousewheel(event):
+            self.right_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.right_canvas.bind_all("<MouseWheel>", on_mousewheel)
+        
         self.root.bind("<Escape>", lambda e: self._stop())
         
         # Start frame update loop
