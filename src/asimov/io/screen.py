@@ -4,13 +4,15 @@ from . import terminal
 from .const import MAX_TERMINAL_WIDTH
 from .util import logentry
 
+from typing import Callable, Any, Optional
+
 # ------------------------
 # screen related functions
 # ------------------------
 
 bottombarstack = []
 
-def init(args=None, topmargin=1, bottommargin=1):
+def init(args: Any = None, topmargin: int = 1, bottommargin: int = 1) -> None:
   echo("{f6:3}{cursorup:3}", end="", flush=True)
   h = terminal.lines() - bottommargin
   logentry(f"asimov.io.util.screen_init.100: {topmargin=} {h=}", level="debug")
@@ -31,20 +33,20 @@ def updatebottombar(buf: str) -> None:
 # @since 20230523 copied from bbsengine5
 # @since 20250517 rewrite
 #from wcwidth import wcswidth, wcwidth
-def setbottombar(left, right=None, **kwargs):
+def setbottombar(left: str | Callable, right: str | Callable | None = None, **kwargs) -> bool:
     terminalwidth = terminal.width() - 2
 
-    if callable(left) is True:
-      left_buf = left(**kwargs)
+    if callable(left):
+      left_buf = str(left(**kwargs))
     else:
-      left_buf = left
+      left_buf = str(left)
 
-    if callable(right) is True:
-      right_buf =  right(**kwargs)
+    if callable(right):
+      right_buf = str(right(**kwargs))
     else:
-      right_buf = right
+      right_buf = str(right) if right is not None else ""
 
-    left_len = rendered_length(left_buf)
+    left_len = rendered_length(str(left_buf))
     right_len = rendered_length(right_buf)
     max_left_len = terminalwidth - right_len
     if left_len > max_left_len:
@@ -59,7 +61,7 @@ def setbottombar(left, right=None, **kwargs):
 setarea = setbottombar
 
 # @since 20230523 copied from bbsengine5
-def popbottombar():
+def popbottombar() -> None:
   global bottombarstack
 
   if len(bottombarstack) == 0:
@@ -82,7 +84,7 @@ poparea = popbottombar
 # @since 20210301
 # @see https://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console
 # @since 20240102 copied to bbsengine6
-def updateprogress(iteration, total, fill="#"):
+def updateprogress(iteration: int, total: int, fill: str = "#") -> None:
   terminalwidth = terminal.width()
   decimals = 0
   length = terminalwidth-20
