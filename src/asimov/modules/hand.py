@@ -47,13 +47,8 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         cfg = ns["cfg"]
         detector = ns["detector"]
 
-        if cfg.get("USE_OVERLAY"):
-            hands, drawn = detector.findHands(frame, draw=True)
-            ns["overlay"] = drawn if hands else None
-        else:
-            hands, _ = detector.findHands(frame, draw=False)
-            ns["overlay"] = None
-
+        hands, drawn = detector.findHands(frame, draw=False)
+        ns["overlay"] = drawn
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
 
@@ -79,11 +74,12 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     cfg = ns["cfg"]
 
-    # ---- cvzone-managed overlay only ----
-    overlay = ns.get("overlay")
-    if overlay is not None:
-        alpha = cfg.get("OVERLAY_ALPHA", 0.7)
-        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+    # ---- cvzone-managed overlay (skeleton) ----
+    if cfg.get("USE_OVERLAY"):
+        overlay = ns.get("overlay")
+        if overlay is not None:
+            alpha = cfg.get("OVERLAY_ALPHA", 0.7)
+            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
     # ---- Optional text-only annotations ----
     hands = ns.get("hands") or []
@@ -100,56 +96,6 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
             cv2.putText(frame, txt, (10, y_text),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, cfg["TEXT_COLOR"], 2)
             y_text += 20
-
-    return frame
-
-    if ns.get("error_state"):
-        cv2.putText(frame, "HAND ERROR", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-        return frame
-
-    cfg = ns["cfg"]
-    hands = ns.get("hands") or []
-
-    # ---- Optional overlay blend (cvzone-drawn) ----
-    if cfg.get("USE_OVERLAY") and ns.get("overlay") is not None:
-        alpha = cfg.get("OVERLAY_ALPHA", 0.7)
-        cv2.addWeighted(ns["overlay"], alpha, frame, 1 - alpha, 0, frame)
-        return frame
-
-    # ---- Manual drawing ----
-    for hand in hands:
-        lm = hand.get("lmList")
-        if not lm:
-            continue
-
-        color = cfg["COLOR"]
-
-        if cfg.get("DRAW_SKELETON"):
-            for a, b in HAND_CONNECTIONS:
-                x1, y1, _ = lm[a]
-                x2, y2, _ = lm[b]
-                cv2.line(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, cfg["LINE_THICKNESS"])
-
-        if cfg.get("DRAW_LANDMARKS"):
-            for x, y, _ in lm:
-                cv2.circle(frame, (int(x), int(y)), cfg["LM_RADIUS"], color, cv2.FILLED)
-
-        if cfg.get("DRAW_BBOX") and "bbox" in hand:
-            x, y, w, h = hand["bbox"]
-            cv2.rectangle(frame, (x, y), (x + w, y + h), cfg["BBOX_COLOR"], 2)
-
-        y_text = 30
-
-        if cfg.get("DRAW_HANDEDNESS") and "type" in hand:
-            cv2.putText(frame, hand["type"], (10, y_text),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, cfg["TEXT_COLOR"], 2)
-            y_text += 20
-
-        if cfg.get("DRAW_CONFIDENCE") and "confidence" in hand:
-            txt = f"conf: {hand['confidence']:.2f}"
-            cv2.putText(frame, txt, (10, y_text),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, cfg["TEXT_COLOR"], 2)
 
     return frame
 

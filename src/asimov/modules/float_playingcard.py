@@ -190,11 +190,14 @@ def _get_hand_center(context):
 
     hand_ns = context.get("HAND")
     if hand_ns:
-        bbox = hand_ns.get("bbox")
-        if bbox:
-            cx = bbox[0] + bbox[2] // 2
-            cy = bbox[1] + bbox[3] // 2
-            return (cx, cy)
+        hands = hand_ns.get("hands") or []
+        if hands:
+            first_hand = hands[0]
+            bbox = first_hand.get("bbox")
+            if bbox:
+                cx = bbox[0] + bbox[2] // 2
+                cy = bbox[1] + bbox[3] // 2
+                return (cx, cy)
 
     return None
 
@@ -286,4 +289,10 @@ def draw(frame, context, /, config=None, **kw):
     _render_rgba(layer, img, x, y, opacity)
 
     context.layers["card"] = layer
+
+    if layer.shape[2] == 4:
+        card_alpha = layer[..., 3:4] / 255.0
+        card_rgb = layer[..., :3]
+        frame[..., :3] = (card_rgb * card_alpha + frame[..., :3] * (1.0 - card_alpha)).astype(np.uint8)
+
     return frame

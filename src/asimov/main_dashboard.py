@@ -15,6 +15,7 @@ from PIL import Image, ImageTk
 
 from . import io, conf, module, common, scene
 from .common import ThreadSafeContext
+from .playingcard import cards
 
 context = ThreadSafeContext()
 logic_lock = threading.Lock()
@@ -168,7 +169,7 @@ def make_int_field(parent, section, key, meta, config_obj):
     return frame
 
 
-def make_enum_field(parent, section, key, meta, config_obj):
+def make_enum_field(parent, section, key, meta, config_obj, on_change=None):
     frame = ttk.Frame(parent)
     
     label = ttk.Label(frame, text=meta.get("label", key))
@@ -188,6 +189,8 @@ def make_enum_field(parent, section, key, meta, config_obj):
     def on_select(event):
         val = var.get()
         config_obj[section][key] = val if val else None
+        if on_change:
+            on_change(section, key, val)
     
     combo.bind("<<ComboboxSelected>>", on_select)
     
@@ -195,7 +198,7 @@ def make_enum_field(parent, section, key, meta, config_obj):
     return frame
 
 
-def build_field(parent, section, key, meta, config_obj):
+def build_field(parent, section, key, meta, config_obj, on_change=None):
     field_type = meta.get("type", "float")
     
     if field_type == "float":
@@ -205,7 +208,7 @@ def build_field(parent, section, key, meta, config_obj):
     elif field_type == "bool":
         return make_bool_field(parent, section, key, meta, config_obj)
     elif field_type == "enum":
-        return make_enum_field(parent, section, key, meta, config_obj)
+        return make_enum_field(parent, section, key, meta, config_obj, on_change)
     return None
 
 
@@ -358,9 +361,30 @@ class DashboardApp:
                             
                             for key, meta in section.items():
                                 if section_name in config_obj and key in config_obj[section_name]:
-                                    build_field(section_frame, section_name, key, meta, config_obj)
+                                    on_change = None
+                                    if name.lower() == "float_playingcard" and section_name == "Card":
+                                        on_change = lambda s, k, v: self._log_card_filename(config_obj)
+                                    build_field(section_frame, section_name, key, meta, config_obj, on_change)
                 except Exception as e:
                     self._log(f"Error loading schema for {name}: {e}")
+    
+    def _log_card_filename(self, config_obj):
+        import os
+        card_config = config_obj.get("Card", {})
+        rank = card_config.get("rank")
+        suit = card_config.get("suit")
+        if rank and suit:
+            full_path = cards.get_card_path(rank, suit)
+            filename = full_path.split("/")[-1]
+            self._log(f"Card: {filename}")
+            self._log(f"Path: {full_path}")
+            if os.path.exists(full_path):
+                if os.access(full_path, os.R_OK):
+                    self._log("Status: OK (file exists and readable)")
+                else:
+                    self._log("Status: WARNING (file exists but not readable)")
+            else:
+                self._log("Status: ERROR (file not found)")
     
     def _get_module_config(self, name):
         name_lower = name.lower()

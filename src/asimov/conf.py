@@ -36,7 +36,12 @@ HAND = {
     "MIN_DETECTION_CONFIDENCE": 0.5,
     "MIN_TRACKING_CONFIDENCE": 0.5,
     "DETECTION_CON": 0.6,
-
+    "USE_OVERLAY": True,
+    "OVERLAY_ALPHA": 0.7,
+    "DRAW_HANDEDNESS": True,
+    "DRAW_SKELETON": True,
+    "DRAW_CONFIDENCE": False,
+    "TEXT_COLOR": (0, 255, 0),
 }
 
 # ------------------------------------------------------------

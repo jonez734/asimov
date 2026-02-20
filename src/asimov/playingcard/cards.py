@@ -27,6 +27,10 @@ RANK_DISPLAY = {
     "J": "Jack", "Q": "Queen", "K": "King"
 }
 
+RANK_FILENAME = {
+    "A": "ace", "J": "jack", "Q": "queen", "K": "king"
+}
+
 SUIT_DISPLAY = {
     "hearts": "Hearts", "diamonds": "Diamonds",
     "clubs": "Clubs", "spades": "Spades"
@@ -60,7 +64,8 @@ def get_card_path(rank: str, suit: str, basedir: str = None, set_name: str = Non
         set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
 
     basedir = os.path.expandvars(os.path.expanduser(basedir))
-    filename = f"{rank}_of_{suit}.png"
+    rank_name = RANK_FILENAME.get(rank, rank.lower())
+    filename = f"{rank_name}_of_{suit}.png"
 
     return get_safe_path(basedir, "sets", set_name, filename)
 
