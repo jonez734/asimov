@@ -47,7 +47,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         cfg = ns["cfg"]
         detector = ns["detector"]
 
-        hands, drawn = detector.findHands(frame, draw=False)
+        hands, drawn = detector.findHands(frame, draw=False, flipType=True)
         ns["overlay"] = drawn
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
