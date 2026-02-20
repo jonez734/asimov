@@ -59,7 +59,20 @@ class Completer:
         
         # Check for stored function first
         if hasattr(self, '_get_matches_func') and self._get_matches_func is not None:
-            return self._get_matches_func(prefix, **merged_kwargs)
+            # Check if the function accepts kwargs, if not, filter them out
+            import inspect
+            sig = inspect.signature(self._get_matches_func)
+            
+            # If function has **kwargs, pass everything
+            if any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values()):
+                return self._get_matches_func(prefix, **merged_kwargs)
+            
+            # Otherwise, only pass arguments that are in the signature
+            filtered_kwargs = {
+                k: v for k, v in merged_kwargs.items() 
+                if k in sig.parameters
+            }
+            return self._get_matches_func(prefix, **filtered_kwargs)
         return None
     
     def __call__(self, buffer, **kwargs):
