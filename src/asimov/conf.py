@@ -20,7 +20,7 @@ WINDOW_NAME = "Asimov Preview"
 # Capture defaults
 # ------------------------------------------------------------
 
-CAPTURE_DEVICE = 0
+CAPTURE_DEVICE = 1
 CAPTURE_WIDTH  = 640
 CAPTURE_HEIGHT = 480
 CAPTURE_FPS    = 30
