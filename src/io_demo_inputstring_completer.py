@@ -25,8 +25,7 @@ PLAYERS = [
 
 def main():
     screen.init()
-    echo("{yellow}=== Demo: inputstring with Completer ==={f6}")
-    echo("{f6}")
+    echo("{yellow}=== Demo: inputstring with Completer ==={f6:2}", end="")
     
     try:
         # Demo 1: Callable class with override
