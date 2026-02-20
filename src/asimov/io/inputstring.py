@@ -13,7 +13,10 @@ class Completer:
     """Callable class for tab completion.
     
     Usage:
-        completer = Completer(get_matches_fn)  # function that returns list of strings
+        def get_matches_fn(prefix, **kwargs):
+            return ["match1", "match2"]
+            
+        completer = Completer(get_matches_fn)
         inputstring("Prompt: ", completer=completer)
         
     Or with a class method:
