@@ -47,7 +47,7 @@ def main():
                 matches = [p for p in PLAYERS if p.startswith(prefix_lower)]
                 return matches
         
-        name1 = inputstring("Select player: ", completer=PlayerCompleter())
+        name1 = inputstring("{promptcolor}Select player:{inputcolor} ", completer=PlayerCompleter())
         echo(f"{{f6}}Selected: {name1}")
         
         # Demo 2: Function passed to constructor with kwargs
@@ -63,7 +63,7 @@ def main():
             return [c for c in COLORS if c.startswith(prefix_lower)]
         
         name2 = inputstring(
-            "Select color: ", 
+            "{promptcolor}Select color:{inputcolor} ", 
             completer=Completer(color_completer, conn="db_connection")
         )
         echo(f"{{f6}}Selected: {name2}")
@@ -74,7 +74,7 @@ def main():
         FRUITS = ["apple", "banana", "cherry", "date", "elderberry"]
         
         fruit = inputstring(
-            "Select fruit: ",
+            "{promptcolor}Select fruit:{inputcolor} ",
             completer=Completer(lambda p, **kwargs: [f for f in FRUITS if f.startswith(p.lower())])
         )
         echo(f"{{f6}}Selected: {fruit}")
@@ -90,7 +90,7 @@ def main():
             return [v for v in VEGGIES if v.startswith(prefix.lower())]
         
         veg = inputstring(
-            "Select veggie: ",
+            "{promptcolor}Select veggie:{inputcolor} ",
             completer=Completer(veggie_completer),
             category="root_vegetables"
         )
@@ -99,7 +99,7 @@ def main():
         echo("{green}All demos completed!")
         
     finally:
-        echo("{savecursor}{decstbm}{reset}{restorecursor}", flush=True)
+        echo("{savecursor}{reset}{restorecursor}", flush=True)
 
 
 if __name__ == "__main__":
