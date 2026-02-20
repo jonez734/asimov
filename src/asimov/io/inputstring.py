@@ -59,17 +59,17 @@ class Completer:
             return self._get_matches_func(prefix, **merged_kwargs)
         return None
     
-    def __call__(self, buffer, curpos, **kwargs):
+    def __call__(self, buffer, **kwargs):
         """Called by inputstring to get completions.
         
         Args:
             buffer: Current input buffer
-            curpos: Current cursor position
-            **kwargs: Additional parameters passed to get_matches
+            **kwargs: Additional parameters passed to get_matches (including curpos)
             
         Returns:
             List of matching strings
         """
+        curpos = kwargs.get('curpos', len(buffer))
         prefix, word_start, word_end = get_current_word(buffer, curpos)
         # Get the actual word to match (not the prefix before it)
         word = buffer[word_start:word_end]
@@ -254,9 +254,9 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
     # If empty word, try to get all matches by passing empty string
     # Completers should return all matches when called with empty string
     if not word:
-        matches = completer("", **kwargs)
+        matches = completer("", curpos=curpos, **kwargs)
     else:
-        matches = completer(buffer, curpos, **kwargs)
+        matches = completer(buffer, curpos=curpos, **kwargs)
     
     if not matches:
         echo("{bell}", end="", flush=True)
