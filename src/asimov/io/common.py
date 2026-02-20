@@ -8,19 +8,19 @@ import threading
 import collections
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any, Deque
 
-from .const import MAX_TERMINAL_WIDTH, BEL, ESC
+from .const import MAX_TERMINAL_WIDTH, BEL, ESC, CSI
 
 from . import terminal
 
 @dataclass
 class Token:
     kind: str                  # e.g., WORD, WHITESPACE, F6, RGB
-    value: str = None          # the literal string or command
-    args: List = field(default_factory=list)   # positional args
+    value: str | None = None          # the literal string or command
+    args: List | tuple = field(default_factory=list)   # positional args
     kwargs: Dict = field(default_factory=dict) # keyword args
-    text: str = field(default="") # {f6:3} -> \n*3, {home} -> \033[H, etc
+    text: str | None = field(default="") # {f6:3} -> \n*3, {home} -> \033[H, etc
     repeat: int = 1
     raw: Optional[str] = None                  # raw input that generated this token
     def __repr__(self):
@@ -68,12 +68,12 @@ def read_current_input_stream(size:int=1) -> str:
     with _current_stream_lock:
         return _read_current_input_stream(size)
 
-def _write_current_output_stream(s:str, flush=False):
+def _write_current_output_stream(s:str, flush:bool=False):
     _current_output_stream.write(s)
     if flush:
         _current_output_stream.flush()
 
-def write_current_output_stream(s:str, flush=False):
+def write_current_output_stream(s:str, flush:bool=False) -> None:
     with _current_stream_lock:
         return _write_current_output_stream(s, flush=flush)
 
@@ -107,7 +107,7 @@ def _read_terminal_response(terminator: str, timeout: float = 1.0) -> str | None
 # Regex for DSR reply: ESC [ <row> ; <col> R
 DSR_CURPOS_RE = re.compile(r'\x1b\[(\d+);(\d+)R')
 
-def get_dsr(mode="curpos", timeout: float = 1.0) -> tuple[int, int] | str:
+def get_dsr(mode:str="curpos", timeout: float = 1.0) -> tuple[int, int] | str:
     """
     Query the terminal for cursor position (DSR) and return the response string.
     
@@ -181,7 +181,7 @@ def get_dsr(mode="curpos", timeout: float = 1.0) -> tuple[int, int] | str:
 ##    _current_output_stream.flush()
 ##    return _read_terminal_response(terminator)
 
-def get_cursor_position(timeout: float = 1.0):
+def get_cursor_position(timeout: float = 1.0) -> tuple[int, int]:
     """
     Return the current cursor position as (row, col) integers.
 
@@ -195,7 +195,10 @@ def get_cursor_position(timeout: float = 1.0):
         ValueError if the response cannot be parsed.
         TimeoutError if no response is received in time.
     """
-    return get_dsr("curpos", timeout=timeout)
+    res = get_dsr("curpos", timeout=timeout)
+    if isinstance(res, tuple):
+        return res
+    raise ValueError(f"Unexpected response type: {type(res)}")
 
 ##    # Expect something like: ESC [ row ; col R
 ##    if not resp.startswith(CSI) or not resp.endswith("R"):
@@ -208,7 +211,7 @@ def get_cursor_position(timeout: float = 1.0):
 ##    except Exception as e:
 ##        raise ValueError(f"Failed to parse DSR response: {resp!r}") from e
 
-def get_terminal_status():
+def get_terminal_status() -> bool | None:
     """Device Status (DECTST / terminal readiness)
 
     Query: ESC [ 5 n
@@ -218,7 +221,7 @@ def get_terminal_status():
 
     with _current_stream_lock:
         response = get_dsr("status")
-        if response and response.startswith(CSI) and response.endswith("n"):
+        if isinstance(response, str) and response.startswith(CSI) and response.endswith("n"):
             part = int(response[2])
             if part == 0:
                 return True
@@ -227,7 +230,7 @@ def get_terminal_status():
             else:
                 return None
 
-def drain_stream_to_queue(stream, queue):
+def drain_stream_to_queue(stream: Any, queue: Deque) -> None:
     """
     Read all available characters from `stream` and append them to `queue`.
     Stops when the stream would block.

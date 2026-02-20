@@ -1,104 +1,132 @@
-# asimov/rect.py
+# asimov/modules/rect.py
 
+from typing import Dict, Tuple, List
 import cv2
-import time
 import numpy as np
 
-__all__ = ["detect", "merge", "draw"]  # public functions
+from . import conf
 
-# Default timeout (seconds) and tolerance (fraction of size)
-DEFAULT_RECT_TIMEOUT = 0.5
-MERGE_TOLERANCE_RATIO = 0.2  # 20% of rectangle diagonal
+MODULE_NAME = "rect"
 
-_rectangles = []
-
-
-def _centroid(polygon):
-    """Return centroid (x, y) of a polygon."""
-    M = cv2.moments(polygon)
-    if M["m00"] == 0:
-        return np.mean(polygon, axis=0)
-    return (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+# Context keys
+CTX_RECTS = "rects"
+CTX_TOUCHES = "rect_touches"
 
 
-def _rect_size(polygon):
-    """Return approximate size (diagonal length) of bounding box."""
-    x, y, w, h = cv2.boundingRect(polygon)
-    return np.hypot(w, h)
+# ------------------------
+# Rect utilities
+# ------------------------
+
+def _point_in_rect(pt: Tuple[int, int], rect: Dict) -> bool:
+    x, y = pt
+    rx, ry, rw, rh = rect["x"], rect["y"], rect["w"], rect["h"]
+    return rx <= x <= rx + rw and ry <= y <= ry + rh
 
 
-def _is_duplicate(p1, p2):
-    """Check if two polygons are duplicates based on centroid distance relative to their size."""
-    c1, c2 = _centroid(p1), _centroid(p2)
-    dist = np.linalg.norm(np.array(c1) - np.array(c2))
+# ------------------------
+# Module API
+# ------------------------
 
-    # Use average diagonal of the two rectangles
-    size = (_rect_size(p1) + _rect_size(p2)) / 2
-    tolerance = size * MERGE_TOLERANCE_RATIO
+def detect(frame: np.ndarray, context):
+    """
+    Detect index fingertip touching rects.
+    """
 
-    return dist < tolerance
+    rects: List[Dict] = context.get(CTX_RECTS, [])
+    fingertip = context.get("indexfingertip")
 
+    touches: List[str] = []
 
-def detect(frame):
-    """Detect rectangles in a frame, timestamp them, merge duplicates with updates,
-    and expire old ones."""
-    global _rectangles
-    now = time.time()
-    detected = []
+    if fingertip:
+        pt = (fingertip["x"], fingertip["y"])
 
-    # --- preprocess frame ---
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 1)
-    canny = cv2.Canny(blur, 50, 150)
-    contours, _ = cv2.findContours(canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for rect in rects:
+            if _point_in_rect(pt, rect):
+                touches.append(rect.get("id", "unknown"))
 
-    # --- detect new rectangles ---
-    for cnt in contours:
-        area = cv2.contourArea(cnt)
-        if area > 1000:
-            peri = cv2.arcLength(cnt, True)
-            approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
-            if len(approx) == 4:
-                polygon = approx.reshape((4, 2))
-                detected.append(polygon)
-
-    # --- update existing rectangles or add new ones ---
-    merge(detected)
-
-    # --- remove expired rectangles ---
-    now = time.time()
-    _rectangles[:] = [r for r in _rectangles if now - r["timestamp"] <= r["timeout"]]
-
-    return _rectangles
+    context[CTX_TOUCHES] = touches
 
 
-def merge(new_polygons):
-    """Merge new polygons into existing rectangles, updating polygon and timestamp if duplicate."""
-    global _rectangles
-    now = time.time()
+def draw(frame: np.ndarray, context):
+    """
+    Draw rects and highlight touched ones.
+    """
 
-    for poly in new_polygons:
-        merged = False
-        for r in _rectangles:
-            if _is_duplicate(poly, r["polygon"]):
-                # update polygon and timestamp
-                r["polygon"] = poly
-                r["timestamp"] = now
-                merged = True
-                break
-        if not merged:
-            _rectangles.append({
-                "polygon": poly,
-                "timestamp": now,
-                "timeout": DEFAULT_RECT_TIMEOUT,
-            })
+    rects: List[Dict] = context.get(CTX_RECTS, [])
+    touches = set(context.get(CTX_TOUCHES, []))
+
+    for rect in rects:
+        x, y, w, h = rect["x"], rect["y"], rect["w"], rect["h"]
+        rid = rect.get("id")
+
+        touched = rid in touches
+
+        color = conf.RECT_TOUCHED_COLOR if touched else conf.RECT_COLOR
+        thickness = (
+            conf.RECT_TOUCHED_THICKNESS
+            if touched
+            else conf.RECT_THICKNESS
+        )
+
+        cv2.rectangle(
+            frame,
+            (x, y),
+            (x + w, y + h),
+            color,
+            thickness,
+        )
+
+        if rid:
+            cv2.putText(
+                frame,
+                rid,
+                (x + 4, y - 6),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                conf.RECT_LABEL_SCALE,
+                color,
+                conf.RECT_LABEL_THICKNESS,
+                cv2.LINE_AA,
+            )
 
 
-def draw(frame, rectangles=None, color=(0, 255, 0), thickness=2):
-    """Draw rectangles on a frame. If rectangles is None, draw current tracked rectangles."""
-    if rectangles is None:
-        rectangles = _rectangles
-    for r in rectangles:
-        pts = r["polygon"].reshape((-1, 1, 2))
-        cv2.polylines(frame, [pts], isClosed=True, color=color, thickness=thickness)
-    return frame
+def state(context) -> Dict:
+    """
+    Minimal introspection hook.
+    """
+
+    return {
+        "rect_count": len(context.get(CTX_RECTS, [])),
+        "active_touches": context.get(CTX_TOUCHES, []),
+    }
+
+
+# ------------------------
+# Optional helpers
+# ------------------------
+
+def add_rect(context, rect_id: str, x: int, y: int, w: int, h: int):
+    rects = context.setdefault(CTX_RECTS, [])
+    rects.append(
+        {
+            "id": rect_id,
+            "x": x,
+            "y": y,
+            "w": w,
+            "h": h,
+        }
+    )
+
+def init(args, **kwargs):
+    return True
+
+
+def buildargs(args, **kwargs):
+    return None
+
+
+def access(args, op, /, **kwargs):
+    return True
+
+
+def main(args, **kwargs):
+    return True

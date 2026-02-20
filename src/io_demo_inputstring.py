@@ -1,9 +1,8 @@
-from asimov.io import echo
-from asimov.util import screen_init
-from asimov.inputstring import inputstring
+from asimov.io import echo, screen, inputstring
+#from asimov.io.screen import screen as screen_init
 
 if __name__ == "__main__":
-    screen_init()
+    screen.init()
     try:
         buf = inputstring("> ")
         echo(f"{{f6:3}}{buf=}")

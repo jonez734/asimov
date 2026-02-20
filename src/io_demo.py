@@ -13,7 +13,7 @@ def main():
     io.set_palette("c64")
 
     # Sample markdown file path
-    sample_path = "io_demo_ipsum.md"
+    sample_path = "io_demo_invalidcommandbug.md"
 
 #    print(io.get_cursor_position())
     # Print demo: interpreted

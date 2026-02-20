@@ -11,6 +11,9 @@ import cv2
 from asimov.net import Packet
 from bbsengine6 import io
 
+from dataclasses import dataclass, field
+from typing import List
+
 # from cvzone.FPS import FPS as cvzoneFPS
 # from cvzone.HandTrackingModule import HandDetector
 
@@ -351,10 +354,86 @@ class handHandler(object):
 		return image
 
 def runmodule(args, modulepath, **kwargs):
-    from bbsengine6 import module
+    from . import module
 
     return module.run(args, f"asimov.{modulepath}", **kwargs)
 
 def loadmodule(args, modulepath, **kwargs):
     from bbsengine6 import module
     return module.load(args, f"asimov.{modulepath}", **kwargs)
+
+# packet_type        →  B  (1 byte)
+# timestamp          →  d  (8 bytes, double)
+# frame_id           →  I  (4 bytes, unsigned int)
+# block_id           →  I  (4 bytes)
+# total_blocks       →  I  (4 bytes)
+# block_data_len     →  I  (4 bytes)
+# compressed_flag    →  B  (1 byte: 0 or 1)
+# blocks_in_packet   →  H  (2 bytes, max 65535 blocks)
+
+PACKET_TYPE_FRAME = 5
+
+@dataclass
+class FramePacket(Packet):
+    frame_id: int
+    block_id: int
+    block_data_len: int
+    compressed: bool
+    blocks: List[bytes]  # One or more blocks of raw or compressed data
+    packet_type: int = field(init=False, default=PACKET_TYPE_FRAME)
+    timestamp: float = field(default_factory=time.time)
+    blocks_in_packet: int = field(init=True, default=1)
+    total_blocks_in_frame: int = 1  # Total number of blocks in the entire frame
+
+FRAME_PACKET_HEADER_FORMAT = "!BdIIIIBH"  # Network byte order, see layout above
+
+def encode_frame_header(packet: FramePacket) -> bytes:
+    return struct.pack(
+        FRAME_PACKET_HEADER_FORMAT,
+        packet.packet_type,
+        packet.timestamp,
+        packet.frame_id,
+        packet.block_id,
+        packet.total_blocks_in_frame,
+        packet.block_data_len,
+        1 if packet.compressed else 0,
+        packet.blocks_in_packet
+    )
+
+def encode_frame_packet(packet: FramePacket) -> bytes:
+    header = encode_frame_header(packet)
+
+    body = b''.join(encode_block(b, compress=False) for b in packet.blocks)
+    return header + body
+
+def decode_frame_packet(data: bytes) -> FramePacket:
+    header_size = struct.calcsize(FRAME_PACKET_HEADER_FORMAT)
+    header = data[:header_size]
+    (
+        packet_type,
+        timestamp,
+        frame_id,
+        block_id,
+        total_blocks_in_frame,
+        block_data_len,
+        compressed_flag,
+        blocks_in_packet
+    ) = struct.unpack(FRAME_PACKET_HEADER_FORMAT, header)
+
+    blocks = []
+    offset = header_size
+    for _ in range(blocks_in_packet):
+        block = data[offset:offset + block_data_len]
+        blocks.append(block)
+        offset += block_data_len
+
+    return FramePacket(
+        frame_id=frame_id,
+        block_id=block_id,
+        total_blocks_in_frame=total_blocks_in_frame,
+        block_data_len=block_data_len,
+        compressed=bool(compressed_flag),
+        blocks=blocks,
+        timestamp=timestamp,
+        blocks_in_packet=blocks_in_packet
+    )
