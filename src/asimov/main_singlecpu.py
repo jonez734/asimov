@@ -53,7 +53,7 @@ def main(args, **kwargs):
         context["frame_count"] += 1
 
         # Flip frame horizontally for natural mirror display
-        # frame = cv2.flip(frame, 1)
+        frame = cv2.flip(frame, 1)
 
         h, w, _ = frame.shape
         image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -72,6 +72,8 @@ def main(args, **kwargs):
                 index_tip_y = int(index_tip.y*h)
 
                 label = hand_info.classification[0].label  # 'Left' or 'Right'
+                # Flip label since frame is mirrored
+                label = "Right" if label == "Left" else "Left"
                 # Track left hand fingertip only
                 #if label == "Left":
                 context["index_tip"] = (index_tip_x, index_tip_y)
