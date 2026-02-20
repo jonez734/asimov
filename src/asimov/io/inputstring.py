@@ -276,26 +276,34 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
     
     if not matches:
         echo("{bell}", end="", flush=True)
-        return buffer, curpos, scroll_offset, last_matches, tab_count
+        return buffer, curpos, scroll_offset, last_matches, tab_count, start_row
 
     # If empty word (user pressed tab with nothing typed), show all matches
     if not word:
         if matches == last_matches and tab_count >= 1:
             # Second tab with empty word - ring bell
             echo("{bell}", end="", flush=True)
-            return buffer, curpos, scroll_offset, last_matches, tab_count
+            return buffer, curpos, scroll_offset, last_matches, tab_count, start_row
         
         # First tab with empty word - show all matches in columns
         echo("\n")
-        print_matches(matches)
+        lines_printed = print_matches(matches)
+        
+        # Adjust start_row if we scrolled
+        rows = terminal.lines()
+        if start_row + lines_printed > rows:
+            start_row -= (start_row + lines_printed - rows)
+        if start_row < 1:
+            start_row = 1
+            
         redraw_line(prompt, buffer, max_len, start_row, start_col,
                     curpos, scroll_offset, max_width)
-        return buffer, curpos, scroll_offset, matches, 1
+        return buffer, curpos, scroll_offset, matches, 1, start_row
 
     # If single match and user presses tab again, ring bell (no other options)
     if matches == last_matches and len(last_matches) == 1 and tab_count >= 1:
         echo("{bell}", end="", flush=True)
-        return buffer, curpos, scroll_offset, last_matches, tab_count
+        return buffer, curpos, scroll_offset, last_matches, tab_count, start_row
 
     if len(matches) == 1:
         word = matches[0]
@@ -311,15 +319,25 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
 
         redraw_line(prompt, buffer, max_len, start_row, start_col,
                     curpos, scroll_offset, max_width)
-        return buffer, curpos, scroll_offset, matches, 1
+        return buffer, curpos, scroll_offset, matches, 1, start_row
 
     if matches == last_matches and tab_count == 1:
         echo("\n")
-        print_matches(matches)
+        lines_printed = print_matches(matches)
         echo("\n")
+        
+        # Adjust start_row if we scrolled
+        rows = terminal.lines()
+        # +1 for the extra newline
+        total_lines = lines_printed + 1
+        if start_row + total_lines > rows:
+            start_row -= (start_row + total_lines - rows)
+        if start_row < 1:
+            start_row = 1
+            
         redraw_line(prompt, buffer, max_len, start_row, start_col,
                     curpos, scroll_offset, max_width)
-        return buffer, curpos, scroll_offset, [], 0
+        return buffer, curpos, scroll_offset, [], 0, start_row
 
     lcp = common_prefix(matches)
     if lcp and lcp != word:
@@ -336,7 +354,8 @@ def handle_tab_manager(buffer, curpos, scroll_offset, max_width,
         redraw_line(prompt, buffer, max_len, start_row, start_col,
                     curpos, scroll_offset, max_width)
 
-    return buffer, curpos, scroll_offset, matches, 1
+    return buffer, curpos, scroll_offset, matches, 1, start_row
+
 
 # --- 4. Display Functions ---
 
@@ -369,6 +388,8 @@ def print_matches(matches):
             echo("{f6}", end="")
     if len(matches) % per_line != 0:
         echo("{f6}", end="")
+        
+    return (len(matches) + per_line - 1) // per_line
 
 # --- 5. Initial Key Mappings ---
 
@@ -386,7 +407,7 @@ add_key_mapping("KEY_F1",        handle_help)
 
 # --- 6. MAIN INPUT FUNCTION ---
 
-def inputstring(prompt="> ", oldvalue="", **kwargs):
+def inputstring(prompt="> ", oldString="", **kwargs):
     global _input_dirty
 
     max_len:int = kwargs.pop("max_len", 255)
@@ -399,7 +420,7 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
 
     noneok = kwargs.pop("noneok", False)
 
-    buffer = oldvalue if oldvalue is not None else ""
+    buffer = oldString if oldString is not None else ""
     curpos = len(buffer)
 
     scroll_offset = 0
@@ -476,7 +497,7 @@ def inputstring(prompt="> ", oldvalue="", **kwargs):
             continue
 
         if ch == "KEY_TAB" and callable(completer):
-            buffer, curpos, scroll_offset, last_matches, tab_count = \
+            buffer, curpos, scroll_offset, last_matches, tab_count, start_row = \
                 handle_tab_manager(buffer, curpos, scroll_offset, max_width,
                                    completer, last_matches, tab_count,
                                    prompt, max_len, start_row, start_col,

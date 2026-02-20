@@ -71,14 +71,14 @@ inputstring("Name: ", completer=Completer(name_completer, conn=db_conn))
 ### Main Function
 
 ```python
-inputstring(prompt="> ", oldvalue="", **kwargs) -> str
+inputstring(prompt="> ", oldString="", **kwargs) -> str
 ```
 
 Returns the input string.
 
 **Parameters:**
 - `prompt`: String to display before input (default: `"> "`)
-- `oldvalue`: Pre-fill input with existing value
+- `oldString`: Pre-fill input with existing value
 - `max_len`: Maximum input length (default: 255)
 - `max_width`: Display width for scrolling (default: 80)
 - `mask`: If set, mask input (e.g., `mask="*"` for password)
@@ -182,20 +182,23 @@ Clear and redraw the input line. Handles both regular and masked input.
 ---
 
 ```python
-print_matches(matches)
+print_matches(matches) -> int
 ```
 
-Print tab completion matches in columns.
+Print tab completion matches in columns. Returns number of lines printed.
 
 ## Tab Completion
 
-The `handle_tab_manager` function processes tab completion:
+The `handle_tab_manager` function processes tab completion and handles potential scrolling:
 
 1. First tab: Show common prefix of matches
 2. Second tab on same matches: Print all matches
 3. Single match: Insert match automatically
 4. No matches: Bell sound
 5. Tab on single match (no other options): Bell sound
+
+**Scrolling Logic:**
+When matches are printed, the terminal may scroll. `handle_tab_manager` detects this and updates `start_row` to ensure `redraw_line` draws at the correct screen position.
 
 **Callback signature:**
 ```python
