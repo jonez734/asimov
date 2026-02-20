@@ -46,12 +46,14 @@
 
 **UI Layout:**
 - **Left panel (60% width)**: Preview canvas (black background)
-- **Right panel (40% width)**: Control area
+- **Right panel (40% width)**: Control area with vertical scrollbar
   - Header: "Asimov Control Panel" + status label
   - Module checkboxes: Enable/disable each module
   - Notebook tabs: One tab per module, populated from `ui_schema()`
   - Status output: Text area for log messages
   - Buttons: Refresh Schema, Show Config, Stop
+
+**Scrollbar:** The right panel uses a `tk.Canvas` with `ttk.Scrollbar` to allow scrolling when content exceeds the window height. The scroll region is updated after UI construction via `right_canvas.config(scrollregion=...)`.
 
 **Methods:**
 - `__init__(root, modules)`: Initialize with module list
