@@ -17,6 +17,7 @@ from .common import ThreadSafeContext
 
 context = ThreadSafeContext()
 logic_lock = threading.Lock()
+stop_event = threading.Event()
 
 # ------------------------------------------------------------
 # Signature stubs (validation)
@@ -35,7 +36,7 @@ def _stub_draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.nd
 
 def _logic_thread(modules):
     try:
-        while True:
+        while not stop_event.is_set():
             with logic_lock:
                 frame = context.get("SHARED_FRAME")
 
@@ -197,6 +198,8 @@ def main(args, **kwargs):
 
                 key = cv2.waitKey(1)
                 if key == 27:
+                    with logic_lock:
+                        stop_event.set()
                     break
                 if key > 0:
                     _handle_hotkey(key, modules)
@@ -218,6 +221,10 @@ def main(args, **kwargs):
                 cv2.imshow("Asimov", frame)
 
     finally:
+        with logic_lock:
+            context["SHARED_FRAME"] = None
+            stop_event.set()
+        t.join(timeout=2.0)
         cap.release()
         cv2.destroyAllWindows()
 

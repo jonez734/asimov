@@ -170,13 +170,14 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 # ---------------------------------------------------------------------
 
 def _glitch_vhs_warp(frame, t=0, **kwargs):
-    intensity = kwargs.get("intensity", conf.GLITCH_DEFAULT_VHS_INTENSITY)
+    intensity_pct = kwargs.get("intensity", conf.GLITCH_DEFAULT_VHS_INTENSITY) / 100.0
     freq = kwargs.get("frequency", conf.GLITCH_DEFAULT_VHS_FREQ)
 
     h, w = frame.shape[:2]
+    max_shift = w * intensity_pct  # Proportional to width
     y = np.arange(h)
     offsets = (
-        intensity * np.sin(2 * np.pi * freq * (y / h) + t)
+        max_shift * np.sin(2 * np.pi * freq * (y / h) + t)
     ).astype(np.int32)
 
     output = frame.copy()
@@ -222,10 +223,10 @@ def _glitch_ghost(frame, history=None, key=None, **kwargs):
         "alpha",
         conf.GLITCH_DEFAULT_GHOST_ALPHA,
     )
-    shift = kwargs.get(
+    shift_pct = kwargs.get(
         "shift",
         conf.GLITCH_DEFAULT_GHOST_SHIFT,
-    )
+    ) / 100.0  # Convert to percentage
 
     if key not in history:
         history[key] = deque(
@@ -239,6 +240,7 @@ def _glitch_ghost(frame, history=None, key=None, **kwargs):
         return frame
 
     h, w = frame.shape[:2]
+    shift = int(w * shift_pct)  # Proportional to frame width
     M = np.float32([[1, 0, shift], [0, 1, 0]])
     shifted = cv2.warpAffine(hist[0], M, (w, h))
 
@@ -247,7 +249,9 @@ def _glitch_ghost(frame, history=None, key=None, **kwargs):
 
 def _glitch_scanlines(frame, t=0, **kwargs):
     speed = kwargs.get("speed", 60)
-    step = conf.GLITCH_DEFAULT_SCANLINE_STEP
+    h = frame.shape[0]
+    step_pct = 0.02  # 2% of height
+    step = max(2, int(h * step_pct))
     opacity = conf.GLITCH_DEFAULT_SCANLINE_OPACITY
 
     output = frame.copy()
@@ -268,15 +272,19 @@ def _glitch_whitenoise(frame, **kwargs):
 
 
 def _glitch_tearing(frame, **kwargs):
-    h = frame.shape[0]
+    h, w = frame.shape[:2]
+    num_bands = max(3, int(h * 0.05))  # 5% of height
     output = frame.copy()
 
-    for _ in range(random.randint(3, 10)):
-        y = random.randint(0, h - 20)
-        band = random.randint(2, 15)
-        output[y:y + band] = np.roll(
-            output[y:y + band],
-            random.randint(-40, 40),
+    for _ in range(num_bands):
+        y = random.randint(0, h - 1)
+        band_pct = random.uniform(0.01, 0.05)  # 1-5% of height
+        band = max(1, int(h * band_pct))
+        shift_pct = random.uniform(-0.1, 0.1)  # -10% to 10% of width
+        shift = int(w * shift_pct)
+        output[y:min(y + band, h)] = np.roll(
+            output[y:min(y + band, h)],
+            shift,
             axis=1,
         )
 
@@ -284,9 +292,13 @@ def _glitch_tearing(frame, **kwargs):
 
 
 def _glitch_color_shift(frame, **kwargs):
+    h, w = frame.shape[:2]
+    shift_pct = 0.02  # 2% of width
+    b_shift = int(w * shift_pct)
+    r_shift = int(h * shift_pct)
     b, g, r = cv2.split(frame)
-    b = np.roll(b, random.randint(-5, 5), axis=1)
-    r = np.roll(r, random.randint(-5, 5), axis=0)
+    b = np.roll(b, b_shift, axis=1)
+    r = np.roll(r, r_shift, axis=0)
     return cv2.merge([b, g, r])
 
 
