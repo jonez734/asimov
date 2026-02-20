@@ -71,14 +71,14 @@ inputstring("Name: ", completer=Completer(name_completer, conn=db_conn))
 ### Main Function
 
 ```python
-inputstring(prompt="> ", oldString="", **kwargs) -> str
+inputstring(prompt:str="> ", oldvalue:str="", /, **kwargs) -> str
 ```
 
 Returns the input string.
 
 **Parameters:**
 - `prompt`: String to display before input (default: `"> "`)
-- `oldString`: Pre-fill input with existing value
+- `oldvalue`: Pre-fill input with existing value
 - `max_len`: Maximum input length (default: 255)
 - `max_width`: Display width for scrolling (default: 80)
 - `mask`: If set, mask input (e.g., `mask="*"` for password)
