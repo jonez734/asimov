@@ -80,7 +80,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
         detector = ns["detector"]
 
-        hands, drawn = detector.findHands(frame, draw=cfg.get("SHOW_LANDMARKS", True), flipType=True)
+        hands, drawn = detector.findHands(frame, draw=False, flipType=True)
         ns["overlay"] = drawn
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
@@ -110,7 +110,7 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     # ---- cvzone-managed overlay (skeleton / landmarks) ----
     if cfg.get("SHOW_LANDMARKS"):
         overlay = ns.get("overlay")
-        if overlay is not None:
+        if overlay is not None and overlay.shape == frame.shape:
             alpha = cfg.get("OVERLAY_ALPHA", 0.7)
             cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
