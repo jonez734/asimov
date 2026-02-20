@@ -82,6 +82,11 @@ def ui_schema(args=None, context=None):
                 "step": 0.05,
                 "label": "Opacity"
             },
+            "glitch": {
+                "type": "bool",
+                "default": True,
+                "label": "Enable Glitch"
+            },
         },
     }
 
@@ -100,9 +105,22 @@ def init(args, context=None, **kwargs):
 
     glitch.set_max_concurrent(2)
     glitch.register("scanlines")
-    glitch.register("vhs_warp", intensity=7, frequency=3.0, speed=1.5)
     glitch.register("ghost", alpha=0.3, shift=8)
+    glitch.register("whitenoise", amount=0.1)
+
     return True
+
+
+# ------------------------------------------------------------
+# Detection
+# ------------------------------------------------------------
+
+def _run_glitch_detection(frame, context):
+    """Run glitch scheduler to trigger random glitches."""
+    try:
+        glitch.detect(frame, context)
+    except Exception:
+        pass
 
 
 def access(args, op, /, **kwargs):
@@ -251,6 +269,8 @@ def _is_hand_open(hand):
 def detect(frame, context, /, **kw):
     global _last_hand_detected_time, _filter_x, _filter_y, _filter_scale, _current_phase
 
+    _run_glitch_detection(frame, context)
+
     center, bbox, hand = _get_hand_center(context)
     
     hand_detected = (
@@ -319,6 +339,10 @@ def draw(frame, context, /, config=None, **kw):
         suit = config.get("suit", suit)
         opacity = config.get("opacity", opacity)
 
+    enable_glitch = card_config.get("glitch", conf.FLOAT_PLAYINGCARD.get("GLITCH", True))
+    if config:
+        enable_glitch = config.get("glitch", enable_glitch)
+
     if rank and suit:
         if rank != _current_rank or suit != _current_suit:
             _card_image = _load_card_from_assets(rank, suit)
@@ -364,9 +388,11 @@ def draw(frame, context, /, config=None, **kw):
     x = card["center"][0] - img.shape[1] // 2
     y = card["center"][1] - img.shape[0] // 2 + dy
 
-    glitch.scheduler()
-    if glitch.is_any_glitch_running():
-        img = glitch.apply(img)
+    if enable_glitch:
+        try:
+            img = glitch.draw(img, context)
+        except Exception:
+            pass
 
     _render_rgba(layer, img, x, y, opacity)
 
