@@ -8,7 +8,7 @@ import threading
 import collections
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, Deque
+from typing import List, Dict, Optional, Any, Deque, TextIO
 
 from .const import MAX_TERMINAL_WIDTH, BEL, ESC, CSI
 
@@ -18,12 +18,12 @@ from . import terminal
 class Token:
     kind: str                  # e.g., WORD, WHITESPACE, F6, RGB
     value: str | None = None          # the literal string or command
-    args: List | tuple = field(default_factory=list)   # positional args
-    kwargs: Dict = field(default_factory=dict) # keyword args
+    args: List[Any] | tuple[Any, ...] = field(default_factory=list)   # positional args
+    kwargs: Dict[str, Any] = field(default_factory=dict) # keyword args
     text: str | None = field(default="") # {f6:3} -> \n*3, {home} -> \033[H, etc
     repeat: int = 1
     raw: Optional[str] = None                  # raw input that generated this token
-    def __repr__(self):
+    def __repr__(self) -> str:
         parts = [self.kind]
         if self.value:
             parts.append(f"value={repr(self.value)}") # repr(self.value))
@@ -43,21 +43,21 @@ class Token:
 #_cursor_row = 1
 #_cursor_col = 1
 
-_current_input_stream = sys.stdin
+_current_input_stream: TextIO = sys.stdin
 
-_current_output_stream = sys.stdout
+_current_output_stream: TextIO = sys.stdout
 
 _current_stream_lock = threading.Lock()
 
-def set_output_stream(stream):
+def set_output_stream(stream: TextIO) -> None:
     global _current_output_stream
     _current_output_stream = stream
 
-def set_input_stream(stream):
+def set_input_stream(stream: TextIO) -> None:
     global _current_input_stream
     _current_input_stream = stream
 
-_input_queue = collections.deque()
+_input_queue: Deque[str] = collections.deque()
 
 def _read_current_input_stream(size:int=1) -> str:
     if _input_queue:
@@ -68,7 +68,7 @@ def read_current_input_stream(size:int=1) -> str:
     with _current_stream_lock:
         return _read_current_input_stream(size)
 
-def _write_current_output_stream(s:str, flush:bool=False):
+def _write_current_output_stream(s: str, flush: bool = False) -> None:
     _current_output_stream.write(s)
     if flush:
         _current_output_stream.flush()
@@ -168,6 +168,9 @@ def get_dsr(mode:str="curpos", timeout: float = 1.0) -> tuple[int, int] | str:
                     _input_queue.extend(leftover)
                     return (row, col)
 
+                if buffer.endswith(term) and mode == "status":
+                    return buffer
+
                 # Step 2c: check for timeout
                 if (time.time() - start_time) > timeout:
                     raise TimeoutError(f"DSR response not received in {timeout}s: {buffer!r}")
@@ -230,7 +233,7 @@ def get_terminal_status() -> bool | None:
             else:
                 return None
 
-def drain_stream_to_queue(stream: Any, queue: Deque) -> None:
+def drain_stream_to_queue(stream: TextIO, queue: Deque[str]) -> None:
     """
     Read all available characters from `stream` and append them to `queue`.
     Stops when the stream would block.
@@ -262,18 +265,18 @@ def drain_stream_to_queue(stream: Any, queue: Deque) -> None:
 class TerminalState():
     cursor_row: int = 1
     cursor_col: int = 1
-    wordwrap:bool  = True
-    has_color:bool = True
-    hidden:bool = False
-    width:int = 100
-    acs:bool = False
-    raw:bool = False
-    decdhl:bool = False # double height
-    decdwl:bool = False
-    def __repr__(self):
+    wordwrap: bool = True
+    has_color: bool = True
+    hidden: bool = False
+    width: int = 100
+    acs: bool = False
+    raw: bool = False
+    decdhl: bool = False # double height
+    decdwl: bool = False
+    def __repr__(self) -> str:
         return f"TerminalState({self.cursor_row=}, {self.cursor_col=}, {self.wordwrap=}, {self.has_color=}, {self.hidden=}, {self.acs=}, {self.raw=})"
 
-_terminal_state = TerminalState(cursor_row=terminal.lines(), cursor_col=terminal.columns())
-_terminal_state_stack = []
+_terminal_state: TerminalState = TerminalState(cursor_row=terminal.lines(), cursor_col=terminal.columns())
+_terminal_state_stack: List[TerminalState] = []
 
-_input_dirty = False
+_input_dirty: bool = False
