@@ -1,11 +1,13 @@
 from .const import MAX_TERMINAL_WIDTH, FALLBACK_TERMINAL_WIDTH
 ###from .echo import echo
 
-def size():
-  import shutil
+import shutil
+import os
+
+def size() -> os.terminal_size:
   return shutil.get_terminal_size()
 
-def columns():
+def columns() -> int:
     """
     Return terminal width in columns. If MAX_TERMINAL_SIZE is None, return the
     terminal's actual width. If MAX_TERMINAL_SIZE is an int, clamp to it.
@@ -32,7 +34,7 @@ def columns():
 
 width = columns
 
-def lines():
+def lines() -> int:
   return size().lines
 
 height = lines
