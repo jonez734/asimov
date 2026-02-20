@@ -25,11 +25,11 @@ PLAYERS = [
 
 def main():
     screen.init()
-    echo("{yellow}=== Demo: inputstring with Completer ==={f6:2}", end="")
+    echo("{yellow}=== Demo: inputstring with Completer ===")
     
     try:
         # Demo 1: Callable class with override
-        echo("{cyan}Demo 1: Subclass Completer with get_matches() override{f6}Type a name starting with 'a', 'b', 'c', etc. Press TAB for completions.{f6}")
+        echo("{cyan}Demo 1: Subclass Completer with get_matches() override{f6}Type a name starting with 'a', 'b', 'c', etc. Press TAB for completions.")
         
         class PlayerCompleter(Completer):
             """Completer that returns player names from 'database'."""
@@ -48,10 +48,10 @@ def main():
                 return matches
         
         name1 = inputstring("Select player: ", completer=PlayerCompleter())
-        echo(f"{{f6}}Selected: {name1}{{f6}}")
+        echo(f"{{f6}}Selected: {name1}")
         
         # Demo 2: Function passed to constructor with kwargs
-        echo("{cyan}Demo 2: Pass function to Completer with kwargs{f6}Type a color (red, green, blue, etc.) Press TAB.{f6}")
+        echo("{cyan}Demo 2: Pass function to Completer with kwargs{f6}Type a color (red, green, blue, etc.) Press TAB.")
         
         COLORS = ["red", "green", "blue", "yellow", "cyan", "magenta", "orange", "purple"]
         
@@ -66,10 +66,10 @@ def main():
             "Select color: ", 
             completer=Completer(color_completer, conn="db_connection")
         )
-        echo(f"{{f6}}Selected: {name2}{{f6:2}}", end="")
+        echo(f"{{f6}}Selected: {name2}")
         
         # Demo 3: Lambda function
-        echo("{cyan}Demo 3: Lambda function passed directly{f6}Type a fruit (apple, banana, cherry) Press TAB.{f6}")
+        echo("{cyan}Demo 3: Lambda function passed directly{f6}Type a fruit (apple, banana, cherry) Press TAB.")
         
         FRUITS = ["apple", "banana", "cherry", "date", "elderberry"]
         
@@ -77,10 +77,10 @@ def main():
             "Select fruit: ",
             completer=Completer(lambda p, **kwargs: [f for f in FRUITS if f.startswith(p.lower())] if p else [])
         )
-        echo(f"{{f6}}Selected: {fruit}{{f6:2}}", end="")
+        echo(f"{{f6}}Selected: {fruit}")
         
         # Demo 4: Using direct kwargs for completer
-        echo("{cyan}Demo 4: Using direct kwargs for completer{f6}Type a vegetable (carrot, potato, etc.){f6}")
+        echo("{cyan}Demo 4: Using direct kwargs for completer{f6}Type a vegetable (carrot, potato, etc.)")
         
         VEGGIES = ["carrot", "potato", "tomato", "cucumber", "celery"]
         
@@ -94,9 +94,9 @@ def main():
             completer=Completer(veggie_completer),
             category="root_vegetables"
         )
-        echo(f"{{f6}}Selected: {veg}{{f6:2}}", end="")
+        echo(f"{{f6}}Selected: {veg}")
         
-        echo("{green}All demos completed!{f6}")
+        echo("{green}All demos completed!")
         
     finally:
         echo("{savecursor}{decstbm}{reset}{restorecursor}", flush=True)
