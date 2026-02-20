@@ -31,17 +31,36 @@ CAPTURE_FPS    = 30
 
 HAND = {
     "ENABLED": True,
-    "MAX_HANDS": 1,
     "MODEL_COMPLEXITY": 1,
     "MIN_DETECTION_CONFIDENCE": 0.5,
     "MIN_TRACKING_CONFIDENCE": 0.5,
     "DETECTION_CON": 0.6,
     "USE_OVERLAY": False,
     "OVERLAY_ALPHA": 0.7,
-    "DRAW_HANDEDNESS": True,
-    "DRAW_SKELETON": True,
-    "DRAW_CONFIDENCE": False,
     "TEXT_COLOR": (0, 255, 0),
+
+    "DETECTION": {
+        "MIN_DETECTION_CONF": 0.7,
+        "MAX_HANDS": 1,
+    },
+
+    "FILTER": {
+        "FREQ": 30.0,
+        "MIN_CUTOFF": 1.0,
+        "BETA": 0.0,
+    },
+
+    "DRAW": {
+        "SHOW_LANDMARKS": True,
+        "SHOW_BBOX": False,
+        "DRAW_HANDEDNESS": True,
+        "DRAW_SKELETON": True,
+        "DRAW_CONFIDENCE": False,
+    },
+
+    "DEBUG": {
+        "SHOW_FPS": False,
+    },
 }
 
 # ------------------------------------------------------------
