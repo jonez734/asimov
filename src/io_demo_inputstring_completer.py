@@ -75,7 +75,7 @@ def main():
         
         fruit = inputstring(
             "Select fruit: ",
-            completer=Completer(lambda p, **kwargs: [f for f in FRUITS if f.startswith(p.lower())] if p else [])
+            completer=Completer(lambda p, **kwargs: [f for f in FRUITS if f.startswith(p.lower())])
         )
         echo(f"{{f6}}Selected: {fruit}")
         
@@ -86,7 +86,7 @@ def main():
         
         def veggie_completer(prefix, category=None):
             if not prefix:
-                return []
+                return VEGGIES
             return [v for v in VEGGIES if v.startswith(prefix.lower())]
         
         veg = inputstring(
