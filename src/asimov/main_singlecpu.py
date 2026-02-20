@@ -73,7 +73,7 @@ def main(args, **kwargs):
 
                 label = hand_info.classification[0].label  # 'Left' or 'Right'
                 # Flip label since frame is mirrored
-                label = "Right" if label == "Left" else "Left"
+                # label = "Right" if label == "Left" else "Left"
                 # Track left hand fingertip only
                 #if label == "Left":
                 context["index_tip"] = (index_tip_x, index_tip_y)
