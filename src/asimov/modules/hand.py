@@ -59,10 +59,28 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         ns = context["HAND"]
         ns["error_state"] = False
 
-        cfg = ns["cfg"]
+        # Sync config from conf.HAND to pick up UI changes
+        cfg = conf.HAND.copy()
+        if "DETECTION" in cfg:
+            cfg["DETECTION_CON"] = cfg["DETECTION"].get("MIN_DETECTION_CONF", 0.6)
+            cfg["MAX_HANDS"] = cfg["DETECTION"].get("MAX_HANDS", 1)
+        if "FILTER" in cfg:
+            cfg["FREQ"] = cfg["FILTER"].get("FREQ", 30.0)
+            cfg["MIN_CUTOFF"] = cfg["FILTER"].get("MIN_CUTOFF", 1.0)
+            cfg["BETA"] = cfg["FILTER"].get("BETA", 0.0)
+        if "DRAW" in cfg:
+            cfg["SHOW_LANDMARKS"] = cfg["DRAW"].get("SHOW_LANDMARKS", True)
+            cfg["SHOW_BBOX"] = cfg["DRAW"].get("SHOW_BBOX", False)
+            cfg["DRAW_HANDEDNESS"] = cfg["DRAW"].get("DRAW_HANDEDNESS", True)
+            cfg["DRAW_SKELETON"] = cfg["DRAW"].get("DRAW_SKELETON", True)
+            cfg["DRAW_CONFIDENCE"] = cfg["DRAW"].get("DRAW_CONFIDENCE", False)
+        if "DEBUG" in cfg:
+            cfg["SHOW_FPS"] = cfg["DEBUG"].get("SHOW_FPS", False)
+        ns["cfg"] = cfg
+
         detector = ns["detector"]
 
-        hands, drawn = detector.findHands(frame, draw=False, flipType=True)
+        hands, drawn = detector.findHands(frame, draw=cfg.get("SHOW_LANDMARKS", True), flipType=True)
         ns["overlay"] = drawn
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
@@ -89,12 +107,19 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     cfg = ns["cfg"]
 
-    # ---- cvzone-managed overlay (skeleton) ----
-    if cfg.get("USE_OVERLAY"):
+    # ---- cvzone-managed overlay (skeleton / landmarks) ----
+    if cfg.get("SHOW_LANDMARKS"):
         overlay = ns.get("overlay")
         if overlay is not None:
             alpha = cfg.get("OVERLAY_ALPHA", 0.7)
             cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+    # ---- Draw bounding box ----
+    if cfg.get("SHOW_BBOX"):
+        for hand in ns.get("hands") or []:
+            if "bbox" in hand:
+                x, y, w, h = hand["bbox"]
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
     # ---- Optional text-only annotations ----
     hands = ns.get("hands") or []
