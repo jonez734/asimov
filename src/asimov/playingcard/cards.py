@@ -6,6 +6,8 @@ Provides constants and card image loading for both detection
 and floating card overlay modules.
 """
 
+from typing import Optional
+
 import os
 import cv2
 import numpy as np
@@ -45,7 +47,7 @@ SUIT_SYMBOLS = {
 # Path construction
 # ------------------------------------------------------------
 
-def get_card_path(rank: str, suit: str, basedir: str = None, set_name: str = None) -> str:
+def get_card_path(rank: str, suit: str, basedir: Optional[str] = None, set_name: Optional[str] = None) -> str:
     """
     Get the full path to a card image file.
 
@@ -85,7 +87,7 @@ def get_card_url(rank: str, suit: str) -> str:
 _card_cache = {}  # path -> RGBA image
 
 
-def load_card_image(rank: str, suit: str, basedir: str = None, set_name: str = None) -> np.ndarray:
+def load_card_image(rank: str, suit: str, basedir: Optional[str] = None, set_name: Optional[str] = None) -> Optional[np.ndarray]:
     """
     Load a card image as RGBA numpy array.
 

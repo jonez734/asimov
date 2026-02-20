@@ -16,7 +16,7 @@ import math
 import hashlib
 
 from asimov import conf
-from asimov.common import ThreadSafeContext
+from asimov.common import ThreadSafeContext, OneEuroFilter
 from asimov.playingcard import cards
 from asimov.modules import glitch
 
@@ -38,6 +38,24 @@ _start_time = time.monotonic()
 
 _basedir = None
 _set_name = None
+
+_last_hand_detected_time = None
+_SHOW_DELAY = 0.1   # 100ms to show card after hand detected
+_HIDE_DELAY = 0.3   # 300ms to hide card after hand lost
+
+# OneEuroFilter for stabilization
+_filter_x = None
+_filter_y = None
+_filter_scale = None
+_current_phase = None
+
+# Filter params (tune these)
+_FILTER_FREQ = 30
+_FILTER_MIN_CUTOFF = 0.4   # lower = smoother
+_FILTER_BETA = 0.005        # lower = less responsive to speed
+
+# Hand detection
+_MIN_CONFIDENCE = 0.5  # set to 0 to disable
 
 # ------------------------------------------------------------
 # UI Schema (Dashboard Integration)
@@ -197,9 +215,33 @@ def _get_hand_center(context):
             if bbox:
                 cx = bbox[0] + bbox[2] // 2
                 cy = bbox[1] + bbox[3] // 2
-                return (cx, cy)
+                return (cx, cy), bbox, first_hand
 
-    return None
+    return None, None, None
+
+
+def _is_hand_open(hand):
+    if not hand:
+        return False
+    
+    lm = hand.get("lmList")
+    if not lm or len(lm) < 21:
+        return False
+    
+    def finger_extended(tip_idx, mcp_idx):
+        tip = lm[tip_idx]
+        mcp = lm[mcp_idx]
+        dist = ((tip[0] - mcp[0])**2 + (tip[1] - mcp[1])**2)**0.5
+        return dist > 30
+    
+    fingers = [
+        finger_extended(8, 5),   # index
+        finger_extended(12, 9),  # middle
+        finger_extended(16, 13), # ring
+        finger_extended(20, 17), # pinky
+    ]
+    
+    return sum(fingers) >= 3
 
 
 # ------------------------------------------------------------
@@ -207,20 +249,60 @@ def _get_hand_center(context):
 # ------------------------------------------------------------
 
 def detect(frame, context, /, **kw):
-    center = _get_hand_center(context)
-    if center is None:
+    global _last_hand_detected_time, _filter_x, _filter_y, _filter_scale, _current_phase
+
+    center, bbox, hand = _get_hand_center(context)
+    
+    hand_detected = (
+        center is not None and 
+        _is_hand_open(hand)
+    )
+    # Optional confidence check - set _MIN_CONFIDENCE to 0 to disable
+    if _MIN_CONFIDENCE > 0:
+        conf_val = hand.get("confidence") if hand else None
+        if conf_val is not None and conf_val < _MIN_CONFIDENCE:
+            hand_detected = False
+    now = time.monotonic()
+    
+    if hand_detected:
+        _last_hand_detected_time = now
+            
+        cx, cy = center
+
+        hand_width = bbox[2] if bbox else 100
+        card_width = _card_image.shape[1] if _card_image is not None else 100
+        target_scale = (hand_width / card_width) * conf.FLOAT_PLAYINGCARD.get("SCALE", 0.8)
+
+        if _filter_x is None:
+            _filter_x = OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA, init=cx)
+            _filter_y = OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA, init=cy)
+            _filter_scale = OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA, init=target_scale)
+            _current_phase = _stable_phase((int(cx), int(cy)))
+            smoothed_cx, smoothed_cy, smoothed_scale = cx, cy, target_scale
+        else:
+            smoothed_cx = _filter_x.update(cx)
+            smoothed_cy = _filter_y.update(cy)
+            smoothed_scale = _filter_scale.update(target_scale)
+
+        seed = (int(smoothed_cx), int(smoothed_cy))
+
+        context.card = {
+            "center": (int(smoothed_cx), int(smoothed_cy)),
+            "scale": smoothed_scale,
+            "angle": conf.FLOAT_PLAYINGCARD.get("ROTATION", 0),
+            "phase": _current_phase,
+        }
+    else:
+        if _last_hand_detected_time is not None:
+            if now - _last_hand_detected_time < _HIDE_DELAY:
+                return
+        
+        _last_hand_detected_time = None
+        _filter_x = None
+        _filter_y = None
+        _filter_scale = None
+        _current_phase = None
         context.card = None
-        return
-
-    cx, cy = center
-    seed = (int(cx), int(cy))
-
-    context.card = {
-        "center": (int(cx), int(cy)),
-        "scale": conf.FLOAT_PLAYINGCARD.get("SCALE", 1.0),
-        "angle": conf.FLOAT_PLAYINGCARD.get("ROTATION", 0),
-        "phase": _stable_phase(seed),
-    }
 
 
 def draw(frame, context, /, config=None, **kw):
@@ -287,8 +369,6 @@ def draw(frame, context, /, config=None, **kw):
         img = glitch.apply(img)
 
     _render_rgba(layer, img, x, y, opacity)
-
-    context.layers["card"] = layer
 
     if layer.shape[2] == 4:
         card_alpha = layer[..., 3:4] / 255.0
