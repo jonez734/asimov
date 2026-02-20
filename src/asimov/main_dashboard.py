@@ -307,7 +307,10 @@ class DashboardApp:
         # Bind mouse wheel to scroll the control panel
         def on_mousewheel(event):
             self.right_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        self.right_canvas.bind_all("<MouseWheel>", on_mousewheel)
+        self.root.bind_all("<MouseWheel>", on_mousewheel)
+        # Linux uses Button-4/Button-5
+        self.root.bind_all("<Button-4>", lambda e: self.right_canvas.yview_scroll(-3, "units"))
+        self.root.bind_all("<Button-5>", lambda e: self.right_canvas.yview_scroll(3, "units"))
         
         self.root.bind("<Escape>", lambda e: self._stop())
         
