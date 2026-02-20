@@ -240,11 +240,21 @@ class DashboardApp:
         self.canvas = tk.Canvas(left_frame, bg="black")
         self.canvas.pack(fill="both", expand=True)
         
-        # Right: Control panel
+        # Right: Control panel with scrollbar
         right_frame = ttk.Frame(paned)
         paned.add(right_frame, weight=1)
         
-        control_frame = ttk.Frame(right_frame)
+        right_scroll = ttk.Scrollbar(right_frame)
+        right_scroll.pack(side="right", fill="y")
+        
+        self.right_canvas = tk.Canvas(right_frame, yscrollcommand=right_scroll.set)
+        self.right_canvas.pack(side="left", fill="both", expand=True)
+        right_scroll.config(command=self.right_canvas.yview)
+        
+        self.right_content = ttk.Frame(self.right_canvas)
+        self.right_canvas.create_window((0, 0), window=self.right_content, anchor="nw")
+        
+        control_frame = ttk.Frame(self.right_content)
         control_frame.pack(fill="x", padx=10, pady=10)
         
         ttk.Label(control_frame, text="Asimov Control Panel", 
@@ -254,7 +264,7 @@ class DashboardApp:
                                        foreground="green")
         self.status_label.pack(side="right", padx=5)
         
-        enable_frame = ttk.LabelFrame(right_frame, text="Modules")
+        enable_frame = ttk.LabelFrame(self.right_content, text="Modules")
         enable_frame.pack(fill="x", padx=10, pady=5)
         
         self.module_vars = {}
@@ -270,18 +280,18 @@ class DashboardApp:
             cb.pack(anchor="w", padx=20, pady=2)
             self.module_vars[name] = var
         
-        self.notebook = ttk.Notebook(right_frame)
+        self.notebook = ttk.Notebook(self.right_content)
         self.notebook.pack(fill="both", expand=True, padx=10, pady=5)
         
         self._build_module_tabs()
         
-        output_frame = ttk.LabelFrame(right_frame, text="Status Output")
+        output_frame = ttk.LabelFrame(self.right_content, text="Status Output")
         output_frame.pack(fill="x", padx=10, pady=5)
         
         self.output_text = tk.Text(output_frame, height=6, state="normal")
         self.output_text.pack(fill="x", padx=5, pady=5)
         
-        btn_frame = ttk.Frame(right_frame)
+        btn_frame = ttk.Frame(self.right_content)
         btn_frame.pack(fill="x", padx=10, pady=(0, 10))
         
         ttk.Button(btn_frame, text="Refresh Schema", 
@@ -290,6 +300,9 @@ class DashboardApp:
                    command=self._show_all_config).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Stop", 
                    command=self._stop).pack(side="right", padx=5)
+        
+        self.right_content.update_idletasks()
+        self.right_canvas.config(scrollregion=self.right_canvas.bbox("all"))
         
         self.root.bind("<Escape>", lambda e: self._stop())
         
