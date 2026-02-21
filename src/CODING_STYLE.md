@@ -5,15 +5,14 @@
 Configure git to warn about problematic whitespace:
 
 ```bash
-git config --global core.whitespace "trailing-space,space-before-tab,indent-with-non-tab"
+git config --global core.whitespace "trailing-space,space-before-tab"
 ```
 
 This enables warnings for:
 - **trailing-space**: trailing whitespace at end of lines
 - **space-before-tab**: spaces before tabs in indentation
-- **indent-with-non-tab**: lines indented with spaces instead of tabs
 
-These settings help catch whitespace issues before commit.
+Note: This project uses spaces (not tabs) for indentation, so `indent-with-non-tab` is intentionally excluded.
 
 ## Python
 
