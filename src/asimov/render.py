@@ -6,10 +6,120 @@ import OpenGL.GL as gl
 import glfw 
 from multiprocessing import Event
 import time
-import socket # For socket.error
+import socket
+import ctypes
 
 from .net import UDPReceiver
 from . import conf
+
+
+def load_texture(image_path: str) -> int:
+    """Load an image file as an OpenGL 2D texture."""
+    from PIL import Image
+    
+    image = Image.open(image_path)
+    image = image.transpose(Image.FLIP_TOP_BOTTOM)
+    img_data = np.array(image, dtype=np.uint8)
+    
+    texture = gl.glGenTextures(1)
+    gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
+    
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR_MIPMAP_LINEAR)
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+    
+    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, image.width, image.height, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, img_data)
+    gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
+    
+    return texture
+
+
+def create_shader(vertex_source: str, fragment_source: str):
+    """Compile vertex and fragment shaders and link into a program."""
+    import OpenGL.GL.shaders
+    
+    shader = OpenGL.GL.shaders.compileProgram(
+        OpenGL.GL.shaders.compileShader(vertex_source, gl.GL_VERTEX_SHADER),
+        OpenGL.GL.shaders.compileShader(fragment_source, gl.GL_FRAGMENT_SHADER)
+    )
+    return shader
+
+
+def create_cube() -> tuple[int, int]:
+    """Create a cube VAO with position and texture coordinates.
+    
+    Returns:
+        Tuple of (VAO handle, index count)
+    """
+    vertices = np.array([
+        -0.5, -0.1, -0.5,  0.0, 0.0,
+         0.5, -0.1, -0.5,  1.0, 0.0,
+         0.5,  0.1, -0.5,  1.0, 1.0,
+        -0.5,  0.1, -0.5,  0.0, 1.0,
+        
+        -0.5, -0.1,  0.5,  0.0, 0.0,
+         0.5, -0.1,  0.5,  1.0, 0.0,
+         0.5,  0.1,  0.5,  1.0, 1.0,
+        -0.5,  0.1,  0.5,  0.0, 1.0,
+    ], dtype=np.float32)
+    
+    indices = np.array([
+        0, 1, 2, 2, 3, 0,
+        4, 5, 6, 6, 7, 4,
+        0, 1, 5, 5, 4, 0,
+        2, 3, 7, 7, 6, 2,
+        1, 2, 6, 6, 5, 1,
+        3, 0, 4, 4, 7, 3
+    ], dtype=np.uint32)
+    
+    vao = gl.glGenVertexArrays(1)
+    gl.glBindVertexArray(vao)
+    
+    vbo = gl.glGenBuffers(1)
+    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+    gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
+    
+    ebo = gl.glGenBuffers(1)
+    gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, ebo)
+    gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, gl.GL_STATIC_DRAW)
+    
+    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 5 * vertices.itemsize, ctypes.c_void_p(0))
+    gl.glEnableVertexAttribArray(0)
+    
+    gl.glVertexAttribPointer(1, 2, gl.GL_FLOAT, gl.GL_FALSE, 5 * vertices.itemsize, ctypes.c_void_p(3 * vertices.itemsize))
+    gl.glEnableVertexAttribArray(1)
+    
+    return vao, len(indices)
+
+
+VERTEX_SHADER = """#version 330 core
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec2 texCoord;
+
+uniform mat4 model;
+uniform mat4 projection;
+
+out vec2 TexCoord;
+
+void main()
+{
+    gl_Position = projection * model * vec4(position, 1.0);
+    TexCoord = texCoord;
+}
+"""
+
+FRAGMENT_SHADER = """#version 330 core
+in vec2 TexCoord;
+out vec4 color;
+
+uniform sampler2D texture1;
+
+void main()
+{
+    color = texture(texture1, TexCoord);
+}
+"""
 
 # Global variables
 texture_id = None

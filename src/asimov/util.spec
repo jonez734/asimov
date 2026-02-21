@@ -114,6 +114,8 @@ def render_quad(texture_id: int) -> None:
     """Render a textured quad filling the screen."""
 ```
 
+Note: Advanced OpenGL rendering functions (load_texture, create_shader, create_cube, VERTEX_SHADER, FRAGMENT_SHADER) have been moved to `asimov.render`.
+
 ## Image Processing
 
 ### Block Encoding/Decoding
