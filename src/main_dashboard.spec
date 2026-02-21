@@ -38,6 +38,15 @@
     Module.detect()
 ```
 
+## Architectural Principle
+
+**Modules must NEVER draw in detect().** The detect phase is for detection/processing only. All visual rendering must happen in draw().
+
+This ensures:
+- Clean separation of concerns
+- Modules can run in different threads without frame corruption
+- Frame is not mutated during detection phase
+
 ## Components
 
 ### 1. DashboardApp (Tkinter)

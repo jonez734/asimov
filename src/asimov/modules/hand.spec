@@ -13,11 +13,28 @@
 │                    detect(frame, context)                   │
 ├─────────────────────────────────────────────────────────────┤
 │  1. Initialize detector (once, stored in context)          │
-│  2. Run HandDetector.findHands(flipType=True)             │
-│  3. Draw skeleton manually using landmark coordinates      │
-│  4. Publish results to context["HAND"]                    │
+│  2. Run HandDetector.findHands()                         │
+│  3. Publish results to context["HAND"]                    │
+└─────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    draw(frame, context)                    │
+├─────────────────────────────────────────────────────────────┤
+│  1. Draw skeleton landmarks (from lmList)                │
+│  2. Draw bounding box (if enabled)                       │
+│  3. Draw text annotations (handedness, confidence)        │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Architectural Principle
+
+**detect() must NEVER draw on the frame.** The detect phase is for detection/processing only. All visual rendering must happen in draw().
+
+This ensures:
+- Clean separation of concerns
+- Modules can run in different threads without frame corruption
+- Frame is not mutated during detection phase
 
 ## Frame Flip Handling
 
@@ -156,14 +173,16 @@ The config is organized into nested sections: DETECTION, FILTER, DRAW, and DEBUG
   - `hands`: List of hand dicts from cvzone
   - `timestamp`: Detection time
   - `error_state`: bool
-- **Side effects**: Draws skeleton landmarks directly on frame if SHOW_LANDMARKS enabled
+- **Side effects**: None. detect() must NOT modify the frame.
 
 ### draw(frame, context, **kwargs) -> np.ndarray
 - **Input**: frame (BGR np.ndarray), context with `["HAND"]`
-- **Output**: Returns frame with bounding box and text annotations
+- **Output**: Returns frame with landmarks, bounding box and text annotations
 - **Behavior**:
-  1. Draw bounding box if SHOW_BBOX enabled
-  2. Draw handedness/confidence text if enabled
+  1. Draw skeleton landmarks if SHOW_LANDMARKS enabled
+  2. Draw bounding box if SHOW_BBOX enabled
+  3. Draw handedness label if DRAW_HANDEDNESS enabled
+  4. Draw confidence if DRAW_CONFIDENCE enabled
 - **Error handling**: Shows "HAND ERROR" text if error_state is True
 
 ### ui_schema(args=None, context=None) -> dict
