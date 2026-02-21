@@ -78,6 +78,14 @@ def setvar(name, value):
 def getvar(name, default=None):
     return _runtime_vars.get(name, default)
 
+def set_emoji(name, value):
+    """Register a custom emoji for use with :name: syntax."""
+    _emoji[name] = value
+
+def set_emojis(emojis: dict):
+    """Register multiple custom emojis at once."""
+    _emoji.update(emojis)
+
 # ----------------------------
 # Command patterns
 # ----------------------------

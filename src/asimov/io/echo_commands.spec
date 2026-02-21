@@ -160,6 +160,14 @@ Closing syntax: `{/bold}`, `{/italic}`, etc.
 
 > **Note:** This table shows a sample of available emojis. The full list is defined in `echo.py`. Use tab-completion in your editor to discover all available emojis.
 
+You can also register custom emojis at runtime:
+
+```python
+from asimov.io import set_emojis
+set_emojis({"horse": "🐴", "grain": "🌾"})
+echo(":horse: :grain:")
+```
+
 | Command | Emoji | Description |
 |---------|-------|-------------|
 | `{grin}` | 😀 | Grinning face |
