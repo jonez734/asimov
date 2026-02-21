@@ -45,9 +45,9 @@ def main(image_paths, side_image, n_cubes=15, spacing=1.2, width=800, height=600
 
     cols = 3
     for i in range(n_cubes):
-        row, col = divmod(i, cols)
-        vao, count = render.create_cube()
-        cubes.append((vao, count, render.load_texture(next(image_cycle)), aspect_ratio))
+            row, col = divmod(i, cols)
+            vao, count = render.create_cube(aspect_ratio=aspect_ratio)
+            cubes.append((vao, count, render.load_texture(next(image_cycle))))
 
     side_texture = render.load_texture(side_image)
 
@@ -57,13 +57,12 @@ def main(image_paths, side_image, n_cubes=15, spacing=1.2, width=800, height=600
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        for index, (vao, count, texture, aspect_ratio) in enumerate(cubes):
+        for index, (vao, count, texture) in enumerate(cubes):
             row, col = divmod(index, cols)
-            translation = pyrr.matrix44.create_from_translation(
+            model = pyrr.matrix44.create_from_translation(
                 [(col - 1) * spacing, (2 - row) * spacing, -5]
             )
-            scale = pyrr.matrix44.create_from_scale([1.0, aspect_ratio, 1.0])
-            model = pyrr.matrix44.multiply(translation, scale)
+            glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
             glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
 
             glBindTexture(GL_TEXTURE_2D, texture)
