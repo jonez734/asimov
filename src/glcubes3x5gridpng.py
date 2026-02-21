@@ -9,7 +9,7 @@ sys.path.insert(0, '/home/jam/projects/asimov/src')
 from asimov import render
 
 
-def main(image_paths, side_image, spacing=1.2):
+def main(image_paths, side_image, n_cubes=15, spacing=1.2):
     if not glfw.init():
         return
 
@@ -30,10 +30,11 @@ def main(image_paths, side_image, spacing=1.2):
 
     cubes = []
     image_cycle = cycle(image_paths)
-    for i in range(5):
-        for j in range(3):
-            vao, count = render.create_cube()
-            cubes.append((vao, count, render.load_texture(next(image_cycle))))
+    cols = 3
+    for i in range(n_cubes):
+        row, col = divmod(i, cols)
+        vao, count = render.create_cube()
+        cubes.append((vao, count, render.load_texture(next(image_cycle))))
 
     side_texture = render.load_texture(side_image)
 
@@ -44,8 +45,10 @@ def main(image_paths, side_image, spacing=1.2):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         for index, (vao, count, texture) in enumerate(cubes):
-            row, col = divmod(index, 3)
-            model = pyrr.matrix44.create_from_translation([(col - 1) * spacing, (2 - row) * spacing, -5])
+            row, col = divmod(index, cols)
+            model = pyrr.matrix44.create_from_translation(
+                [(col - 1) * spacing, (2 - row) * spacing, -5]
+            )
             glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
             
             glBindTexture(GL_TEXTURE_2D, texture)
@@ -60,6 +63,17 @@ def main(image_paths, side_image, spacing=1.2):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Render textured cube grid")
     parser.add_argument(
+        "--cubes",
+        type=int,
+        default=15,
+        help="Number of cubes to render (default: 15)",
+    )
+    parser.add_argument(
+        "--image",
+        default=None,
+        help="Single image file to apply to all faces. Overrides --cardpath.",
+    )
+    parser.add_argument(
         "--cardpath",
         nargs="+",
         default=[
@@ -70,7 +84,7 @@ if __name__ == "__main__":
             "../cards/jack_of_clubs.png", "../cards/king_of_clubs.png", "../cards/queen_of_clubs.png",
         ],
         help="Path to card image(s). Can be a single file or multiple files. "
-             "If fewer than 15 faces, cycles through the list.",
+             "If fewer than --cubes, cycles through the list.",
     )
     parser.add_argument(
         "--side",
@@ -85,4 +99,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    main(args.cardpath, args.side, spacing=args.spacing)
+    if args.image:
+        image_paths = [args.image] * args.cubes
+    else:
+        image_paths = args.cardpath
+
+    main(image_paths, args.side, n_cubes=args.cubes, spacing=args.spacing)
