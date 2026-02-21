@@ -114,7 +114,7 @@ This ensures:
 
 ## Module Interface
 
-Modules must implement:
+Asimov modules must implement draw() and detect(). ui_schema() is optional for dashboard UI.
 
 ```python
 def detect(frame, context: ThreadSafeContext, **kwargs):
@@ -126,12 +126,13 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     pass
 
 def ui_schema(args=None, context=None) -> dict:
-    """Return config schema for dashboard UI."""
+    """Return config schema for dashboard UI (optional)."""
     pass
 
+# Optional lifecycle hooks:
 def init(args, **kwargs) -> bool: ...
-def access(args, op, **kwargs) -> bool: ...
 def buildargs(args, **kwargs) -> argparse.ArgumentParser: ...
+def access(args, op, **kwargs) -> bool: ...
 def main(args, **kwargs) -> bool: ...
 ```
 
