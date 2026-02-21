@@ -211,6 +211,16 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "type": "bool",
                 "default": False,
                 "label": "Draw Bounding Box"
+            },
+            "DRAW_HANDEDNESS": {
+                "type": "bool",
+                "default": True,
+                "label": "Show Handedness Label"
+            },
+            "DRAW_CONFIDENCE": {
+                "type": "bool",
+                "default": False,
+                "label": "Show Detection Confidence"
             }
         },
 
