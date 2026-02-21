@@ -180,55 +180,35 @@ def safe_bgra_draw(
 
 ## Filtering
 
-### One Euro Filter
+## Animation & Geometry
+
+### Rotation
 
 ```python
-class OneEuroFilter:
-    def __init__(
-        self,
-        freq: float = 30,
-        min_cutoff: float = 1.0,
-        beta: float = 0.01,
-        dcutoff: float = 1.0,
-        init: Optional[float] = None,
-    ) -> None:
-    
-    def update(self, x: float) -> float:
-        """Apply filter to new value and return smoothed result."""
+def rotate_vertex(x: float, y: float, angle_deg: float) -> Tuple[float, float]:
+    """Rotate a 2D point around origin by angle in degrees."""
 ```
 
-Implements the One Euro Filter algorithm for smoothing values while maintaining responsiveness to quick movements.
-
-### Phase Functions
+### Bounce Animation
 
 ```python
-def stable_phase(
-    seed: Any,
-    hash_base: int = 31,
-    scramble_shift1: int = 16,
-    scramble_shift2: int = 3,
-) -> float:
-    """Generate stable [0, 2π) phase offset from hashable seed."""
+def create_bounce_state(
+    x_range: Tuple[float, float] = (-0.9, 0.9),
+    y_range: Tuple[float, float] = (-0.9, 0.9),
+    z_range: Tuple[float, float] = (-0.3, 0.0),
+    angle_range: Tuple[float, float] = (-15, 15),
+    vel_x: float = 0.005,
+    vel_y: float = 0.005,
+    vel_z: float = 0.0,
+    vel_angle: float = 0.1,
+) -> Dict[str, Any]:
+    """Create initial bounce animation state."""
 
-def floating_bounce(
-    seed: Any,
-    amplitude: float = 0.05,
-    frequency: float = 1.0,
-    time: float = 0.0,
-) -> float:
-    """Compute floating offset using stable phase."""
-```
-
-### Interpolation
-
-```python
-def interpolate_sequential(
-    index: int,
-    total_length: int,
-    start_value: float,
-    end_value: float,
-) -> float:
-    """Map sequential index to proportional value between endpoints."""
+def bounce_animation_update(
+    state: Dict[str, Any],
+    quad_size: float = 0.5,
+) -> Dict[str, float]:
+    """Update bounce animation state. Returns position dict with x, y, z, angle."""
 ```
 
 ## Diagnostics

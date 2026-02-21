@@ -18,9 +18,9 @@ OpenGL video player that displays a video with smooth position/rotation animatio
 from asimov.util import (
     create_texture,
     update_texture,
-    lerp,
-    smooth_step,
-    stable_phase,
+    rotate_vertex,
+    bounce_animation_update,
+    create_bounce_state,
 )
 ```
 
@@ -32,28 +32,14 @@ from asimov.util import (
 
 ### Animation System
 
-**State:**
+Uses `create_bounce_state()` and `bounce_animation_update()` from `asimov.util`:
+
 ```python
-{
-    'x': float,       # X position
-    'y': float,       # Y position
-    'z': float,       # Z position (depth)
-    'angle': float,   # Rotation angle in degrees
-    'vel_x': float,   # X velocity
-    'vel_y': float,   # Y velocity
-    'vel_z': float,   # Z velocity
-    'vel_angle': float,  # Angular velocity
-    'x_range': tuple, # (min, max) X bounds
-    'y_range': tuple, # (min, max) Y bounds
-    'z_range': tuple, # (min, max) Z bounds
-    'angle_range': tuple, # (min, max) angle bounds
-}
+anim_state = create_bounce_state()
+anim_vals = bounce_animation_update(anim_state)
 ```
 
-**anim_update(state):**
-- Updates position based on velocity
-- Bounces when quad edge hits border (not center)
-- Reverses velocity direction at boundaries
+Returns dict with `x`, `y`, `z`, `angle` values.
 
 ### Rendering
 
