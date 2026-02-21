@@ -148,6 +148,8 @@ Modules map to `conf` attributes:
 | glitch      | conf.GLITCH  |
 | motionblur  | conf.MOTIONBLUR |
 | fps_overlay | conf.FPS_OVERLAY |
+| rect        | conf.RECT    |
+| rect_touch  | conf.RECT_TOUCH |
 
 ## UI Schema Types
 
