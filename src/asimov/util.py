@@ -24,6 +24,19 @@ LOGGER_NAME = "asimov"
 
 FRAME_BLOCK_FORMAT = "!HBBH"
 
+# Linear interpolation
+def lerp(start: float, end: float, t: float) -> float:
+    """Linear interpolation between start and end by t (0-1)."""
+    return start + t * (end - start)
+
+def smooth_step(t: float) -> float:
+    """Smoothstep easing function (cubic Hermite interpolation)."""
+    return t * t * (3 - 2 * t)
+
+def ease_in_out(t: float) -> float:
+    """Ease-in-out cubic interpolation."""
+    return 2 * t * t if t < 0.5 else 1 - pow(-2 * t + 2, 2) / 2
+
 def _normalize_color(c: Sequence[float]) -> Tuple[float, float, float, float]:
     """Normalize color tuple to 0.0-1.0 range."""
     if len(c) != 4:

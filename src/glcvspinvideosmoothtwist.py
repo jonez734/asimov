@@ -5,9 +5,19 @@ import OpenGL.GL as gl
 import OpenGL.GL.shaders as shaders
 import random
 import math
+from typing import Any
+
+from asimov.util import (
+    create_texture,
+    update_texture,
+    render_quad,
+    lerp,
+    smooth_step,
+    stable_phase,
+)
 
 # Initialize OpenCV video capture
-video_path = 0 # "video.mp4"  # Change to your video file
+video_path = 1
 cap = cv2.VideoCapture(video_path)
 
 if not cap.isOpened():
@@ -76,29 +86,48 @@ gl.glVertexAttribPointer(1, 2, gl.GL_FLOAT, gl.GL_FALSE, 5 * 4, gl.ctypes.c_void
 
 gl.glBindVertexArray(0)
 
-# Create Texture
-texture = gl.glGenTextures(1)
-gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
-gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
-gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
-gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
-gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+# Create Texture using asimov.util
+texture = create_texture()
 
-# LERP function for smooth interpolation
-def lerp(start, end, t):
-    return start + t * (end - start)
+# Animation state using stable_phase for unique random seeds
+class SmoothTarget:
+    def __init__(self, seed: Any, x_range=(-0.5, 0.5), y_range=(-0.5, 0.5), z_range=(-0.5, 0.0), angle_range=(-15, 15)):
+        self.seed = seed
+        self.x_range = x_range
+        self.y_range = y_range
+        self.z_range = z_range
+        self.angle_range = angle_range
+        self.current = self._random_target()
+        self.target = self._random_target()
+        self.progress = 1.0
+    
+    def _random_target(self):
+        return {
+            'x': random.uniform(*self.x_range),
+            'y': random.uniform(*self.y_range),
+            'z': random.uniform(*self.z_range),
+            'angle': random.uniform(*self.angle_range),
+        }
+    
+    def update(self, dt: float = 1/60) -> dict:
+        """Update and return interpolated values."""
+        self.progress += dt
+        t = smooth_step(min(self.progress, 1.0))
+        
+        if self.progress >= 1.0:
+            self.current = self.target
+            self.target = self._random_target()
+            self.progress = 0.0
+        
+        return {
+            'x': lerp(self.current['x'], self.target['x'], t),
+            'y': lerp(self.current['y'], self.target['y'], t),
+            'z': lerp(self.current['z'], self.target['z'], t),
+            'angle': lerp(self.current['angle'], self.target['angle'], t),
+        }
 
-# Initial and target positions
-current_x = current_y = current_z = 0.0
-target_x = random.uniform(-0.5, 0.5)
-target_y = random.uniform(-0.5, 0.5)
-target_z = random.uniform(-0.5, 0.0)
-
-# Rotation parameters
-current_angle = 0.0
-target_angle = random.uniform(-15, 15)  # Rotate up to ±15 degrees
-frames_to_change = 60  # Change position & rotation every 60 frames (~1 sec at 60 FPS)
-frame_counter = 0
+# Initialize animation
+anim = SmoothTarget("video_player")
 
 # Main loop
 while not glfw.window_should_close(window):
@@ -109,38 +138,23 @@ while not glfw.window_should_close(window):
     # Read a frame from the video
     ret, frame = cap.read()
     if not ret:
-        break  # End of video
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        ret, frame = cap.read()
+        if not ret:
+            break
 
     # Convert frame to OpenGL texture format
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame = np.flip(frame, axis=0)  # Flip vertically for OpenGL
+    frame = np.flip(frame, axis=0)
 
-    gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, frame.shape[1], frame.shape[0], 0, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, frame)
+    # Update texture using asimov.util
+    update_texture(texture, frame)
 
-    # Smooth position interpolation
-    t = frame_counter / frames_to_change
-    smoothed_x = lerp(current_x, target_x, t)
-    smoothed_y = lerp(current_y, target_y, t)
-    smoothed_z = lerp(current_z, target_z, t)
+    # Get interpolated animation values
+    anim_state = anim.update()
 
     # Smooth rotation interpolation
-    smoothed_angle = lerp(current_angle, target_angle, t)
-    theta = math.radians(smoothed_angle)
-
-    # Generate new target after frames_to_change frames
-    if frame_counter >= frames_to_change:
-        current_x, current_y, current_z = target_x, target_y, target_z
-        current_angle = target_angle
-        target_x = random.uniform(-0.5, 0.5)
-        target_y = random.uniform(-0.5, 0.5)
-        target_z = random.uniform(-0.5, 0.0)
-        target_angle = random.uniform(-15, 15)  # New random rotation
-        frame_counter = 0
-
-    frame_counter += 1
-
-    # Rotation matrix for 2D rotation
+    theta = math.radians(anim_state['angle'])
     cos_theta = math.cos(theta)
     sin_theta = math.sin(theta)
 
@@ -157,10 +171,10 @@ while not glfw.window_should_close(window):
     v3 = rotate_vertex(-0.5,  0.5)
 
     vertices = np.array([
-        v0[0] + smoothed_x, v0[1] + smoothed_y, smoothed_z,  0.0, 0.0,  # Bottom-left
-        v1[0] + smoothed_x, v1[1] + smoothed_y, smoothed_z,  1.0, 0.0,  # Bottom-right
-        v2[0] + smoothed_x, v2[1] + smoothed_y, smoothed_z,  1.0, 1.0,  # Top-right
-        v3[0] + smoothed_x, v3[1] + smoothed_y, smoothed_z,  0.0, 1.0   # Top-left
+        v0[0] + anim_state['x'], v0[1] + anim_state['y'], anim_state['z'],  0.0, 0.0,
+        v1[0] + anim_state['x'], v1[1] + anim_state['y'], anim_state['z'],  1.0, 0.0,
+        v2[0] + anim_state['x'], v2[1] + anim_state['y'], anim_state['z'],  1.0, 1.0,
+        v3[0] + anim_state['x'], v3[1] + anim_state['y'], anim_state['z'],  0.0, 1.0
     ], dtype=np.float32)
 
     # Update VBO with new vertex data
