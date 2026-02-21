@@ -36,7 +36,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/asimov/asimov"
+Homepage = "https://zoidtechnologies.com/asimov/"
 Repository = "https://github.com/asimov/asimov"
 
 [tool.setuptools.packages.find]
