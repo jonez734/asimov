@@ -12,7 +12,6 @@
 import re
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
 
 from .const import CSI, BEL, ESC, ECHO_END, OSC
 
@@ -785,10 +784,6 @@ def _handle_command(token, **kwargs): # palette=None, vars=None):
 
     # command name is lowercase
     cmd = token.value.lower()
-    args = token.args
-    kwargs = token.kwargs
-    raw  = token.raw
-    repeat = token.repeat
 
     yield from _acs_off()
 
@@ -896,7 +891,6 @@ _emoji = {
   "worldmap":               "\U0001F5FA", # 🗺 @since 20220916
 
   "wolf":                   "\U0001F43A", # 🐺 @since 20221002
-  "person":                 "\U0001F9D1", # 👤 @since 20260221
 
   "supervillian":           "\U0001F9B9", # 🦹 @since 20221016
   "joker":                  "\U0001F0CF", # 🃏 @since 20221127
