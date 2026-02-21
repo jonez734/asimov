@@ -13,28 +13,24 @@
 │                    detect(frame, context)                   │
 ├─────────────────────────────────────────────────────────────┤
 │  1. Initialize detector (once, stored in context)          │
-│  2. Run HandDetector.findHands()                           │
-│  3. Publish results to context["HAND"]                     │
-└─────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    draw(frame, context)                     │
-├─────────────────────────────────────────────────────────────┤
-│  1. Blend cvzone overlay (if USE_OVERLAY enabled)          │
-│  2. Draw text annotations (handedness, confidence)         │
+│  2. Run HandDetector.findHands(flipType=True)             │
+│  3. Draw skeleton manually using landmark coordinates      │
+│  4. Publish results to context["HAND"]                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## cvzone Drawing
+## Frame Flip Handling
 
-The module uses cvzone's built-in skeleton drawing. When `USE_OVERLAY=True`:
+The module uses `flipType=True` with cvzone's HandDetector. This corrects handedness labels when the frame is mirrored for display.
 
-```python
-hands, drawn = detector.findHands(frame, draw=True)
-```
+**Important**: The frame flip (mirroring) should happen AFTER modules run, in the main loop. This ensures:
+1. Detection runs on raw (unflipped) frame
+2. Labels are correctly flipped by flipType=True
+3. Frame is mirrored only for display
 
-cvzone draws:
+## Landmark Drawing
+
+The module draws skeleton landmarks manually using the 21 MediaPipe landmark coordinates stored in `hand["lmList"]`. This avoids alpha blending issues with cvzone's overlay.
 - **Landmarks**: Circles at each of the 21 hand landmark points
 - **Skeleton lines**: Connections between landmark points following MediaPipe hand topology:
   - Wrist (0) to all finger bases
@@ -89,9 +85,9 @@ cvzone draws:
 | 19    | PINKY_DIP    | Pinky      |
 | 20    | PINKY_TIP    | Pinky      |
 
-### Skeleton Connections (HAND_CONNECTIONS)
+### Skeleton Connections
 
-cvzone draws lines between these landmark pairs:
+The module draws lines between these landmark pairs (stored in `hand["lmList"]`):
 
 ```python
 HAND_CONNECTIONS = [
@@ -117,8 +113,6 @@ The config is organized into nested sections: DETECTION, FILTER, DRAW, and DEBUG
 | MIN_DETECTION_CONFIDENCE | float | 0.5 | MediaPipe min detection confidence |
 | MIN_TRACKING_CONFIDENCE | float | 0.5 | MediaPipe min tracking confidence |
 | DETECTION_CON | float | 0.6 | cvzone detection confidence |
-| USE_OVERLAY | bool | False | Enable cvzone skeleton drawing |
-| OVERLAY_ALPHA | float | 0.7 | Overlay blend alpha (0.0-1.0) |
 | TEXT_COLOR | tuple | (0, 255, 0) | Text annotation color (BGR) |
 
 ### DETECTION
@@ -160,15 +154,15 @@ The config is organized into nested sections: DETECTION, FILTER, DRAW, and DEBUG
   - `cfg`: Config dict from conf.HAND
   - `detector`: HandDetector instance
   - `hands`: List of hand dicts from cvzone
-  - `overlay`: Frame with cvzone drawing (if USE_OVERLAY)
   - `timestamp`: Detection time
   - `error_state`: bool
+- **Side effects**: Draws skeleton landmarks directly on frame if SHOW_LANDMARKS enabled
 
 ### draw(frame, context, **kwargs) -> np.ndarray
 - **Input**: frame (BGR np.ndarray), context with `["HAND"]`
-- **Output**: Returns frame with blended overlay and text annotations
+- **Output**: Returns frame with bounding box and text annotations
 - **Behavior**:
-  1. Blend overlay using cv2.addWeighted if USE_OVERLAY
+  1. Draw bounding box if SHOW_BBOX enabled
   2. Draw handedness/confidence text if enabled
 - **Error handling**: Shows "HAND ERROR" text if error_state is True
 
