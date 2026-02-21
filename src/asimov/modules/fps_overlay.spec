@@ -7,7 +7,7 @@
 ## Architecture
 
 - **detect()**: Not implemented (this module only draws)
-- **draw()**: Reads FPS from `context["FPS"]` and renders using cvzone.putTextRect
+- **draw()**: Reads FPS from `context["FPS"]` and renders using `draw_text()`
 
 ## FPS Data Source
 

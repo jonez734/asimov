@@ -1,8 +1,8 @@
 import cv2
-import cvzone
 import numpy as np
 from .. import conf
 from ..common import ThreadSafeContext
+from ..util import draw_text
 
 ERR_TEXT_ORG = (10, 30)
 ERR_TEXT_SCALE = 0.6
@@ -27,26 +27,28 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     logic_fps = fps_data.get("logic", 0)
     render_fps = fps_data.get("render", 0)
 
-    cvzone.putTextRect(
+    frame = draw_text(
         frame,
+        pos[0],
+        pos[1],
         f"Logic FPS: {int(logic_fps)}",
-        pos=pos,
-        scale=scale,
+        color=text_color,
+        font_scale=scale,
         thickness=thickness,
-        colorT=text_color,
-        colorR=bg_color,
-        offset=10
+        rect_color=bg_color,
+        rect_alpha=0.7,
     )
 
-    cvzone.putTextRect(
+    frame = draw_text(
         frame,
+        pos[0],
+        pos[1] + 40,
         f"Render FPS: {int(render_fps)}",
-        pos=(pos[0], pos[1] + 40),
-        scale=scale,
+        color=text_color,
+        font_scale=scale,
         thickness=thickness,
-        colorT=text_color,
-        colorR=bg_color,
-        offset=10
+        rect_color=bg_color,
+        rect_alpha=0.7,
     )
 
     return frame

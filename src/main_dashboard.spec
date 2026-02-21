@@ -110,7 +110,7 @@ This ensures:
 - **logic_fps**: cvzone.FPS counter in logic thread (detect phase)
 - **render_fps**: cvzone.FPS counter in render thread (draw/display phase)
 - Stored in context as `{"logic": fps_value, "render": fps_value}`
-- Displayed via `fps_overlay` module using cvzone.putTextRect
+- Displayed via `fps_overlay` module using `draw_text()`
 
 ## Module Interface
 
