@@ -80,12 +80,29 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
         detector = ns["detector"]
 
-        # Get hands and overlay - use draw=True to capture skeleton, but on a copy
-        frame_copy = frame.copy()
-        hands, drawn = detector.findHands(frame_copy, draw=True, flipType=True)
-        ns["overlay"] = drawn
+        hands, drawn = detector.findHands(frame, draw=False, flipType=True)
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
+
+        # Draw skeleton manually using landmarks (so it persists properly)
+        if cfg.get("SHOW_LANDMARKS") and hands:
+            for hand in hands:
+                lmList = hand.get("lmList", [])
+                if lmList:
+                    # Draw connections
+                    connections = [(0,1),(1,2),(2,3),(3,4), (0,5),(5,6),(6,7),(7,8),
+                                   (0,9),(9,10),(10,11),(11,12), (0,13),(13,14),(14,15),(15,16),
+                                   (0,17),(17,18),(18,19),(19,20), (5,9),(9,13),(13,17)]
+                    h, w = frame.shape[:2]
+                    for start_idx, end_idx in connections:
+                        if start_idx < len(lmList) and end_idx < len(lmList):
+                            pt1 = (int(lmList[start_idx][0] * w), int(lmList[start_idx][1] * h))
+                            pt2 = (int(lmList[end_idx][0] * w), int(lmList[end_idx][1] * h))
+                            cv2.line(frame, pt1, pt2, (0, 255, 0), 2)
+                    # Draw points
+                    for lm in lmList:
+                        pt = (int(lm[0] * w), int(lm[1] * h))
+                        cv2.circle(frame, pt, 3, (0, 0, 255), -1)
 
         context["HAND"] = ns
 
@@ -108,14 +125,6 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         return frame
 
     cfg = ns["cfg"]
-
-    # ---- cvzone-managed overlay (skeleton / landmarks) ----
-    if cfg.get("SHOW_LANDMARKS"):
-        overlay = ns.get("overlay")
-        if overlay is not None and overlay.shape == frame.shape:
-            # Draw overlay directly without alpha blending to avoid ghosting
-            mask = overlay > 0
-            frame[mask] = overlay[mask]
 
     # ---- Draw bounding box ----
     if cfg.get("SHOW_BBOX"):
