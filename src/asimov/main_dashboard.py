@@ -434,6 +434,8 @@ class DashboardApp:
             return conf.FLOAT_PLAYINGCARD
         elif name_lower == "fps_overlay":
             return conf.FPS_OVERLAY
+        elif name_lower == "rect":
+            return conf.RECT
         
         return None
     

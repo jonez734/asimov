@@ -219,12 +219,13 @@ OVERLAYS = {
         "hotkey": "i",
     },
 
-#    "rect": {
-#        "module_path": "asimov.rect",
-#        "enabled": True,
-#        "order": 30,
-#        "hotkey": "r",
-#    },
+    "rect": {
+        "module_path": "asimov.rect",
+        "enabled": True,
+        "order": 25,
+        "hotkey": "r",
+    },
+
     "face": {
         "module_path": "asimov.modules.face",
         "enabled": True,
@@ -433,6 +434,11 @@ SCENE = {
         {
             "name": "hand",
             "module": "asimov.modules.hand",
+            "conf": {},
+        },
+        {
+            "name": "rect",
+            "module": "asimov.rect",
             "conf": {},
         },
         {

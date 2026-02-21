@@ -33,16 +33,23 @@ def detect(frame: np.ndarray, context):
     """
 
     rects: List[Dict] = context.get(CTX_RECTS, [])
-    fingertip = context.get("indexfingertip")
+    
+    if not rects:
+        init_default_rects(context)
+        rects = context.get(CTX_RECTS, [])
+    
+    fingertip_ns = context.get("INDEXFINGERTIP")
 
     touches: List[str] = []
 
-    if fingertip:
-        pt = (fingertip["x"], fingertip["y"])
+    if fingertip_ns and fingertip_ns.get("active"):
+        data = fingertip_ns.get("data")
+        if data:
+            pt = (int(data["x"]), int(data["y"]))
 
-        for rect in rects:
-            if _point_in_rect(pt, rect):
-                touches.append(rect.get("id", "unknown"))
+            for rect in rects:
+                if _point_in_rect(pt, rect):
+                    touches.append(rect.get("id", "unknown"))
 
     context[CTX_TOUCHES] = touches
 
@@ -116,6 +123,67 @@ def add_rect(context, rect_id: str, x: int, y: int, w: int, h: int):
 
 def init(args, **kwargs):
     return True
+
+
+def init_default_rects(context):
+    """Add default test rectangles to context."""
+    add_rect(context, "test1", 100, 100, 100, 100)
+    add_rect(context, "test2", 300, 100, 100, 100)
+    add_rect(context, "test3", 500, 100, 100, 100)
+
+
+def ui_schema(args=None, context=None) -> dict | None:
+    return {
+        "DRAW": {
+            "enabled": {
+                "type": "bool",
+                "default": True,
+                "label": "Draw Rectangles"
+            },
+            "COLOR": {
+                "type": "color",
+                "default": [0, 180, 255],
+                "label": "Rectangle Color (BGR)"
+            },
+            "TOUCHED_COLOR": {
+                "type": "color",
+                "default": [0, 0, 255],
+                "label": "Touched Color (BGR)"
+            },
+            "THICKNESS": {
+                "type": "int",
+                "default": 2,
+                "min": 1,
+                "max": 10,
+                "step": 1,
+                "label": "Border Thickness"
+            },
+            "TOUCHED_THICKNESS": {
+                "type": "int",
+                "default": 3,
+                "min": 1,
+                "max": 10,
+                "step": 1,
+                "label": "Touched Border Thickness"
+            },
+            "LABEL_SCALE": {
+                "type": "float",
+                "default": 0.5,
+                "min": 0.1,
+                "max": 2.0,
+                "step": 0.1,
+                "label": "Label Scale"
+            },
+            "LABEL_THICKNESS": {
+                "type": "int",
+                "default": 1,
+                "min": 1,
+                "max": 5,
+                "step": 1,
+                "label": "Label Thickness"
+            },
+        }
+    }
 
 
 def buildargs(args, **kwargs):
