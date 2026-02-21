@@ -1,4 +1,5 @@
 import time
+import argparse
 
 import cv2
 
@@ -105,8 +106,8 @@ def render_scene(frame, rectangles):
     draw_texture()
 
     # Draw detected rectangles
-    gl.glColor4f(0, 0.5, 0, 0.5)  # Black for rectangles & text
-    for x, y, w, h, _ in rect_buffer:
+    gl.glColor4f(0, 1, 0, 1)  # Green for rectangles
+    for x, y, w, h, _ in rectangles:
         draw_rectangle(x, y, w, h)
         draw_text(x + 5, y - 15, f"Area: {w*h}")
     gl.glColor4f(1.0, 1.0, 1.0, 1.0)
@@ -120,6 +121,10 @@ def key_callback(window, key, scancode, action, mods):
 
 def main():
     global window
+
+    parser = argparse.ArgumentParser(description="OpenGL Card Detection")
+    parser.add_argument("--capture-dev", type=int, default=1, help="Capture device index (default: 1)")
+    args = parser.parse_args()
 
     # Initialize GLFW
     if not glfw.init():
@@ -144,7 +149,7 @@ def main():
     gl.glEnable(gl.GL_BLEND)
     gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
-    cap = cv2.VideoCapture(0)  # Webcam
+    cap = cv2.VideoCapture(args.capture_dev)
 
     while not glfw.window_should_close(window):
         ret, frame = cap.read()
