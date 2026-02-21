@@ -45,9 +45,11 @@ def render_text(
     color: Sequence[float] = (0.0, 1.0, 0.0, 1.0),
     shadow_color: Optional[Sequence[float]] = (0.0, 0.0, 0.0, 0.5),
     offsets: Optional[List[Tuple[float, float]]] = None,
+    rect_color: Optional[Sequence[float]] = None,
+    rect_alpha: float = 0.7,
 ) -> None:
     """
-    Render bitmap text using OpenGL at a specific position with optional shadow effect.
+    Render bitmap text using OpenGL at a specific position with optional shadow and background box.
 
     Parameters:
         text: The text to render. Can be None (no-op).
@@ -57,6 +59,8 @@ def render_text(
         color: RGBA color for the text. Values can be 0.0-1.0 or 0-255 (default: Green).
         shadow_color: RGBA color for the shadow (default: Black with 50% opacity).
         offsets: List of (x_offset, y_offset) for shadow rendering.
+        rect_color: RGB color for background box (None = no box).
+        rect_alpha: Alpha for background box (0-1).
     """
     if text is None or not isinstance(text, str) or text == "":
         return
@@ -70,6 +74,15 @@ def render_text(
         for char in txt:
             glutBitmapCharacter(ft, ord(char))
 
+    def _draw_rect(px: float, py: float, w: float, h: float, col: Tuple[float, float, float, float]) -> None:
+        glColor4f(*col)
+        glBegin(GL_QUADS)
+        glVertex2f(px, py)
+        glVertex2f(px + w, py)
+        glVertex2f(px + w, py + h)
+        glVertex2f(px, py + h)
+        glEnd()
+
     was_blend_enabled = glIsEnabled(GL_BLEND)
     prev_color = glGetFloatv(GL_CURRENT_COLOR)
 
@@ -78,6 +91,12 @@ def render_text(
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glPushMatrix()
         glLoadIdentity()
+
+        if rect_color:
+            text_width = len(text) * 0.012
+            text_height = 0.025
+            bg = _normalize_color(rect_color)[:3] + (rect_alpha,)
+            _draw_rect(x - 0.005, y - text_height + 0.005, text_width + 0.01, text_height + 0.01, bg)
 
         if shadow_color:
             shadow = _normalize_color(shadow_color)
@@ -357,9 +376,11 @@ def draw_text(
     thickness: int = 1,
     font_scale: float = 0.5,
     font: int = cv2.FONT_HERSHEY_SIMPLEX,
+    rect_color: Optional[Tuple[int, int, int]] = None,
+    rect_alpha: float = 0.7,
 ) -> np.ndarray:
     """
-    Draw text on a cv2 frame with optional shadow and alpha blending.
+    Draw text on a cv2 frame with optional shadow, background box, and alpha blending.
 
     Parameters:
         img: The cv2 frame to draw on (BGR or BGRA)
@@ -373,6 +394,8 @@ def draw_text(
         thickness: Text thickness
         font_scale: Font scale
         font: OpenCV font
+        rect_color: RGB color for background box (None = no box)
+        rect_alpha: Alpha for background box (0-1)
 
     Returns:
         The modified cv2 frame
@@ -403,6 +426,24 @@ def draw_text(
         over_rgb = overlay.astype(np.float32)
         dst[..., :3] = (over_rgb * m + dst_rgb * (1 - m)).astype(np.uint8)
         # Leave alpha channel unchanged (we could modify if desired)
+
+    # --- Draw background box ---
+    if rect_color:
+        (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+        box_x = x - 5
+        box_y = y - text_height - 5
+        box_w = text_width + 10
+        box_h = text_height + baseline + 10
+        
+        box_overlay = np.zeros((h, w, 3), dtype=np.uint8)
+        cv2.rectangle(box_overlay, (box_x, box_y), (box_x + box_w, box_y + box_h), rect_color, -1)
+        box_mask = cv2.cvtColor(box_overlay, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0 * rect_alpha
+        box_mask = box_mask[..., None]
+        
+        if not is_rgba:
+            blend_bgr(img, box_overlay, box_mask, rect_alpha)
+        else:
+            blend_rgba(img, box_overlay, box_mask, rect_alpha)
 
     # --- Draw shadow ---
     if shadow_offset != 0 and (isinstance(shadow_offset, tuple) or shadow_offset != 0):
