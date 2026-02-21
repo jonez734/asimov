@@ -8,6 +8,7 @@ import sys
 sys.path.insert(0, '/home/jam/projects/asimov/src')
 from asimov import render
 from asimov.playingcard.cards import RANKS, SUITS, get_card_path
+from PIL import Image
 
 
 def get_default_card_paths(n=15, basedir="../cards"):
@@ -37,11 +38,14 @@ def main(image_paths, side_image, n_cubes=15, spacing=1.2):
 
     cubes = []
     image_cycle = cycle(image_paths)
+
+    first_image = Image.open(image_paths[0])
+    aspect_ratio = first_image.width / first_image.height
+
     cols = 3
-    card_aspect = 2.5 / 3.5  # playing card proportion
     for i in range(n_cubes):
         row, col = divmod(i, cols)
-        vao, count = render.create_cube(aspect_ratio=card_aspect)
+        vao, count = render.create_cube(aspect_ratio=aspect_ratio)
         cubes.append((vao, count, render.load_texture(next(image_cycle))))
 
     side_texture = render.load_texture(side_image)
