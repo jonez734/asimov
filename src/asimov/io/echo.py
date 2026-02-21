@@ -856,7 +856,7 @@ _emoji = {
   "thunder-cloud-and-rain": "\U000026C8", # ⛈ @since 20260221
   "crop":                   "\U0001F33E", # 🌾 @since 20260221
   "horse":                  "\U0001F40E", # 🐎 @since 20260221
-  "cactus":                 "\U0001F335", # � cactus @since 20260221
+  "cactus":                 "\U0001F335", # 🪴 @since 20260221
   "ship":                   "\U0001F6A2", # 🚢 @since 20260221
   "wood":                   "\U0001FAB5", # 🪵 @since 20260221
   "link":                   "\U0001F517", # 🔗 @since 20260221
