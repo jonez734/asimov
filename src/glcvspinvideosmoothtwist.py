@@ -4,13 +4,8 @@ import glfw
 import OpenGL.GL as gl
 import OpenGL.GL.shaders as shaders
 
-from asimov.util import (
-    create_texture,
-    update_texture,
-    rotate_vertex,
-    bounce_animation_update,
-    create_bounce_state,
-)
+from asimov.util import create_texture, update_texture
+from asimov.anim import rotate_vertex, bounce_animation_update, create_bounce_state
 
 # Initialize OpenCV video capture
 video_path = 1
