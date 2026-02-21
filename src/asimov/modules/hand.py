@@ -29,7 +29,8 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         if "HAND" not in context:
             cfg = conf.HAND.copy()
             if "DETECTION" in cfg:
-                cfg["DETECTION_CON"] = cfg["DETECTION"].get("MIN_DETECTION_CONF", 0.6)
+                cfg["DETECTION_CON"] = cfg["DETECTION"].get("DETECTION_CON", 0.6)
+                cfg["MIN_DETECTION_CONF"] = cfg["DETECTION"].get("MIN_DETECTION_CONF", 0.7)
                 cfg["MAX_HANDS"] = cfg["DETECTION"].get("MAX_HANDS", 1)
             if "FILTER" in cfg:
                 cfg["FREQ"] = cfg["FILTER"].get("FREQ", 30.0)
@@ -62,7 +63,8 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         # Sync config from conf.HAND to pick up UI changes
         cfg = conf.HAND.copy()
         if "DETECTION" in cfg:
-            cfg["DETECTION_CON"] = cfg["DETECTION"].get("MIN_DETECTION_CONF", 0.6)
+            cfg["DETECTION_CON"] = cfg["DETECTION"].get("DETECTION_CON", 0.6)
+            cfg["MIN_DETECTION_CONF"] = cfg["DETECTION"].get("MIN_DETECTION_CONF", 0.7)
             cfg["MAX_HANDS"] = cfg["DETECTION"].get("MAX_HANDS", 1)
         if "FILTER" in cfg:
             cfg["FREQ"] = cfg["FILTER"].get("FREQ", 30.0)
@@ -156,6 +158,14 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 def ui_schema(args=None, context=None) -> dict | None:
     return {
         "DETECTION": {
+            "DETECTION_CON": {
+                "type": "float",
+                "default": 0.6,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.05,
+                "label": "Detection Confidence"
+            },
             "MIN_DETECTION_CONF": {
                 "type": "float",
                 "default": 0.7,
