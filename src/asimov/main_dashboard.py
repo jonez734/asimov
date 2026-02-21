@@ -1,6 +1,5 @@
 # asimov/main_dashboard.py
 
-import sys
 import argparse
 import threading
 import time
@@ -14,7 +13,7 @@ import json
 from PIL import Image, ImageTk
 from cvzone.FPS import FPS as CVZoneFPS
 
-from . import io, conf, module, common, scene
+from . import io, conf, common, scene
 from .common import ThreadSafeContext
 from .playingcard import cards
 
@@ -392,7 +391,8 @@ class DashboardApp:
                                 if section_name in config_obj and key in config_obj[section_name]:
                                     on_change = None
                                     if name.lower() == "float_playingcard" and section_name == "Card":
-                                        on_change = lambda s, k, v: self._log_card_filename(config_obj)
+                                        def on_change(s, k, v):
+                                            self._log_card_filename(config_obj)
                                     build_field(section_frame, section_name, key, meta, config_obj, on_change)
                 except Exception as e:
                     self._log(f"Error loading schema for {name}: {e}")

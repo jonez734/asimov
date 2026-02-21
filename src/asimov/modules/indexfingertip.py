@@ -35,9 +35,15 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
                 "active": False,
                 "data": None,
                 "error_state": False,
+                "prev": {},
             }
 
         ns = context["INDEXFINGERTIP"]
+        f_params = conf.INDEXFINGERTIP["FILTER"]
+        filter_enabled = f_params.get("enabled", True)
+        alpha = f_params.get("alpha", 0.4)
+        deadzone = f_params.get("deadzone", 2)
+
         ns["error_state"] = False
         ns["active"] = False
         ns["data"] = None
@@ -62,9 +68,36 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         # ---- Extract + smooth ----------------------------------------------
         raw_x, raw_y = hand["lmList"][INDEX_FINGER_TIP_LM][:2]
 
+        if filter_enabled:
+            one_euro_x = ns["ema"]["x"].update(raw_x)
+            one_euro_y = ns["ema"]["y"].update(raw_y)
+        else:
+            one_euro_x = raw_x
+            one_euro_y = raw_y
+
+        prev = ns.get("prev", {})
+        prev_x = prev.get("x", one_euro_x)
+        prev_y = prev.get("y", one_euro_y)
+
+        dx = one_euro_x - prev_x
+        dy = one_euro_y - prev_y
+        if abs(dx) < deadzone:
+            one_euro_x = prev_x
+        if abs(dy) < deadzone:
+            one_euro_y = prev_y
+
+        if alpha > 0:
+            smooth_x = alpha * one_euro_x + (1 - alpha) * prev_x
+            smooth_y = alpha * one_euro_y + (1 - alpha) * prev_y
+        else:
+            smooth_x = one_euro_x
+            smooth_y = one_euro_y
+
+        ns["prev"] = {"x": smooth_x, "y": smooth_y}
+
         ns["data"] = {
-            "x": ns["ema"]["x"].update(raw_x),
-            "y": ns["ema"]["y"].update(raw_y),
+            "x": smooth_x,
+            "y": smooth_y,
             "timestamp": time.time(),
         }
         ns["active"] = True

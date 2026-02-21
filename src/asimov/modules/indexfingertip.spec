@@ -40,7 +40,8 @@ context["INDEXFINGERTIP"] = {
         "timestamp": float,  # Detection timestamp
     },
     "error_state": bool,
-    "ema": {...}             # OneEuroFilter instances
+    "ema": {...},            # OneEuroFilter instances
+    "prev": {...}            # Previous smoothed values for alpha/deadzone
 }
 ```
 
