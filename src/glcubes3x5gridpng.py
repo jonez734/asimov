@@ -62,7 +62,7 @@ def main(image_paths, side_image, n_cubes=15, spacing=1.2, width=800, height=600
             translation = pyrr.matrix44.create_from_translation(
                 [(col - 1) * spacing, (2 - row) * spacing, -5]
             )
-            scale = pyrr.matrix44.create_from_scale([aspect_ratio, 1.0, 1.0])
+            scale = pyrr.matrix44.create_from_scale([1.0, aspect_ratio, 1.0])
             model = pyrr.matrix44.multiply(scale, translation)
             glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
 
