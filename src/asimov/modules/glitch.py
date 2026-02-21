@@ -334,8 +334,6 @@ def scheduler():
     """
     import random
     
-    now = time.time()
-    
     if random.random() > 0.02:
         return
     

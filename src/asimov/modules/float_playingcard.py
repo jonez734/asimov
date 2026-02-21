@@ -16,7 +16,7 @@ import math
 import hashlib
 
 from asimov import conf
-from asimov.common import ThreadSafeContext, OneEuroFilter
+from asimov.common import OneEuroFilter
 from asimov.playingcard import cards
 from asimov.modules import glitch
 
@@ -304,8 +304,6 @@ def detect(frame, context, /, **kw):
             smoothed_cx = _filter_x.update(cx)
             smoothed_cy = _filter_y.update(cy)
             smoothed_scale = _filter_scale.update(target_scale)
-
-        seed = (int(smoothed_cx), int(smoothed_cy))
 
         context.card = {
             "center": (int(smoothed_cx), int(smoothed_cy)),
