@@ -46,22 +46,27 @@ def create_shader(vertex_source: str, fragment_source: str):
     return shader
 
 
-def create_cube() -> tuple[int, int]:
+def create_cube(aspect_ratio: float = 1.0) -> tuple[int, int]:
     """Create a cube VAO with position and texture coordinates.
+
+    Args:
+        aspect_ratio: Width/height ratio for front/back faces. Default 1.0 (square).
+                      Use 0.71 for playing card proportion (2.5:3.5).
     
     Returns:
         Tuple of (VAO handle, index count)
     """
+    depth = 0.5 * aspect_ratio
     vertices = np.array([
-        -0.5, -0.1, -0.5,  0.0, 0.0,
-         0.5, -0.1, -0.5,  1.0, 0.0,
-         0.5,  0.1, -0.5,  1.0, 1.0,
-        -0.5,  0.1, -0.5,  0.0, 1.0,
-        
-        -0.5, -0.1,  0.5,  0.0, 0.0,
-         0.5, -0.1,  0.5,  1.0, 0.0,
-         0.5,  0.1,  0.5,  1.0, 1.0,
-        -0.5,  0.1,  0.5,  0.0, 1.0,
+        -0.5, -0.1, -depth,  0.0, 0.0,
+         0.5, -0.1, -depth,  1.0, 0.0,
+         0.5,  0.1, -depth,  1.0, 1.0,
+        -0.5,  0.1, -depth,  0.0, 1.0,
+
+        -0.5, -0.1,  depth,  0.0, 0.0,
+         0.5, -0.1,  depth,  1.0, 0.0,
+         0.5,  0.1,  depth,  1.0, 1.0,
+        -0.5,  0.1,  depth,  0.0, 1.0,
     ], dtype=np.float32)
     
     indices = np.array([
