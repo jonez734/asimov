@@ -163,8 +163,8 @@ Closing syntax: `{/bold}`, `{/italic}`, etc.
 You can also register custom emojis at runtime:
 
 ```python
-from asimov.io import set_emojis
-set_emojis({"horse": "\\U0001F40E", "grain": "\\U0001F33E"})
+from asimov.io import register_emojis
+register_emojis({"horse": "\\U0001F40E", "grain": "\\U0001F33E"})
 echo(":horse: :grain:")
 ```
 
