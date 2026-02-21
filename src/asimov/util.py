@@ -15,26 +15,33 @@ from .io.echo import echo_traceback
 import cv2
 from typing import Callable, Any, Tuple
 
+from typing import Callable, Any, Tuple, List, Optional, Sequence
+
 MAX_BLOCK_SIZE = 128
 
 LOGGER_NAME = "asimov"
 
 # @since 20250326
-def render_text(text, x, y, font=GLUT_BITMAP_8_BY_13,
-                color=(0.0, 1.0, 0.0, 1.0), 
-                shadow_color=(0.0, 0.0, 0.0, 0.5), 
-                offsets=None):
+def render_text(
+    text: Optional[str],
+    x: float,
+    y: float,
+    font: Any = GLUT_BITMAP_8_BY_13,
+    color: Sequence[float] = (0.0, 1.0, 0.0, 1.0),
+    shadow_color: Optional[Sequence[float]] = (0.0, 0.0, 0.0, 0.5),
+    offsets: Optional[List[Tuple[float, float]]] = None,
+) -> None:
     """
     Render bitmap text at a specific position with optional shadow effect.
 
     Parameters:
-        text (str): The text to render. Can be None (no-op).
-        x (float): X position in normalized OpenGL coordinates.
-        y (float): Y position in normalized OpenGL coordinates.
+        text: The text to render. Can be None (no-op).
+        x: X position in normalized OpenGL coordinates.
+        y: Y position in normalized OpenGL coordinates.
         font: GLUT font (default: GLUT_BITMAP_8_BY_13).
-        color (tuple): RGBA color for the text. Values can be 0.0-1.0 or 0-255 (default: Green).
-        shadow_color (tuple): RGBA color for the shadow (default: Black with 50% opacity).
-        offsets (list of tuples): List of (x_offset, y_offset) for shadow rendering.
+        color: RGBA color for the text. Values can be 0.0-1.0 or 0-255 (default: Green).
+        shadow_color: RGBA color for the shadow (default: Black with 50% opacity).
+        offsets: List of (x_offset, y_offset) for shadow rendering.
     """
     if text is None or not isinstance(text, str) or text == "":
         return
