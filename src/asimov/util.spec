@@ -27,6 +27,8 @@ def render_text(
     color: Sequence[float] = (0.0, 1.0, 0.0, 1.0),
     shadow_color: Optional[Sequence[float]] = (0.0, 0.0, 0.0, 0.5),
     offsets: Optional[List[Tuple[float, float]]] = None,
+    rect_color: Optional[Sequence[float]] = None,
+    rect_alpha: float = 0.7,
 ) -> None:
 ```
 
@@ -37,6 +39,8 @@ Parameters:
 - `color`: RGBA color (values can be 0.0-1.0 or 0-255)
 - `shadow_color`: Shadow RGBA color
 - `offsets`: Custom shadow offset positions
+- `rect_color`: RGB color for background box (None = no box)
+- `rect_alpha`: Alpha for background box (0-1)
 
 ### OpenCV (draw_text)
 
@@ -56,6 +60,8 @@ def draw_text(
     thickness: int = 1,
     font_scale: float = 0.5,
     font: int = cv2.FONT_HERSHEY_SIMPLEX,
+    rect_color: Optional[Tuple[int, int, int]] = None,
+    rect_alpha: float = 0.7,
 ) -> np.ndarray:
 ```
 
@@ -67,6 +73,12 @@ Parameters:
 - `alpha`: Alpha blending factor (0-1)
 - `shadow_offset`: Shadow offset (int or tuple)
 - `shadow_color`: Shadow RGB color
+- `shadow_alpha`: Shadow alpha
+- `thickness`: Text thickness
+- `font_scale`: Font scale
+- `font`: OpenCV font constant
+- `rect_color`: RGB color for background box (None = no box)
+- `rect_alpha`: Alpha for background box (0-1)
 - `shadow_alpha`: Shadow alpha
 - `thickness`: Text thickness
 - `font_scale`: Font scale
