@@ -10,6 +10,7 @@ import numpy as np
 
 from . import io, conf
 from .common import safe_path
+from .io.echo import echo_traceback
 
 import cv2
 from typing import Callable, Any, Tuple
@@ -27,36 +28,68 @@ def render_text(text, x, y, font=GLUT_BITMAP_8_BY_13,
     Render bitmap text at a specific position with optional shadow effect.
 
     Parameters:
-        text (str): The text to render.
+        text (str): The text to render. Can be None (no-op).
         x (float): X position in normalized OpenGL coordinates.
         y (float): Y position in normalized OpenGL coordinates.
         font: GLUT font (default: GLUT_BITMAP_8_BY_13).
-        color (tuple): RGBA color for the text (default: Green).
+        color (tuple): RGBA color for the text. Values can be 0.0-1.0 or 0-255 (default: Green).
         shadow_color (tuple): RGBA color for the shadow (default: Black with 50% opacity).
         offsets (list of tuples): List of (x_offset, y_offset) for shadow rendering.
     """
+    if text is None or not isinstance(text, str) or text == "":
+        return
+
     if offsets is None:
-        offsets = [(-0.005, 0), (0.005, 0), (0, -0.005), (0, 0.005)]  # Default shadow offsets
+        offsets = [(-0.005, 0), (0.005, 0), (0, -0.005), (0, 0.005)]
+
+    def _normalize_color(c):
+        """Normalize color tuple to 0.0-1.0 range."""
+        if len(c) != 4:
+            raise ValueError(f"Color tuple must have 4 values, got {len(c)}")
+        return tuple(max(0.0, min(1.0, v / 255.0 if v > 1.0 else v)) for v in c)
 
     def _render(text, x, y, font):
         glRasterPos2f(x, y)
         for char in text:
             glutBitmapCharacter(font, ord(char))
 
-    glEnable(GL_BLEND)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    # Save GL state
+    was_blend_enabled = glIsEnabled(GL_BLEND)
+    prev_color = glGetFloatv(GL_CURRENT_COLOR)
 
-    # Render shadow first (if applicable)
-    if shadow_color:
-        glColor4f(*shadow_color)
-        for offset_x, offset_y in offsets:
-            _render(text, x + offset_x, y + offset_y, font)
+    try:
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    # Render main text
-    glColor4f(*color)
-    _render(text, x, y, font)
+        glPushMatrix()
+        glLoadIdentity()
 
-    glDisable(GL_BLEND)  # Restore state
+        # Render shadow first (if applicable)
+        if shadow_color:
+            shadow = _normalize_color(shadow_color)
+            glColor4f(*shadow)
+            for offset_x, offset_y in offsets:
+                _render(text, x + offset_x, y + offset_y, font)
+
+        # Render main text
+        main_color = _normalize_color(color)
+        glColor4f(*main_color)
+        _render(text, x, y, font)
+
+        glPopMatrix()
+
+        # Restore GL state
+        if not was_blend_enabled:
+            glDisable(GL_BLEND)
+        glColor4f(*prev_color)
+
+    except Exception as e:
+        # Ensure GL state is restored even on error
+        if not was_blend_enabled:
+            glDisable(GL_BLEND)
+        glColor4f(*prev_color)
+        echo_traceback(f"render_text() failed: {e}")
+        return
 
 def render_quad(texture_id):
     glEnable(GL_TEXTURE_2D)
