@@ -98,8 +98,8 @@ anim_state = {
     'vel_y': 0.01,
     'vel_z': 0.0,
     'vel_angle': 0.2,
-    'x_range': (-0.7, 0.7),
-    'y_range': (-0.7, 0.7),
+    'x_range': (-0.8, 0.8),
+    'y_range': (-0.8, 0.8),
     'z_range': (-0.3, 0.0),
     'angle_range': (-15, 15),
 }
