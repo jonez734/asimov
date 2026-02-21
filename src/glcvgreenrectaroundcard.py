@@ -11,9 +11,10 @@ import OpenGL.GL as gl
 import OpenGL.GLU as glu
 import OpenGL.GLUT as glut  # For text rendering
 
+from asimov.util import create_texture, update_texture
+
 # Window dimensions
 width, height = 640, 480
-texture_id = None
 
 rect_buffer = []
 DISPLAY_TIME = 2.0
@@ -43,21 +44,7 @@ def detect_cards(frame):
 
     return rect_buffer  # Return the updated list
 
-def create_texture():
-    """Create an OpenGL texture for the webcam feed."""
-    global texture_id
-    texture_id = gl.glGenTextures(1)
-    gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-
-def update_texture(frame):
-    """Update the OpenGL texture with the latest camera frame."""
-    gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, frame.shape[1], frame.shape[0], 0, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, frame_rgb)
-
-def draw_texture():
+def draw_texture(texture_id):
     """Render the video frame as a textured quad."""
     gl.glEnable(gl.GL_TEXTURE_2D)
     gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
@@ -86,7 +73,7 @@ def draw_text(x, y, text):
     for ch in text:
         glut.glutBitmapCharacter(glut.GLUT_BITMAP_HELVETICA_18, ord(ch))
 
-def render_scene(frame, rectangles):
+def render_scene(frame, rectangles, texture_id):
     """Render the video frame and detected rectangles using OpenGL."""
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
     gl.glLoadIdentity()
@@ -100,10 +87,10 @@ def render_scene(frame, rectangles):
     gl.glLoadIdentity()
 
     # Update the OpenGL texture with the latest frame
-    update_texture(frame)
+    update_texture(texture_id, frame)
 
     # Draw the webcam frame
-    draw_texture()
+    draw_texture(texture_id)
 
     # Draw detected rectangles
     gl.glColor4f(0, 1, 0, 1)  # Green for rectangles
@@ -143,7 +130,7 @@ def main():
     glfw.set_key_callback(window, key_callback)  # Handle ESC key
     gl.glClearColor(1, 1, 1, 1)
 
-    create_texture()
+    texture_id = create_texture()
 
     # transparency
     gl.glEnable(gl.GL_BLEND)
@@ -158,7 +145,7 @@ def main():
             break
 
         rectangles = detect_cards(frame)
-        render_scene(frame, rectangles)
+        render_scene(frame, rectangles, texture_id)
         glfw.poll_events()
 
     cap.release()
