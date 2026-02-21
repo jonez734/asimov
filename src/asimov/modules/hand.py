@@ -86,27 +86,6 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
 
-        # Draw skeleton manually using landmarks (so it persists properly)
-        # Force True for now to test
-        if True and hands:
-            for hand in hands:
-                lmList = hand.get("lmList", [])
-                if lmList:
-                    # Draw connections
-                    connections = [(0,1),(1,2),(2,3),(3,4), (0,5),(5,6),(6,7),(7,8),
-                                   (0,9),(9,10),(10,11),(11,12), (0,13),(13,14),(14,15),(15,16),
-                                   (0,17),(17,18),(18,19),(19,20), (5,9),(9,13),(13,17)]
-                    h, w = frame.shape[:2]
-                    for start_idx, end_idx in connections:
-                        if start_idx < len(lmList) and end_idx < len(lmList):
-                            pt1 = (int(lmList[start_idx][0] * w), int(lmList[start_idx][1] * h))
-                            pt2 = (int(lmList[end_idx][0] * w), int(lmList[end_idx][1] * h))
-                            cv2.line(frame, pt1, pt2, (0, 255, 0), 2)
-                    # Draw points
-                    for lm in lmList:
-                        pt = (int(lm[0] * w), int(lm[1] * h))
-                        cv2.circle(frame, pt, 3, (0, 0, 255), -1)
-
         context["HAND"] = ns
 
     except Exception:
@@ -128,6 +107,26 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         return frame
 
     cfg = ns["cfg"]
+
+    # ---- Draw skeleton landmarks ----
+    if cfg.get("SHOW_LANDMARKS", cfg.get("DRAW", {}).get("SHOW_LANDMARKS", True)):
+        for hand in ns.get("hands") or []:
+            lmList = hand.get("lmList", [])
+            if lmList:
+                # Draw connections
+                connections = [(0,1),(1,2),(2,3),(3,4), (0,5),(5,6),(6,7),(7,8),
+                               (0,9),(9,10),(10,11),(11,12), (0,13),(13,14),(14,15),(15,16),
+                               (0,17),(17,18),(18,19),(19,20), (5,9),(9,13),(13,17)]
+                h, w = frame.shape[:2]
+                for start_idx, end_idx in connections:
+                    if start_idx < len(lmList) and end_idx < len(lmList):
+                        pt1 = (int(lmList[start_idx][0] * w), int(lmList[start_idx][1] * h))
+                        pt2 = (int(lmList[end_idx][0] * w), int(lmList[end_idx][1] * h))
+                        cv2.line(frame, pt1, pt2, (0, 255, 0), 2)
+                # Draw points
+                for lm in lmList:
+                    pt = (int(lm[0] * w), int(lm[1] * h))
+                    cv2.circle(frame, pt, 3, (0, 0, 255), -1)
 
     # ---- Draw bounding box ----
     if cfg.get("SHOW_BBOX"):
