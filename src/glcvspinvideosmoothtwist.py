@@ -104,25 +104,34 @@ anim_state = {
     'angle_range': (-15, 15),
 }
 
+QUAD_SIZE = 0.5  # Half-size (center to edge)
+
 def anim_update(state):
+    # Quad edges accounting for quad size
+    effective_x_min = state['x_range'][0] + QUAD_SIZE
+    effective_x_max = state['x_range'][1] - QUAD_SIZE
+    effective_y_min = state['y_range'][0] + QUAD_SIZE
+    effective_y_max = state['y_range'][1] - QUAD_SIZE
+    
+    # Check bounds and reverse velocity BEFORE moving past border
+    next_x = state['x'] + state['vel_x']
+    next_y = state['y'] + state['vel_y']
+    next_angle = state['angle'] + state['vel_angle']
+    
+    if next_x <= effective_x_min or next_x >= effective_x_max:
+        state['vel_x'] *= -1
+    
+    if next_y <= effective_y_min or next_y >= effective_y_max:
+        state['vel_y'] *= -1
+    
+    if next_angle <= state['angle_range'][0] or next_angle >= state['angle_range'][1]:
+        state['vel_angle'] *= -1
+    
     # Update positions
     state['x'] += state['vel_x']
     state['y'] += state['vel_y']
     state['z'] += state['vel_z']
     state['angle'] += state['vel_angle']
-    
-    # Bounce off borders and change direction
-    if state['x'] <= state['x_range'][0] or state['x'] >= state['x_range'][1]:
-        state['vel_x'] *= -1
-        state['x'] = max(state['x_range'][0], min(state['x_range'][1], state['x']))
-    
-    if state['y'] <= state['y_range'][0] or state['y'] >= state['y_range'][1]:
-        state['vel_y'] *= -1
-        state['y'] = max(state['y_range'][0], min(state['y_range'][1], state['y']))
-    
-    if state['angle'] <= state['angle_range'][0] or state['angle'] >= state['angle_range'][1]:
-        state['vel_angle'] *= -1
-        state['angle'] = max(state['angle_range'][0], min(state['angle_range'][1], state['angle']))
     
     return state
 
