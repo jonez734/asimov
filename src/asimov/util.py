@@ -359,10 +359,10 @@ def draw_text(
     font: int = cv2.FONT_HERSHEY_SIMPLEX,
 ) -> np.ndarray:
     """
-    Draw text on an image with optional shadow and alpha blending.
+    Draw text on a cv2 frame with optional shadow and alpha blending.
 
     Parameters:
-        img: The image to draw on (BGR or BGRA)
+        img: The cv2 frame to draw on (BGR or BGRA)
         x, y: Text position
         text: Text string to draw
         color: RGB color tuple
@@ -375,7 +375,7 @@ def draw_text(
         font: OpenCV font
 
     Returns:
-        The modified image
+        The modified cv2 frame
     """
 
     is_rgba = (img.shape[2] == 4)
