@@ -87,8 +87,8 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         ns["timestamp"] = time.time()
 
         # Draw skeleton manually using landmarks (so it persists properly)
-        show_landmarks = cfg.get("SHOW_LANDMARKS", cfg.get("DRAW", {}).get("SHOW_LANDMARKS", True))
-        if show_landmarks and hands:
+        # Force True for now to test
+        if True and hands:
             for hand in hands:
                 lmList = hand.get("lmList", [])
                 if lmList:
