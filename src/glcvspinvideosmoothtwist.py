@@ -105,18 +105,19 @@ def anim_random_target():
 
 def anim_update(state, dt=1/60):
     state['progress'] += dt
-    t = smooth_step(min(state['progress'], 1.0))
+    t = min(state['progress'], 1.0)
+    eased = smooth_step(t)
     
     if state['progress'] >= 1.0:
         state['current'] = state['target']
         state['target'] = anim_random_target()
-        state['progress'] = 0.0
+        state['progress'] -= 1.0
     
     return {
-        'x': lerp(state['current']['x'], state['target']['x'], t),
-        'y': lerp(state['current']['y'], state['target']['y'], t),
-        'z': lerp(state['current']['z'], state['target']['z'], t),
-        'angle': lerp(state['current']['angle'], state['target']['angle'], t),
+        'x': lerp(state['current']['x'], state['target']['x'], eased),
+        'y': lerp(state['current']['y'], state['target']['y'], eased),
+        'z': lerp(state['current']['z'], state['target']['z'], eased),
+        'angle': lerp(state['current']['angle'], state['target']['angle'], eased),
     }
 
 # Initialize animation
