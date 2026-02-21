@@ -828,108 +828,108 @@ def _handle_command(token, **kwargs): # palette=None, vars=None):
         return
 
 _emoji = {
-  "grin":                   "\U0001f600", # @since 20260221
-  "smile":                  "\U0001f642", # @since 20260221
-  "rofl":                   "\U0001f923", # @since 20260221
-  "wink":                   "\U0001f609", # @since 20260221
-  "thinking":               "\U0001f914", # @since 20260221
-  "sunglasses":             "\U0001f60e", # @since 20260221
-  "100":                    "\U0001f4af", # @since 20260221
-  "thumbup":                "\U0001f44d", # @since 20260221
-  "thumbdown":              "\U0001f44e", # @since 20260221
-  "vulcan":                 "\U0001f596", # @since 20260221
-  "spiral":                 "\U0001f4ab", # @since 20260221
-  "fire":                   "\U0001f525", # @since 20260221
-  "bank":                   "\U0001f3e6", # @since 20260221
-  "house":                  "\U0001f3e0", # @since 20260221
-  "military-helmet":        "\U0001fa96", # @since 20260221
-  "door":                   "\U0001f6aa", # @since 20260221
-  "receipt":                "\U0001f9fe", # @since 20260221
-  "newspaper":              "\U0001f4f0", # @since 20260221
-  "prince":                 "\U0001f934", # @since 20260221
-  "princess":               "\U0001f478", # @since 20260221
-  "thread":                 "\U0001f9f5", # @since 20260221
-  "ice":                    "\U0001f9ca", # @since 20260221
-  "moneybag":               "\U0001f4b0", # @since 20260221
-  "person":                 "\U0001f9d1", # @since 20260221
-  "sun":                    "\U00002600", # @since 20260221
-  "thunder-cloud-and-rain": "\U000026C8", # @since 20260221
-  "crop":                   "\U0001F33E", # @since 20260221
-  "horse":                  "\U0001F40E", # @since 20260221
-  "cactus":                 "\U0001F335", # @since 20260221
-  "ship":                   "\U0001F6A2", # @since 20260221
-  "wood":                   "\U0001FAB5", # @since 20260221
-  "link":                   "\U0001F517", # @since 20260221
-  "anchor":                 "\U00002693", # @since 20260221
-  "ballot-box":             "\U0001F5F3", # @since 20260221
-  "building":               "\U0001F3DB", # @since 20260221
-  "envelope":               "\U00002709", # @since 20260221
-  "dolphin":                "\U0001F42C", # @since 20260221
-  "bellhop-bell":           "\U0001F6CE", # @since 20260221
-  "hotel":                  "\U0001F3E8", # @since 20260221
-  "mousetrap":              "\U0001FAA4", # @since 20260221
+  "grin":                   "\U0001f600", # 😀 @since 20260221
+  "smile":                  "\U0001f642", # 🙂 @since 20260221
+  "rofl":                   "\U0001f923", # 🤪 @since 20260221
+  "wink":                   "\U0001f609", # 😉 @since 20260221
+  "thinking":               "\U0001f914", # 🤔 @since 20260221
+  "sunglasses":             "\U0001f60e", # 😎 @since 20260221
+  "100":                    "\U0001f4af", # 💯 @since 20260221
+  "thumbup":                "\U0001f44d", # 👍 @since 20260221
+  "thumbdown":              "\U0001f44e", # 👎 @since 20260221
+  "vulcan":                 "\U0001f596", # 🖖 @since 20260221
+  "spiral":                 "\U0001f4ab", # 💫 @since 20260221
+  "fire":                   "\U0001f525", # 🔥 @since 20260221
+  "bank":                   "\U0001f3e6", # 🏦 @since 20260221
+  "house":                  "\U0001f3e0", # 🏠 @since 20260221
+  "military-helmet":        "\U0001fa96", # 🪖 @since 20260221
+  "door":                   "\U0001f6aa", # 🚪 @since 20260221
+  "receipt":                "\U0001f9fe", # 🧾 @since 20260221
+  "newspaper":              "\U0001f4f0", # 📰 @since 20260221
+  "prince":                 "\U0001f934", # 🤴 @since 20260221
+  "princess":               "\U0001f478", # 👸 @since 20260221
+  "thread":                 "\U0001f9f5", # 🧵 @since 20260221
+  "ice":                    "\U0001f9ca", # 🧊 @since 20260221
+  "moneybag":               "\U0001f4b0", # 💰 @since 20260221
+  "person":                 "\U0001f9d1", # 👤 @since 20260221
+  "sun":                    "\U00002600", # ☀ @since 20260221
+  "thunder-cloud-and-rain": "\U000026C8", # ⛈ @since 20260221
+  "crop":                   "\U0001F33E", # 🌾 @since 20260221
+  "horse":                  "\U0001F40E", # 🐎 @since 20260221
+  "cactus":                 "\U0001F335", # � cactus @since 20260221
+  "ship":                   "\U0001F6A2", # 🚢 @since 20260221
+  "wood":                   "\U0001FAB5", # 🪵 @since 20260221
+  "link":                   "\U0001F517", # 🔗 @since 20260221
+  "anchor":                 "\U00002693", # ⚓ @since 20260221
+  "ballot-box":             "\U0001F5F3", # 🗳 @since 20260221
+  "building":               "\U0001F3DB", # 🏛 @since 20260221
+  "envelope":               "\U00002709", # ✉ @since 20260221
+  "dolphin":                "\U0001F42C", # 🐬 @since 20260221
+  "bellhop-bell":           "\U0001F6CE", # 🛎 @since 20260221
+  "hotel":                  "\U0001F3E8", # 🏨 @since 20260221
+  "mousetrap":              "\U0001FAA4", # 🪤 @since 20260221
 
-  "waninggibbousmoon":      "\U0001F316", # @since 20260221
-  "waxinggibbousmoon":      "\U0001F314", # @since 20260221
-  "waningcrescentmoon":     "\U0001F318", # @since 20260221
-  "waxingcrescentmoon":     "\U0001F312", # @since 20260221
-  "lastquartermoon":        "\U0001F317", # @since 20260221
-  "firstquartermoon":       "\U0001F313", # @since 20260221
-  "newmoon":                "\U0001F311", # @since 20260221
-  "fullmoon":               "\U0001F315", # @since 20260221
+  "waninggibbousmoon":      "\U0001F316", # 🌖 @since 20260221
+  "waxinggibbousmoon":      "\U0001F314", # 🌔 @since 20260221
+  "waningcrescentmoon":     "\U0001F318", # 🌘 @since 20260221
+  "waxingcrescentmoon":     "\U0001F312", # 🌒 @since 20260221
+  "lastquartermoon":        "\U0001F317", # 🌗 @since 20260221
+  "firstquartermoon":       "\U0001F313", # 🌓 @since 20260221
+  "newmoon":                "\U0001F311", # 🌑 @since 20260221
+  "fullmoon":               "\U0001F315", # 🌕 @since 20260221
 
-  "sco":                    "\U0000264F", # @since 20260221
-  "sag":                    "\U00002650", # @since 20260221
-  "cap":                    "\U00002651", # @since 20260221
-  "aqu":                    "\U00002652", # @since 20260221
-  "pic":                    "\U00002653", # @since 20260221
-  "ari":                    "\U00002648", # @since 20260221
-  "tau":                    "\U00002649", # @since 20260221
-  "gem":                    "\U0000264A", # @since 20260221
-  "can":                    "\U0000264B", # @since 20260221
-  "leo":                    "\U0000264C", # @since 20260221
-  "vir":                    "\U0000264D", # @since 20260221
-  "lib":                    "\U0000264E", # @since 20260221
+  "sco":                    "\U0000264F", # ⛏ @since 20260221
+  "sag":                    "\U00002650", # ⛐ @since 20260221
+  "cap":                    "\U00002651", # ⛑ @since 20260221
+  "aqu":                    "\U00002652", # ⛒ @since 20260221
+  "pic":                    "\U00002653", # ⛓ @since 20260221
+  "ari":                    "\U00002648", # ♈ @since 20260221
+  "tau":                    "\U00002649", # ♉ @since 20260221
+  "gem":                    "\U0000264A", # ♊ @since 20260221
+  "can":                    "\U0000264B", # ♋ @since 20260221
+  "leo":                    "\U0000264C", # ♌ @since 20260221
+  "vir":                    "\U0000264D", # ♍ @since 20260221
+  "lib":                    "\U0000264E", # ♎ @since 20260221
 
-  "package":                "\U0001F4E6", # @since 20220907
-  "compass":                "\U0001F9ED", # @since 20220907
-  "worldmap":               "\U0001F5FA", # @since 20220916
+  "package":                "\U0001F4E6", # 📦 @since 20220907
+  "compass":                "\U0001F9ED", # 🧭 @since 20220907
+  "worldmap":               "\U0001F5FA", # 🗺 @since 20220916
 
-  "wolf":                   "\U0001F43A", # @since 20221002
-  "person":                 "\U0001F9D1", # @since 20260221
+  "wolf":                   "\U0001F43A", # 🐺 @since 20221002
+  "person":                 "\U0001F9D1", # 👤 @since 20260221
 
-  "supervillian":           "\U0001F9B9", # @since 20221016
-  "joker":                  "\U0001F0CF", # @since 20221127
+  "supervillian":           "\U0001F9B9", # 🦹 @since 20221016
+  "joker":                  "\U0001F0CF", # 🃏 @since 20221127
 
-  "warning":                "\U000026A0", # @since 20260221
-  "stopsign":               "\U0001F6D1", # @since 20260221
+  "warning":                "\U000026A0", # ⚠ @since 20260221
+  "stopsign":               "\U0001F6D1", # 🛑 @since 20260221
 
-  "dragon":                 "\U0001F409", # @since 20230716 for empyre
-  "tree":                   "\U0001F333", # @since 20230824 for empyre
-  "wood":                   "\U0001FAB5", # @since 20230824 for empyre
+  "dragon":                 "\U0001F409", # 🐉 @since 20230716 for empyre
+  "tree":                   "\U0001F333", # 🌳 @since 20230824 for empyre
+  "wood":                   "\U0001FAB5", # 🪵 @since 20230824 for empyre
 
-  "cityscape":              "\U0001F3D9", # @since 20230827 for empyre
-  "maint":                  "\U0001F6E0", # @since 20230827 for empyre, mm
-  "axe":                    "\U0001FA93", # @since 20230827 for mm
+  "cityscape":              "\U0001F3D9", # 🏙 @since 20230827 for empyre
+  "maint":                  "\U0001F6E0", # 🛠 @since 20230827 for empyre, mm
+  "axe":                    "\U0001FA93", # 🪓 @since 20230827 for mm
 
-  "desert":                 "\U0001F3DC", # @since 20240107 for empyre
+  "desert":                 "\U0001F3DC", # 🏜 @since 20240107 for empyre
 
-  "shopping":               "\U0001F6CD", # @since 20240128
+  "shopping":               "\U0001F6CD", # 🛍 @since 20240128
 
-  "farmer":                 "\U0001F9D1", # @since 20240415 for empyre
+  "farmer":                 "\U0001F9D1", # 👤 @since 20240415 for empyre
 
-  "zap":                    "\U000026A1", # @since 20240422 for weather
+  "zap":                    "\U000026A1", # ⚡ @since 20240422 for weather
 
-  "palmtree":               "\U0001F334", # @since 20260221
-  "evergreentree":          "\U0001F332", # @since 20260221
+  "palmtree":               "\U0001F334", # 🌴 @since 20260221
+  "evergreentree":          "\U0001F332", # 🌲 @since 20260221
 
-  "tophat":                 "\U0001F3A9", # @since 20260221
-  "magicwand":              "\U0001FA84", # @since 20260221
+  "tophat":                 "\U0001F3A9", # 🎩 @since 20260221
+  "magicwand":              "\U0001FA84", # 🪄 @since 20260221
 
-  "mercenary":              "\U0001F977", # @since 20260221
+  "mercenary":              "\U0001F977", # 🦷 @since 20260221
 
-  "checkmark":              "\U00002714", # @since 20260221
-  "crossmark":              "\U00002718", # @since 20260221
+  "checkmark":              "\U00002714", # ✅ @since 20260221
+  "crossmark":              "\U00002718", # ❌ @since 20260221
 }
 
 def _handle_emoji(token):
