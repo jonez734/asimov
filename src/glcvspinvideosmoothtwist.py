@@ -177,6 +177,15 @@ while not glfw.window_should_close(window):
     # Clear screen and render quad
     gl.glClear(gl.GL_COLOR_BUFFER_BIT)
     gl.glUseProgram(shader)
+    
+    # Bind texture for shader
+    gl.glEnable(gl.GL_TEXTURE_2D)
+    gl.glActiveTexture(gl.GL_TEXTURE0)
+    gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
+    loc = gl.glGetUniformLocation(shader, "videoTexture")
+    if loc >= 0:
+        gl.glUniform1i(loc, 0)
+    
     gl.glBindVertexArray(VAO)
     gl.glDrawElements(gl.GL_TRIANGLES, 6, gl.GL_UNSIGNED_INT, None)
 
