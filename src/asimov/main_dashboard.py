@@ -590,7 +590,7 @@ def main(args, **kwargs):
                         break
 
                     frame = raw_frame.copy()
-                    # frame = cv2.flip(frame, 1)  # flipType in hand module handles this
+                    frame = cv2.flip(frame, 1)  # Mirror for natural interaction
 
                     with logic_lock:
                         context["SHARED_FRAME"] = frame
