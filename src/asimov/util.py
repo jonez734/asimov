@@ -24,6 +24,18 @@ LOGGER_NAME = "asimov"
 
 FRAME_BLOCK_FORMAT = "!HBBH"
 
+def _normalize_color(c: Sequence[float]) -> Tuple[float, float, float, float]:
+    """Normalize color tuple to 0.0-1.0 range."""
+    if len(c) != 4:
+        raise ValueError(f"Color tuple must have 4 values, got {len(c)}")
+    return tuple(max(0.0, min(1.0, v / 255.0 if v > 1.0 else v)) for v in c)
+
+def _get_shadow_offsets(offsets: Optional[List[Tuple[float, float]]] = None) -> List[Tuple[float, float]]:
+    """Get default or custom shadow offsets."""
+    if offsets is None:
+        return [(-0.005, 0), (0.005, 0), (0, -0.005), (0, 0.005)]
+    return offsets
+
 # @since 20250326
 def render_text(
     text: Optional[str],
@@ -35,7 +47,7 @@ def render_text(
     offsets: Optional[List[Tuple[float, float]]] = None,
 ) -> None:
     """
-    Render bitmap text at a specific position with optional shadow effect.
+    Render bitmap text using OpenGL at a specific position with optional shadow effect.
 
     Parameters:
         text: The text to render. Can be None (no-op).
@@ -49,57 +61,42 @@ def render_text(
     if text is None or not isinstance(text, str) or text == "":
         return
 
-    if offsets is None:
-        offsets = [(-0.005, 0), (0.005, 0), (0, -0.005), (0, 0.005)]
+    shadow_offsets = _get_shadow_offsets(offsets)
+    normalized_color = _normalize_color(color)
 
-    def _normalize_color(c):
-        """Normalize color tuple to 0.0-1.0 range."""
-        if len(c) != 4:
-            raise ValueError(f"Color tuple must have 4 values, got {len(c)}")
-        return tuple(max(0.0, min(1.0, v / 255.0 if v > 1.0 else v)) for v in c)
+    def _render(txt: str, px: float, py: float, ft: Any, col: Tuple[float, float, float, float]) -> None:
+        glRasterPos2f(px, py)
+        glColor4f(*col)
+        for char in txt:
+            glutBitmapCharacter(ft, ord(char))
 
-    def _render(text, x, y, font):
-        glRasterPos2f(x, y)
-        for char in text:
-            glutBitmapCharacter(font, ord(char))
-
-    # Save GL state
     was_blend_enabled = glIsEnabled(GL_BLEND)
     prev_color = glGetFloatv(GL_CURRENT_COLOR)
 
     try:
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
         glPushMatrix()
         glLoadIdentity()
 
-        # Render shadow first (if applicable)
         if shadow_color:
             shadow = _normalize_color(shadow_color)
-            glColor4f(*shadow)
-            for offset_x, offset_y in offsets:
-                _render(text, x + offset_x, y + offset_y, font)
+            for ox, oy in shadow_offsets:
+                _render(text, x + ox, y + oy, font, shadow)
 
-        # Render main text
-        main_color = _normalize_color(color)
-        glColor4f(*main_color)
-        _render(text, x, y, font)
+        _render(text, x, y, font, normalized_color)
 
         glPopMatrix()
 
-        # Restore GL state
         if not was_blend_enabled:
             glDisable(GL_BLEND)
         glColor4f(*prev_color)
 
     except Exception as e:
-        # Ensure GL state is restored even on error
         if not was_blend_enabled:
             glDisable(GL_BLEND)
         glColor4f(*prev_color)
         echo_traceback(f"render_text() failed: {e}")
-        return
 
 def render_quad(texture_id: int) -> None:
     """Render a quad with the given texture."""
