@@ -50,23 +50,22 @@ def create_cube(aspect_ratio: float = 1.0) -> tuple[int, int]:
     """Create a cube VAO with position and texture coordinates.
 
     Args:
-        aspect_ratio: Width/height ratio for front/back faces. Default 1.0 (square).
-                      Use 0.71 for playing card proportion (2.5:3.5).
+        aspect_ratio: Width/height ratio for texture coordinates.
+                      Default 1.0 (square). Use image_width/image_height for cards.
     
     Returns:
         Tuple of (VAO handle, index count)
     """
-    depth = 0.5 * aspect_ratio
     vertices = np.array([
-        -0.5, -0.1, -depth,  0.0, 0.0,
-         0.5, -0.1, -depth,  1.0, 0.0,
-         0.5,  0.1, -depth,  1.0, 1.0,
-        -0.5,  0.1, -depth,  0.0, 1.0,
+        -0.5, -0.1, -0.5,  0.0, 0.0,
+         0.5, -0.1, -0.5,  aspect_ratio, 0.0,
+         0.5,  0.1, -0.5,  aspect_ratio, 1.0,
+        -0.5,  0.1, -0.5,  0.0, 1.0,
 
-        -0.5, -0.1,  depth,  0.0, 0.0,
-         0.5, -0.1,  depth,  1.0, 0.0,
-         0.5,  0.1,  depth,  1.0, 1.0,
-        -0.5,  0.1,  depth,  0.0, 1.0,
+        -0.5, -0.1,  0.5,  0.0, 0.0,
+         0.5, -0.1,  0.5,  aspect_ratio, 0.0,
+         0.5,  0.1,  0.5,  aspect_ratio, 1.0,
+        -0.5,  0.1,  0.5,  0.0, 1.0,
     ], dtype=np.float32)
     
     indices = np.array([
