@@ -59,7 +59,7 @@ OpenCV/OpenGL webcam application that detects rectangular contours (playing card
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--capture-dev` | 1 | Capture device index (0 for default webcam, 1 for external) |
+| `--capture-dev` | "1" | Capture device index (int) or video file path (str). Default: "1" |
 
 ## Notes
 

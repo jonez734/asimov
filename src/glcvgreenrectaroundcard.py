@@ -110,8 +110,10 @@ def main():
     global window
 
     parser = argparse.ArgumentParser(description="OpenGL Card Detection")
-    parser.add_argument("--capture-dev", type=int, default=1, help="Capture device index (default: 1)")
+    parser.add_argument("--capture-dev", type=str, default="1", help="Capture device index or video file path (default: 1)")
     args = parser.parse_args()
+
+    capture_dev = int(args.capture_dev) if args.capture_dev.isdigit() else args.capture_dev
 
     # Initialize GLFW
     if not glfw.init():
@@ -136,7 +138,7 @@ def main():
     gl.glEnable(gl.GL_BLEND)
     gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
-    cap = cv2.VideoCapture(args.capture_dev)
+    cap = cv2.VideoCapture(capture_dev)
 
     while not glfw.window_should_close(window):
         ret, frame = cap.read()
