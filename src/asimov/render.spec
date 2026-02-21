@@ -38,11 +38,14 @@ Returns: Compiled shader program handle
 ### Geometry
 
 ```python
-def create_cube() -> tuple[int, int]:
+def create_cube(aspect_ratio: float = 1.0) -> tuple[int, int]:
     """Create a cube VAO with position and texture coordinates."""
 ```
 
 Creates a cube with position (vec3) and texture coordinate (vec2) attributes. The cube has thickness 0.2 (-0.1 to +0.1 on Y axis).
+
+Parameters:
+- `aspect_ratio`: Width/height ratio (image_width/image_height). Used to scale the cube depth for proper display of rectangular textures.
 
 Returns: Tuple of (VAO handle, index count)
 
