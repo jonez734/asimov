@@ -590,7 +590,7 @@ def main(args, **kwargs):
                         break
 
                     frame = raw_frame.copy()
-                    frame = cv2.flip(frame, 1)  # Flip before drawing
+                    # frame = cv2.flip(frame, 1)  # flipType in hand module handles this
 
                     with logic_lock:
                         context["SHARED_FRAME"] = frame
@@ -609,7 +609,7 @@ def main(args, **kwargs):
                         except Exception:
                             io.echo_traceback(f"draw() failure in module '{item['name']}'")
 
-                    # frame already flipped above, no need to flip again
+                    # frame is not flipped (flipType in hand module handles handedness)
 
                     # Send to virtual camera
                     vcam.send(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
