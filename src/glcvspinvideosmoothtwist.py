@@ -3,16 +3,13 @@ import numpy as np
 import glfw
 import OpenGL.GL as gl
 import OpenGL.GL.shaders as shaders
-import random
-import math
 
 from asimov.util import (
     create_texture,
     update_texture,
-    render_quad,
-    lerp,
-    smooth_step,
-    stable_phase,
+    rotate_vertex,
+    bounce_animation_update,
+    create_bounce_state,
 )
 
 # Initialize OpenCV video capture
@@ -88,58 +85,8 @@ gl.glBindVertexArray(0)
 # Create Texture using asimov.util
 texture = create_texture()
 
-# Animation state - moves until hitting border, then changes direction
-anim_state = {
-    'x': 0.0,
-    'y': 0.0,
-    'z': 0.0,
-    'angle': 0.0,
-    'vel_x': 0.005,
-    'vel_y': 0.005,
-    'vel_z': 0.0,
-    'vel_angle': 0.1,
-    'x_range': (-0.9, 0.9),
-    'y_range': (-0.9, 0.9),
-    'z_range': (-0.3, 0.0),
-    'angle_range': (-15, 15),
-}
-
-QUAD_SIZE = 0.5  # Half-size (center to edge)
-
-def anim_update(state):
-    # Quad edges accounting for quad size
-    effective_x_min = state['x_range'][0] + QUAD_SIZE
-    effective_x_max = state['x_range'][1] - QUAD_SIZE
-    effective_y_min = state['y_range'][0] + QUAD_SIZE
-    effective_y_max = state['y_range'][1] - QUAD_SIZE
-    
-    # Check bounds and reverse velocity BEFORE moving past border
-    next_x = state['x'] + state['vel_x']
-    next_y = state['y'] + state['vel_y']
-    next_angle = state['angle'] + state['vel_angle']
-    
-    if next_x <= effective_x_min:
-        state['vel_x'] = abs(state['vel_x'])  # Force positive
-    elif next_x >= effective_x_max:
-        state['vel_x'] = -abs(state['vel_x'])  # Force negative
-    
-    if next_y <= effective_y_min:
-        state['vel_y'] = abs(state['vel_y'])
-    elif next_y >= effective_y_max:
-        state['vel_y'] = -abs(state['vel_y'])
-    
-    if next_angle <= state['angle_range'][0]:
-        state['vel_angle'] = abs(state['vel_angle'])
-    elif next_angle >= state['angle_range'][1]:
-        state['vel_angle'] = -abs(state['vel_angle'])
-    
-    # Update positions
-    state['x'] += state['vel_x']
-    state['y'] += state['vel_y']
-    state['z'] += state['vel_z']
-    state['angle'] += state['vel_angle']
-    
-    return state
+# Animation state using asimov.util
+anim_state = create_bounce_state()
 
 # Main loop
 while not glfw.window_should_close(window):
@@ -161,25 +108,14 @@ while not glfw.window_should_close(window):
     # Update texture using asimov.util (handles BGR->RGB conversion)
     update_texture(texture, frame)
 
-    # Get interpolated animation values
-    anim_vals = anim_update(anim_state)
+    # Get animation values using asimov.util
+    anim_vals = bounce_animation_update(anim_state)
 
-    # Smooth rotation interpolation
-    theta = math.radians(anim_vals['angle'])
-    cos_theta = math.cos(theta)
-    sin_theta = math.sin(theta)
-
-    def rotate_vertex(x, y):
-        return (
-            x * cos_theta - y * sin_theta,
-            x * sin_theta + y * cos_theta
-        )
-
-    # Rotated quad vertices
-    v0 = rotate_vertex(-0.5, -0.5)
-    v1 = rotate_vertex( 0.5, -0.5)
-    v2 = rotate_vertex( 0.5,  0.5)
-    v3 = rotate_vertex(-0.5,  0.5)
+    # Rotated quad vertices using asimov.util
+    v0 = rotate_vertex(-0.5, -0.5, anim_vals['angle'])
+    v1 = rotate_vertex( 0.5, -0.5, anim_vals['angle'])
+    v2 = rotate_vertex( 0.5,  0.5, anim_vals['angle'])
+    v3 = rotate_vertex(-0.5,  0.5, anim_vals['angle'])
 
     vertices = np.array([
         v0[0] + anim_vals['x'], v0[1] + anim_vals['y'], anim_vals['z'],  0.0, 0.0,
