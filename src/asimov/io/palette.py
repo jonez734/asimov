@@ -1,15 +1,13 @@
 from .common import Token
 from .const import CSI, DEFAULT_PALETTE_NAME
 
-from typing import Tuple, List, Dict, Optional, Union
-
 # ----------------------------
 # ANSI / C64 color palettes
 # ----------------------------
-def _clamp_int(x: float) -> int:
+def _clamp_int(x):
     return max(0, min(255, int(round(x))))
 
-def _parse_rgb(rgb: str | Tuple | List) -> Tuple[int, int, int]:
+def _parse_rgb(rgb):
     """Convert either #RRGGBB string or tuple/list to (r,g,b)"""
     if isinstance(rgb, str) and rgb.startswith("#") and len(rgb) == 7:
         r = int(rgb[1:3], 16)
@@ -17,11 +15,11 @@ def _parse_rgb(rgb: str | Tuple | List) -> Tuple[int, int, int]:
         b = int(rgb[5:7], 16)
         return r, g, b
     elif isinstance(rgb, (tuple, list)) and len(rgb) in (3,4):
-        return (int(rgb[0]), int(rgb[1]), int(rgb[2]))
+        return rgb[:3]
     else:
         raise ValueError(f"Invalid RGB spec: {rgb!r}")
 
-def darken(prefix: int, rgb: str | Tuple | List, percentage: float) -> str:
+def darken(prefix, rgb, percentage):
     """
     prefix: 38 (foreground) or 48 (background)
     rgb: tuple/list (r,g,b) or (r,g,b,a) with 0-255 or #RRGGBB string
@@ -38,7 +36,7 @@ def darken(prefix: int, rgb: str | Tuple | List, percentage: float) -> str:
 
     return f"{CSI}{prefix};2;{r};{g};{b}m"
 
-def rgb(fgbg: int, triplet: str | Tuple | List) -> str:
+def rgb(fgbg, triplet):
     """Return ANSI SGR sequence for foreground (38) or background (48). Spec can be #RRGGBB or (r,g,b)"""
     r, g, b = _parse_rgb(triplet)
     return f"{CSI}{fgbg};2;{r};{g};{b}m"
@@ -90,24 +88,24 @@ c64_palette = {
     'darkgreen':   darken(38, "#00cc55", 0.20), # not official c64 color
 }
 
-def set_palette(palette_name: str) -> None:
+def set_palette(palette_name):
     global _current_palette
     if palette_name == "ansi":
         _current_palette = ansi_palette
     elif palette_name == "c64":
         _current_palette = c64_palette
 
-def get_palette(name: str = DEFAULT_PALETTE_NAME) -> Dict[str, str] | None:
+def get_palette(name=DEFAULT_PALETTE_NAME):
     if name == "c64":
         return c64_palette
     elif name == "ansi":
         return ansi_palette
     return None
 
-def get_current_palette() -> Dict[str, str]:
+def get_current_palette():
     return _current_palette
 
-def get_palette_entry(name: str) -> str:
+def get_palette_entry(name):
     global _current_palette
     if _current_palette is None:
         print(f"setting _current_palette")
@@ -116,7 +114,7 @@ def get_palette_entry(name: str) -> str:
     return _current_palette[name]
 
 # Background color aliases
-def make_bg(palette: Dict[str, str]) -> Dict[str, str]:
+def make_bg(palette):
     bg = {}
     for k, v in palette.items():
         bg[f"bg{k}"] = v.replace("38", "48")
@@ -124,8 +122,4 @@ def make_bg(palette: Dict[str, str]) -> Dict[str, str]:
 
 c64_palette.update(make_bg(c64_palette))
 
-default_p = get_palette(DEFAULT_PALETTE_NAME)
-if default_p is None:
-    default_p = ansi_palette
-
-_current_palette = default_p.copy()
+_current_palette = get_palette(DEFAULT_PALETTE_NAME).copy()

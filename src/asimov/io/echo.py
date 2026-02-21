@@ -12,7 +12,7 @@
 import re
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Generator, Any, Iterable, cast
+from typing import List, Dict, Optional
 
 from .const import CSI, BEL, ESC, ECHO_END, OSC
 
@@ -71,11 +71,11 @@ _runtime_vars.update({"home": "{curpos:1,1}"})
 
 _runtime_vars.update(_skin)
 
-def setvar(name:str, value:str) -> None:
+def setvar(name, value):
     """Set a runtime variable for use in {var:<name>} or {<name>} commands."""
     _runtime_vars[name] = value
 
-def getvar(name:str, default:str|None=None) -> str|None:
+def getvar(name, default=None):
     return _runtime_vars.get(name, default)
 
 # ----------------------------
@@ -153,7 +153,7 @@ command_aliases = {}
 # ----------------------------
 # Tokenizer
 # ----------------------------
-def tokenize(text:str, **kwargs) -> Generator[Token, None, None]:
+def tokenize(text, **kwargs):
     """Yields Token(kind, value, args, kwargs, raw)"""
 
     if text is None:
@@ -603,7 +603,7 @@ def _handle_decstbm(token):
 
 def _handle_settitle(token):
   if len(token.args) == 0:
-    return
+    return iter()
 
   token.repeat = 1
   token.text = f"{OSC}0;{' '.join(token.args)}{BEL}"
@@ -617,7 +617,7 @@ def _handle_slashall(token):
 
 def _handle_reset(token):
   if len(token.args) > 0:
-    return
+    return iter()
 
   if not _raw:
     yield from _acs_off()
@@ -696,11 +696,8 @@ def parse_command_params(name, params):
             args.append(part)
     return args, kwargs
 
-def handler_dispatch(token: Token):
+def handler_dispatch(token):
     """Yield from the appropriate handler given a token."""
-
-    if token.value is None:
-        return
 
     cmd = token.value.lower()
 
@@ -713,9 +710,8 @@ def handler_dispatch(token: Token):
                 if result is None:
                     return
 
-                if isinstance(result, Iterable) and not isinstance(result, str):
-                    # cast to Iterable to satisfy LSP
-                    yield from cast(Iterable[Token], result) 
+                if hasattr(result, "__iter__") and not isinstance(result, str):
+                    yield from result
                     return
                 break
     token.text = str(token.raw)
@@ -928,7 +924,7 @@ def _handle_emoji(token):
 class Attr:
     start: str
     end: str
-    state: bool | None = field(default=None)
+    state: bool = field(default=None)
 
 # Global stack of active attributes
 ## ATTR_STACK: list[Attr] = []
@@ -952,14 +948,8 @@ def _handle_attr(token: Token):
 
 ##    print(f"_handle_attr.100: {token.kind=} {token.value=}")
 
-    if token.value is None:
-        return
-
     name = token.value.lstrip("/")
     attr = ANSI_ATTRS.get(name)
-
-    if attr is None:
-        return
 
     # closing {/bold}
     if token.value.startswith("/"):
@@ -999,14 +989,14 @@ def _write_token(token: Token, flush: bool=True, stream=None):
     if not _raw:
       text = str(token.text) * repeat
     else:
-      text = (str(token.raw) or str(token.text)) * repeat
+      text = (str(token.raw) or str(text)) * repeat
     write_current_output_stream(text, flush=flush)
     return
 
 # ----------------------------
 # echo_iter(), echo(), and echo_file()
 # ----------------------------
-def echo_iter(text:str, width:int|None=None, wordwrap:bool=True, palette:dict|None=None, vars:dict|None=None, raw:bool=False) -> Generator[Token, None, None]:
+def echo_iter(text, width=None, wordwrap=True, palette=None, vars=None, raw=False):
     """
     Generator that yields tokens for rendering.
     Handles WORD, WHITESPACE, F6 (hard newline), attributes, and commands.
@@ -1040,7 +1030,7 @@ def echo_iter(text:str, width:int|None=None, wordwrap:bool=True, palette:dict|No
 ##            if _previous_token.kind == "F6" and token.text == " ":
 ##                continue
             with _current_stream_lock:
-                _terminal_state.cursor_col += len(token.text or "")
+                _terminal_state.cursor_col += len(token.text)
             yield token
         elif token.kind == "F6":
             yield from _handle_f6(token)
@@ -1050,7 +1040,7 @@ def echo_iter(text:str, width:int|None=None, wordwrap:bool=True, palette:dict|No
 
         _previous_token = token
 
-def echo(text:str="", *, flush:bool=True, end:str=ECHO_END, **kwargs) -> None:
+def echo(text="", *, flush:bool=True, end=ECHO_END, **kwargs):
     """
     Print text to stdout, interpreting inline commands unless raw=True.
     width: override detected terminal width if not None
@@ -1062,7 +1052,7 @@ def echo(text:str="", *, flush:bool=True, end:str=ECHO_END, **kwargs) -> None:
 
     _raw = kwargs.get("raw", False)
 
-    palette:dict | None = kwargs.get("palette", None)
+    palette:dict = kwargs.get("palette", None)
     width:int = kwargs.get("width", terminal.width())
     wordwrap:bool = kwargs.get("wordwrap", True)
 
@@ -1096,7 +1086,7 @@ def echo(text:str="", *, flush:bool=True, end:str=ECHO_END, **kwargs) -> None:
     if level is not None:
       return logentry(text, level=level)
 
-def echo_file(filepath:str, page_size:int=20, raw:bool=False, wordwrap:bool=True, end:str="") -> None:
+def echo_file(filepath, page_size=20, raw=False, wordwrap=True, end=""):
     with open(filepath, 'r') as f:
         line_count = 0
         for line in f:
@@ -1106,7 +1096,7 @@ def echo_file(filepath:str, page_size:int=20, raw:bool=False, wordwrap:bool=True
                 input("More?")  # wait every page
 
 # @since 20251212
-def rendered_length(text:str, **kwargs) -> int:
+def rendered_length(text, **kwargs):
     """
     Calculates the length of the text as it would be rendered, ignoring
     control sequences, commands, and variable/color expansions.
@@ -1131,7 +1121,7 @@ def rendered_length(text:str, **kwargs) -> int:
             # for calculation here unless double-width is explicitly handled
             # by checking the _decdhl global, which is risky in a pure length calculation.
             # Assuming terminal output width is what we want.
-            length += len(token.text or "") * repeat
+            length += len(token.text) * repeat
 
         elif token.kind in ("EMOJI", "ACS"):
             # EMOJI/ACS: Emojis are usually 1 or 2 columns, ACS is 1 column.
@@ -1154,7 +1144,7 @@ def rendered_length(text:str, **kwargs) -> int:
 
     return length
 
-def echo_traceback(message: str = "Traceback (most recent call last):", level: str = "error") -> None:
+def echo_traceback(message: str = "Traceback (most recent call last):", level: str = "error"):
     """
     Captures the current exception and outputs the entire stack
     via a single echo() call, using {f6} as the newline separator.

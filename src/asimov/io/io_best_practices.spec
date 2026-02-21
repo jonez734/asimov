@@ -46,37 +46,3 @@ def my_func(prefix, **kwargs):
 
 inputstring("Prompt: ", completer=Completer(my_func))
 ```
-
-## Module Development
-
-### detect() must NEVER draw on the frame
-
-The detect phase is for detection/processing only. All visual rendering must happen in draw().
-
-**Why:**
-- Clean separation of concerns
-- Modules can run in different threads without frame corruption
-- Frame is not mutated during detection phase
-
-**Correct:**
-```python
-def detect(frame, context, **kwargs):
-    # Detection only - no drawing
-    hands = detector.findHands(frame)
-    context["HANDS"] = hands
-
-def draw(frame, context, **kwargs):
-    hands = context.get("HANDS", [])
-    for hand in hands:
-        # Drawing only
-        cv2.circle(frame, ...)
-    return frame
-```
-
-**Incorrect:**
-```python
-def detect(frame, context, **kwargs):
-    hands = detector.findHands(frame)
-    cv2.circle(frame, ...)  # DON'T do this!
-    context["HANDS"] = hands
-```

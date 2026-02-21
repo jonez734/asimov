@@ -8,22 +8,22 @@ import threading
 import collections
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, Deque, TextIO
+from typing import List, Dict, Optional
 
-from .const import MAX_TERMINAL_WIDTH, BEL, ESC, CSI
+from .const import MAX_TERMINAL_WIDTH, BEL, ESC
 
 from . import terminal
 
 @dataclass
 class Token:
     kind: str                  # e.g., WORD, WHITESPACE, F6, RGB
-    value: str | None = None          # the literal string or command
-    args: List[Any] | tuple[Any, ...] = field(default_factory=list)   # positional args
-    kwargs: Dict[str, Any] = field(default_factory=dict) # keyword args
-    text: str | None = field(default="") # {f6:3} -> \n*3, {home} -> \033[H, etc
+    value: str = None          # the literal string or command
+    args: List = field(default_factory=list)   # positional args
+    kwargs: Dict = field(default_factory=dict) # keyword args
+    text: str = field(default="") # {f6:3} -> \n*3, {home} -> \033[H, etc
     repeat: int = 1
     raw: Optional[str] = None                  # raw input that generated this token
-    def __repr__(self) -> str:
+    def __repr__(self):
         parts = [self.kind]
         if self.value:
             parts.append(f"value={repr(self.value)}") # repr(self.value))
@@ -43,21 +43,21 @@ class Token:
 #_cursor_row = 1
 #_cursor_col = 1
 
-_current_input_stream: TextIO = sys.stdin
+_current_input_stream = sys.stdin
 
-_current_output_stream: TextIO = sys.stdout
+_current_output_stream = sys.stdout
 
 _current_stream_lock = threading.Lock()
 
-def set_output_stream(stream: TextIO) -> None:
+def set_output_stream(stream):
     global _current_output_stream
     _current_output_stream = stream
 
-def set_input_stream(stream: TextIO) -> None:
+def set_input_stream(stream):
     global _current_input_stream
     _current_input_stream = stream
 
-_input_queue: Deque[str] = collections.deque()
+_input_queue = collections.deque()
 
 def _read_current_input_stream(size:int=1) -> str:
     if _input_queue:
@@ -68,12 +68,12 @@ def read_current_input_stream(size:int=1) -> str:
     with _current_stream_lock:
         return _read_current_input_stream(size)
 
-def _write_current_output_stream(s: str, flush: bool = False) -> None:
+def _write_current_output_stream(s:str, flush=False):
     _current_output_stream.write(s)
     if flush:
         _current_output_stream.flush()
 
-def write_current_output_stream(s:str, flush:bool=False) -> None:
+def write_current_output_stream(s:str, flush=False):
     with _current_stream_lock:
         return _write_current_output_stream(s, flush=flush)
 
@@ -107,7 +107,7 @@ def _read_terminal_response(terminator: str, timeout: float = 1.0) -> str | None
 # Regex for DSR reply: ESC [ <row> ; <col> R
 DSR_CURPOS_RE = re.compile(r'\x1b\[(\d+);(\d+)R')
 
-def get_dsr(mode:str="curpos", timeout: float = 1.0) -> tuple[int, int] | str:
+def get_dsr(mode="curpos", timeout: float = 1.0) -> tuple[int, int] | str:
     """
     Query the terminal for cursor position (DSR) and return the response string.
     
@@ -168,9 +168,6 @@ def get_dsr(mode:str="curpos", timeout: float = 1.0) -> tuple[int, int] | str:
                     _input_queue.extend(leftover)
                     return (row, col)
 
-                if buffer.endswith(term) and mode == "status":
-                    return buffer
-
                 # Step 2c: check for timeout
                 if (time.time() - start_time) > timeout:
                     raise TimeoutError(f"DSR response not received in {timeout}s: {buffer!r}")
@@ -184,7 +181,7 @@ def get_dsr(mode:str="curpos", timeout: float = 1.0) -> tuple[int, int] | str:
 ##    _current_output_stream.flush()
 ##    return _read_terminal_response(terminator)
 
-def get_cursor_position(timeout: float = 1.0) -> tuple[int, int]:
+def get_cursor_position(timeout: float = 1.0):
     """
     Return the current cursor position as (row, col) integers.
 
@@ -198,10 +195,7 @@ def get_cursor_position(timeout: float = 1.0) -> tuple[int, int]:
         ValueError if the response cannot be parsed.
         TimeoutError if no response is received in time.
     """
-    res = get_dsr("curpos", timeout=timeout)
-    if isinstance(res, tuple):
-        return res
-    raise ValueError(f"Unexpected response type: {type(res)}")
+    return get_dsr("curpos", timeout=timeout)
 
 ##    # Expect something like: ESC [ row ; col R
 ##    if not resp.startswith(CSI) or not resp.endswith("R"):
@@ -214,7 +208,7 @@ def get_cursor_position(timeout: float = 1.0) -> tuple[int, int]:
 ##    except Exception as e:
 ##        raise ValueError(f"Failed to parse DSR response: {resp!r}") from e
 
-def get_terminal_status() -> bool | None:
+def get_terminal_status():
     """Device Status (DECTST / terminal readiness)
 
     Query: ESC [ 5 n
@@ -224,7 +218,7 @@ def get_terminal_status() -> bool | None:
 
     with _current_stream_lock:
         response = get_dsr("status")
-        if isinstance(response, str) and response.startswith(CSI) and response.endswith("n"):
+        if response and response.startswith(CSI) and response.endswith("n"):
             part = int(response[2])
             if part == 0:
                 return True
@@ -233,7 +227,7 @@ def get_terminal_status() -> bool | None:
             else:
                 return None
 
-def drain_stream_to_queue(stream: TextIO, queue: Deque[str]) -> None:
+def drain_stream_to_queue(stream, queue):
     """
     Read all available characters from `stream` and append them to `queue`.
     Stops when the stream would block.
@@ -265,18 +259,18 @@ def drain_stream_to_queue(stream: TextIO, queue: Deque[str]) -> None:
 class TerminalState():
     cursor_row: int = 1
     cursor_col: int = 1
-    wordwrap: bool = True
-    has_color: bool = True
-    hidden: bool = False
-    width: int = 100
-    acs: bool = False
-    raw: bool = False
-    decdhl: bool = False # double height
-    decdwl: bool = False
-    def __repr__(self) -> str:
+    wordwrap:bool  = True
+    has_color:bool = True
+    hidden:bool = False
+    width:int = 100
+    acs:bool = False
+    raw:bool = False
+    decdhl:bool = False # double height
+    decdwl:bool = False
+    def __repr__(self):
         return f"TerminalState({self.cursor_row=}, {self.cursor_col=}, {self.wordwrap=}, {self.has_color=}, {self.hidden=}, {self.acs=}, {self.raw=})"
 
-_terminal_state: TerminalState = TerminalState(cursor_row=terminal.lines(), cursor_col=terminal.columns())
-_terminal_state_stack: List[TerminalState] = []
+_terminal_state = TerminalState(cursor_row=terminal.lines(), cursor_col=terminal.columns())
+_terminal_state_stack = []
 
-_input_dirty: bool = False
+_input_dirty = False

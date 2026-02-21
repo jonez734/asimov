@@ -67,18 +67,17 @@ No-op. Returns frame unchanged.
 
 ## Module API
 
-Asimov modules must implement draw() and detect(). ui_schema() is optional for dashboard UI.
+Asimov modules loaded via `asimov.module` must implement these lifecycle functions:
 
 ```python
 def detect(frame, context): ...     # Required
 def draw(frame, context) -> np.ndarray: ...  # Required
-def ui_schema(args=None, context=None) -> dict: ...  # Optional
+def init(args, **kwargs) -> bool: ...        # Required
+def buildargs(args, **kwargs): ...            # Required
+def access(args, op, **kwargs) -> bool: ...  # Required
+def main(args, **kwargs) -> bool: ...         # Required
 
-# Optional lifecycle hooks:
-def init(args, **kwargs) -> bool: ...
-def buildargs(args, **kwargs): ...
-def access(args, op, **kwargs) -> bool: ...
-def main(args, **kwargs) -> bool: ...
+def ui_schema(args=None, context=None) -> dict: ...  # Optional
 ```
 
 ## Notes
