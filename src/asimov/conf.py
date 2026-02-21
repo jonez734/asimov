@@ -141,6 +141,9 @@ RECT = {
     "COLOR": (0, 180, 255),
     "TOUCHED_COLOR": (0, 0, 255),
     "THICKNESS": 2,
+    "TOUCHED_THICKNESS": 3,
+    "LABEL_SCALE": 0.5,
+    "LABEL_THICKNESS": 1,
 }
 
 

@@ -55,18 +55,16 @@ def draw(frame: np.ndarray, context):
     rects: List[Dict] = context.get(CTX_RECTS, [])
     touches = set(context.get(CTX_TOUCHES, []))
 
+    cfg = conf.RECT
+
     for rect in rects:
         x, y, w, h = rect["x"], rect["y"], rect["w"], rect["h"]
         rid = rect.get("id")
 
         touched = rid in touches
 
-        color = conf.RECT_TOUCHED_COLOR if touched else conf.RECT_COLOR
-        thickness = (
-            conf.RECT_TOUCHED_THICKNESS
-            if touched
-            else conf.RECT_THICKNESS
-        )
+        color = cfg["TOUCHED_COLOR"] if touched else cfg["COLOR"]
+        thickness = cfg["TOUCHED_THICKNESS"] if touched else cfg["THICKNESS"]
 
         cv2.rectangle(
             frame,
@@ -82,9 +80,9 @@ def draw(frame: np.ndarray, context):
                 rid,
                 (x + 4, y - 6),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                conf.RECT_LABEL_SCALE,
+                cfg["LABEL_SCALE"],
                 color,
-                conf.RECT_LABEL_THICKNESS,
+                cfg["LABEL_THICKNESS"],
                 cv2.LINE_AA,
             )
 
