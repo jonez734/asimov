@@ -17,11 +17,11 @@ def get_default_card_paths(n=15, basedir="../cards"):
     return [get_card_path(rank, suit, basedir=basedir) for rank, suit in deck[:n]]
 
 
-def main(image_paths, side_image, n_cubes=15, spacing=1.2):
+def main(image_paths, side_image, n_cubes=15, spacing=1.2, width=800, height=600):
     if not glfw.init():
         return
 
-    window = glfw.create_window(800, 600, "Textured Cube Stack", None, None)
+    window = glfw.create_window(width, height, "Textured Cube Stack", None, None)
     if not window:
         glfw.terminate()
         return
@@ -110,6 +110,18 @@ if __name__ == "__main__":
         default="../cards",
         help="Base directory for card images (default: ../cards)",
     )
+    parser.add_argument(
+        "--width",
+        type=int,
+        default=1200,
+        help="Window width (default: 1200)",
+    )
+    parser.add_argument(
+        "--height",
+        type=int,
+        default=900,
+        help="Window height (default: 900)",
+    )
     args = parser.parse_args()
 
     if args.image:
@@ -119,4 +131,5 @@ if __name__ == "__main__":
     else:
         image_paths = get_default_card_paths(args.cubes, basedir=args.carddir)
 
-    main(image_paths, args.side, n_cubes=args.cubes, spacing=args.spacing)
+    main(image_paths, args.side, n_cubes=args.cubes, spacing=args.spacing,
+         width=args.width, height=args.height)
