@@ -94,12 +94,12 @@ anim_state = {
     'y': 0.0,
     'z': 0.0,
     'angle': 0.0,
-    'vel_x': 0.01,
-    'vel_y': 0.01,
+    'vel_x': 0.005,
+    'vel_y': 0.005,
     'vel_z': 0.0,
-    'vel_angle': 0.2,
-    'x_range': (-0.8, 0.8),
-    'y_range': (-0.8, 0.8),
+    'vel_angle': 0.1,
+    'x_range': (-0.9, 0.9),
+    'y_range': (-0.9, 0.9),
     'z_range': (-0.3, 0.0),
     'angle_range': (-15, 15),
 }
@@ -118,14 +118,20 @@ def anim_update(state):
     next_y = state['y'] + state['vel_y']
     next_angle = state['angle'] + state['vel_angle']
     
-    if next_x <= effective_x_min or next_x >= effective_x_max:
-        state['vel_x'] *= -1
+    if next_x <= effective_x_min:
+        state['vel_x'] = abs(state['vel_x'])  # Force positive
+    elif next_x >= effective_x_max:
+        state['vel_x'] = -abs(state['vel_x'])  # Force negative
     
-    if next_y <= effective_y_min or next_y >= effective_y_max:
-        state['vel_y'] *= -1
+    if next_y <= effective_y_min:
+        state['vel_y'] = abs(state['vel_y'])
+    elif next_y >= effective_y_max:
+        state['vel_y'] = -abs(state['vel_y'])
     
-    if next_angle <= state['angle_range'][0] or next_angle >= state['angle_range'][1]:
-        state['vel_angle'] *= -1
+    if next_angle <= state['angle_range'][0]:
+        state['vel_angle'] = abs(state['vel_angle'])
+    elif next_angle >= state['angle_range'][1]:
+        state['vel_angle'] = -abs(state['vel_angle'])
     
     # Update positions
     state['x'] += state['vel_x']
