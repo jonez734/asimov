@@ -1,10 +1,13 @@
+import argparse
 import glfw
+from itertools import cycle
 from OpenGL.GL import *
 import numpy as np
 import pyrr
 import sys
 sys.path.insert(0, '/home/jam/projects/asimov/src')
 from asimov import render
+
 
 def main(image_paths, side_image, spacing=1.2):
     if not glfw.init():
@@ -26,10 +29,11 @@ def main(image_paths, side_image, spacing=1.2):
     glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
 
     cubes = []
+    image_cycle = cycle(image_paths)
     for i in range(5):
         for j in range(3):
             vao, count = render.create_cube()
-            cubes.append((vao, count,     render.load_texture(image_paths[i * 3 + j])))
+            cubes.append((vao, count, render.load_texture(next(image_cycle))))
 
     side_texture = render.load_texture(side_image)
 
@@ -54,12 +58,31 @@ def main(image_paths, side_image, spacing=1.2):
     glfw.terminate()
 
 if __name__ == "__main__":
-    image_paths = [
-        "../cards/10_of_clubs.png", "../cards/10_of_hearts.png", "../cards/10_of_spades.png",
-        "../cards/2_of_clubs.png", "../cards/3_of_clubs.png", "../cards/4_of_clubs.png",
-        "../cards/5_of_clubs.png", "../cards/6_of_clubs.png", "../cards/7_of_clubs.png",
-        "../cards/8_of_clubs.png", "../cards/9_of_clubs.png", "../cards/ace_of_clubs.png",
-        "../cards/jack_of_clubs.png", "../cards/king_of_clubs.png", "../cards/queen_of_clubs.png",
-    ]
-    side_image = "../640x480-solidwhite.png"
-    main(image_paths, side_image, spacing=1.2)
+    parser = argparse.ArgumentParser(description="Render textured cube grid")
+    parser.add_argument(
+        "--cardpath",
+        nargs="+",
+        default=[
+            "../cards/10_of_clubs.png", "../cards/10_of_hearts.png", "../cards/10_of_spades.png",
+            "../cards/2_of_clubs.png", "../cards/3_of_clubs.png", "../cards/4_of_clubs.png",
+            "../cards/5_of_clubs.png", "../cards/6_of_clubs.png", "../cards/7_of_clubs.png",
+            "../cards/8_of_clubs.png", "../cards/9_of_clubs.png", "../cards/ace_of_clubs.png",
+            "../cards/jack_of_clubs.png", "../cards/king_of_clubs.png", "../cards/queen_of_clubs.png",
+        ],
+        help="Path to card image(s). Can be a single file or multiple files. "
+             "If fewer than 15 faces, cycles through the list.",
+    )
+    parser.add_argument(
+        "--side",
+        default="../640x480-solidwhite.png",
+        help="Path to side texture image",
+    )
+    parser.add_argument(
+        "--spacing",
+        type=float,
+        default=1.2,
+        help="Spacing between cubes",
+    )
+    args = parser.parse_args()
+
+    main(args.cardpath, args.side, spacing=args.spacing)
