@@ -63,7 +63,7 @@ def main(image_paths, side_image, n_cubes=15, spacing=1.2, width=800, height=600
                 [(col - 1) * spacing, (2 - row) * spacing, -5]
             )
             scale = pyrr.matrix44.create_from_scale([1.0, aspect_ratio, 1.0])
-            model = pyrr.matrix44.multiply(scale, translation)
+            model = pyrr.matrix44.multiply(translation, scale)
             glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
 
             glBindTexture(GL_TEXTURE_2D, texture)
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--spacing",
         type=float,
-        default=1.2,
+        default=1.8,
         help="Spacing between cubes",
     )
     parser.add_argument(
@@ -116,14 +116,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--width",
         type=int,
-        default=1200,
-        help="Window width (default: 1200)",
+        default=1400,
+        help="Window width (default: 1400)",
     )
     parser.add_argument(
         "--height",
         type=int,
-        default=900,
-        help="Window height (default: 900)",
+        default=1000,
+        help="Window height (default: 1000)",
     )
     args = parser.parse_args()
 
