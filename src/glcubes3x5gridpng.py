@@ -16,6 +16,58 @@ def get_default_card_paths(n=15, basedir="../cards"):
     return [get_card_path(rank, suit, basedir=basedir) for rank, suit in deck[:n]]
 
 
+def main(image_paths, side_image, n_cubes=15, spacing=1.2):
+    if not glfw.init():
+        return
+
+    window = glfw.create_window(800, 600, "Textured Cube Stack", None, None)
+    if not window:
+        glfw.terminate()
+        return
+
+    glfw.make_context_current(window)
+    glEnable(GL_DEPTH_TEST)
+
+    shader = render.create_shader(render.VERTEX_SHADER, render.FRAGMENT_SHADER)
+    projection = pyrr.matrix44.create_orthogonal_projection_matrix(-2, 2, -2, 2, 0.1, 10)
+    glUseProgram(shader)
+    proj_loc = glGetUniformLocation(shader, "projection")
+    model_loc = glGetUniformLocation(shader, "model")
+    glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
+
+    cubes = []
+    image_cycle = cycle(image_paths)
+    cols = 3
+    for i in range(n_cubes):
+        row, col = divmod(i, cols)
+        vao, count = render.create_cube()
+        cubes.append((vao, count, render.load_texture(next(image_cycle))))
+
+    side_texture = render.load_texture(side_image)
+
+    while not glfw.window_should_close(window):
+        if glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS:
+            break
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        for index, (vao, count, texture) in enumerate(cubes):
+            row, col = divmod(index, cols)
+            model = pyrr.matrix44.create_from_translation(
+                [(col - 1) * spacing, (2 - row) * spacing, -5]
+            )
+            glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
+
+            glBindTexture(GL_TEXTURE_2D, texture)
+            glBindVertexArray(vao)
+            glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, None)
+
+        glfw.swap_buffers(window)
+        glfw.poll_events()
+
+    glfw.terminate()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Render textured cube grid")
     parser.add_argument(
