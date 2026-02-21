@@ -224,9 +224,25 @@ Example: `{rgb:#FF0000}` = bright red foreground
 
 ---
 
+## Literal Braces
+
+| Command | Description |
+|---------|-------------|
+| `{{` | Literal open brace `{` |
+| `}}` | Literal close brace `}` |
+
+Use these when you need to output a literal brace character without triggering command parsing.
+
+Example:
+```python
+echo("Use {{ and }} for literal braces")
+# Output: Use { and } for literal braces
+```
+
+---
+
 ## Notes
 
 - Commands are case-insensitive
-- Use `{{` for literal `{` and `}}` for literal `}`
 - All commands can be nested (colors + attributes)
 - Use `{/all}` to reset all formatting when done
