@@ -5,7 +5,6 @@ import OpenGL.GL as gl
 import OpenGL.GL.shaders as shaders
 import random
 import math
-from typing import Any
 
 from asimov.util import (
     create_texture,
@@ -89,45 +88,39 @@ gl.glBindVertexArray(0)
 # Create Texture using asimov.util
 texture = create_texture()
 
-# Animation state using stable_phase for unique random seeds
-class SmoothTarget:
-    def __init__(self, seed: Any, x_range=(-0.5, 0.5), y_range=(-0.5, 0.5), z_range=(-0.5, 0.0), angle_range=(-15, 15)):
-        self.seed = seed
-        self.x_range = x_range
-        self.y_range = y_range
-        self.z_range = z_range
-        self.angle_range = angle_range
-        self.current = self._random_target()
-        self.target = self._random_target()
-        self.progress = 1.0
+# Animation state
+anim_state = {
+    'current': {'x': 0, 'y': 0, 'z': 0, 'angle': 0},
+    'target': {'x': 0, 'y': 0, 'z': 0, 'angle': 0},
+    'progress': 1.0,
+}
+
+def anim_random_target():
+    return {
+        'x': random.uniform(-0.5, 0.5),
+        'y': random.uniform(-0.5, 0.5),
+        'z': random.uniform(-0.5, 0.0),
+        'angle': random.uniform(-15, 15),
+    }
+
+def anim_update(state, dt=1/60):
+    state['progress'] += dt
+    t = smooth_step(min(state['progress'], 1.0))
     
-    def _random_target(self):
-        return {
-            'x': random.uniform(*self.x_range),
-            'y': random.uniform(*self.y_range),
-            'z': random.uniform(*self.z_range),
-            'angle': random.uniform(*self.angle_range),
-        }
+    if state['progress'] >= 1.0:
+        state['current'] = state['target']
+        state['target'] = anim_random_target()
+        state['progress'] = 0.0
     
-    def update(self, dt: float = 1/60) -> dict:
-        """Update and return interpolated values."""
-        self.progress += dt
-        t = smooth_step(min(self.progress, 1.0))
-        
-        if self.progress >= 1.0:
-            self.current = self.target
-            self.target = self._random_target()
-            self.progress = 0.0
-        
-        return {
-            'x': lerp(self.current['x'], self.target['x'], t),
-            'y': lerp(self.current['y'], self.target['y'], t),
-            'z': lerp(self.current['z'], self.target['z'], t),
-            'angle': lerp(self.current['angle'], self.target['angle'], t),
-        }
+    return {
+        'x': lerp(state['current']['x'], state['target']['x'], t),
+        'y': lerp(state['current']['y'], state['target']['y'], t),
+        'z': lerp(state['current']['z'], state['target']['z'], t),
+        'angle': lerp(state['current']['angle'], state['target']['angle'], t),
+    }
 
 # Initialize animation
-anim = SmoothTarget("video_player")
+anim_state['target'] = anim_random_target()
 
 # Main loop
 while not glfw.window_should_close(window):
@@ -151,10 +144,10 @@ while not glfw.window_should_close(window):
     update_texture(texture, frame)
 
     # Get interpolated animation values
-    anim_state = anim.update()
+    anim_vals = anim_update(anim_state)
 
     # Smooth rotation interpolation
-    theta = math.radians(anim_state['angle'])
+    theta = math.radians(anim_vals['angle'])
     cos_theta = math.cos(theta)
     sin_theta = math.sin(theta)
 
@@ -171,10 +164,10 @@ while not glfw.window_should_close(window):
     v3 = rotate_vertex(-0.5,  0.5)
 
     vertices = np.array([
-        v0[0] + anim_state['x'], v0[1] + anim_state['y'], anim_state['z'],  0.0, 0.0,
-        v1[0] + anim_state['x'], v1[1] + anim_state['y'], anim_state['z'],  1.0, 0.0,
-        v2[0] + anim_state['x'], v2[1] + anim_state['y'], anim_state['z'],  1.0, 1.0,
-        v3[0] + anim_state['x'], v3[1] + anim_state['y'], anim_state['z'],  0.0, 1.0
+        v0[0] + anim_vals['x'], v0[1] + anim_vals['y'], anim_vals['z'],  0.0, 0.0,
+        v1[0] + anim_vals['x'], v1[1] + anim_vals['y'], anim_vals['z'],  1.0, 0.0,
+        v2[0] + anim_vals['x'], v2[1] + anim_vals['y'], anim_vals['z'],  1.0, 1.0,
+        v3[0] + anim_vals['x'], v3[1] + anim_vals['y'], anim_vals['z'],  0.0, 1.0
     ], dtype=np.float32)
 
     # Update VBO with new vertex data
