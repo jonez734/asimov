@@ -1,4 +1,5 @@
 import argparse
+import os
 import glfw
 from itertools import cycle, product
 from OpenGL.GL import *
@@ -40,7 +41,7 @@ def main(image_paths, side_image, n_cubes=15, spacing=1.2, width=800, height=600
     image_cycle = cycle(image_paths)
 
     first_image = Image.open(image_paths[0])
-    aspect_ratio = first_image.width / first_image.height
+    aspect_ratio = first_image.height / first_image.width  # tall image -> scale Y
 
     cols = 3
     for i in range(n_cubes):
@@ -109,8 +110,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--carddir",
-        default="../cards",
-        help="Base directory for card images (default: ../cards)",
+        default="~/projects/playingcarddata/",
+        help="Base directory for card images (default: ~/projects/playingcarddata/)",
     )
     parser.add_argument(
         "--width",
@@ -131,7 +132,8 @@ if __name__ == "__main__":
     elif args.cardpath:
         image_paths = args.cardpath
     else:
-        image_paths = get_default_card_paths(args.cubes, basedir=args.carddir)
+        carddir = os.path.expanduser(args.carddir)
+        image_paths = get_default_card_paths(args.cubes, basedir=carddir)
 
     main(image_paths, args.side, n_cubes=args.cubes, spacing=args.spacing,
          width=args.width, height=args.height)
