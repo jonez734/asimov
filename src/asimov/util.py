@@ -1,8 +1,11 @@
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 
-from math import log2, ceil
+from math import log2, ceil, pi
 import struct
+import zlib
+import os
+import math
 from dataclasses import dataclass, field
 import time
 
@@ -13,13 +16,13 @@ from .common import safe_path
 from .io.echo import echo_traceback
 
 import cv2
-from typing import Callable, Any, Tuple
-
-from typing import Callable, Any, Tuple, List, Optional, Sequence
+from typing import Callable, Any, Tuple, List, Optional, Sequence, Dict, Union
 
 MAX_BLOCK_SIZE = 128
 
 LOGGER_NAME = "asimov"
+
+FRAME_BLOCK_FORMAT = "!HBBH"
 
 # @since 20250326
 def render_text(
@@ -98,7 +101,8 @@ def render_text(
         echo_traceback(f"render_text() failed: {e}")
         return
 
-def render_quad(texture_id):
+def render_quad(texture_id: int) -> None:
+    """Render a quad with the given texture."""
     glEnable(GL_TEXTURE_2D)
     glBindTexture(GL_TEXTURE_2D, texture_id)
     glBegin(GL_QUADS)
@@ -128,7 +132,8 @@ def render_quad(texture_id):
 #    glEnd()
 #    glDisable(GL_TEXTURE_2D)
 
-def create_texture():
+def create_texture() -> int:
+    """Create an OpenGL texture and return its ID."""
     texture_id = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, texture_id)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
@@ -138,12 +143,11 @@ def create_texture():
     glBindTexture(GL_TEXTURE_2D, 0)
     return texture_id
 
-def update_texture(texture_id, frame):
+def update_texture(texture_id: int, frame: Optional[np.ndarray]) -> None:
     """Upload a BGR frame (e.g. from OpenCV) as a GL texture."""
     if frame is None:
         return
 
-    # Convert BGR (OpenCV) to RGB (OpenGL expects RGB)
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     h, w, _ = frame_rgb.shape
 
@@ -154,14 +158,14 @@ def update_texture(texture_id, frame):
 
 @dataclass
 class Block:
-    id: int             # Unique identifier for the block
-    length: int         # Length of stored data
-    data: bytes         # The data (raw if uncompressed, compressed otherwise)
+    id: int
+    length: int
+    data: bytes
 
 BLOCK_HEADER_FORMAT = "!HH"  # block_id (2 bytes), data_len (2 bytes)
 BLOCK_HEADER_SIZE = struct.calcsize(BLOCK_HEADER_FORMAT)
 
-def encode_block(block: Block, compress=False) -> bytes:
+def encode_block(block: Block, compress: bool = False) -> bytes:
     """
     Encodes a single frame block into a binary format suitable for network transmission.
 
@@ -237,13 +241,14 @@ def decode_block(data: bytes, block_size: int, channels: int = 3) -> tuple[int, 
     array = np.frombuffer(block_data, dtype=np.uint8)
     return block_id, array.reshape((block_size, block_size, channels))
 
-def block_id_to_xy(block_id, frame_width, block_size):
+def block_id_to_xy(block_id: int, frame_width: int, block_size: int) -> Tuple[int, int]:
+    """Convert block ID to x, y pixel coordinates."""
     cols = frame_width // block_size
     row = block_id // cols
     col = block_id % cols
     return col * block_size, row * block_size
 
-def find_best_power_of_two_block_size(h, w):
+def find_best_power_of_two_block_size(h: int, w: int) -> int:
     """
     Returns the largest power-of-two block side length that evenly divides both h and w.
     Also returns the corresponding block size (side**2).
@@ -254,13 +259,23 @@ def find_best_power_of_two_block_size(h, w):
             return side
     raise ValueError(f"No valid block size found for given dimensions {h=} {w=}")
 
-def get_changed_blocks(frame, previous_frame, frame_id, compress=True):
+def get_changed_blocks(
+    frame: np.ndarray,
+    previous_frame: np.ndarray,
+    frame_id: int,
+    compress: bool = True,
+) -> List[Block]:
     """
-    Detects changed blocks and returns a list of dicts with metadata:
-    - frame_id: int
-    - block_id: int
-    - block: compressed bytes (if compress=True)
-    - total_changed: total number of changed blocks (for reassembly)
+    Detects changed blocks and returns a list of Block objects.
+
+    Parameters:
+        frame: Current frame
+        previous_frame: Previous frame
+        frame_id: ID of the current frame
+        compress: Whether to compress block data
+
+    Returns:
+        List of Block objects with changed data
     """
     if frame.shape != previous_frame.shape:
         raise ValueError("Frame sizes do not match")
@@ -291,22 +306,22 @@ def get_changed_blocks(frame, previous_frame, frame_id, compress=True):
 
     return changed_blocks
 
-def calculate_total_blocks_in_frame(frame_width, frame_height, block_size):
+def calculate_total_blocks_in_frame(frame_width: int, frame_height: int, block_size: int) -> int:
+    """Calculate total number of blocks in a frame."""
     cols = ceil(frame_width / block_size)
     rows = ceil(frame_height / block_size)
     return cols * rows
 
-def _blend_bgr(img_bgr, overlay_bgr, alpha_mask):
+def _blend_bgr(img_bgr: np.ndarray, overlay_bgr: np.ndarray, alpha_mask: np.ndarray) -> None:
     """Blend overlay_bgr into img_bgr using per-pixel alpha_mask (0..1). In-place."""
-    # alpha_mask: (h,w) float32 0..1
-    a = alpha_mask[..., None]  # (h,w,1)
+    a = alpha_mask[..., None]
     img_f = img_bgr.astype(np.float32)
     over_f = overlay_bgr.astype(np.float32)
     out = over_f * a + img_f * (1.0 - a)
     np.copyto(img_bgr, np.clip(out, 0, 255).astype(np.uint8))
 
 
-def _composite_rgba(img_rgba, overlay_bgr, overlay_a):
+def _composite_rgba(img_rgba: np.ndarray, overlay_bgr: np.ndarray, overlay_a: np.ndarray) -> None:
     """
     Proper alpha-composite overlay_bgr (with overlay_a 0..1) over img_rgba (BGRA).
     In-place.
@@ -332,11 +347,39 @@ def _composite_rgba(img_rgba, overlay_bgr, overlay_a):
     img_rgba[..., 3] = np.clip(new_a * 255.0, 0, 255).astype(np.uint8)
 
 
-def draw_text(img, x, y, text,
-              color=(255, 255, 255), alpha=1.0,
-              shadow_offset=1, shadow_color=(128, 128, 128), shadow_alpha=1.0,
-              thickness=1, font_scale=0.5,
-              font=cv2.FONT_HERSHEY_SIMPLEX):
+def draw_text(
+    img: np.ndarray,
+    x: int,
+    y: int,
+    text: str,
+    color: Tuple[int, int, int] = (255, 255, 255),
+    alpha: float = 1.0,
+    shadow_offset: Union[int, Tuple[int, int]] = 1,
+    shadow_color: Tuple[int, int, int] = (128, 128, 128),
+    shadow_alpha: float = 1.0,
+    thickness: int = 1,
+    font_scale: float = 0.5,
+    font: int = cv2.FONT_HERSHEY_SIMPLEX,
+) -> np.ndarray:
+    """
+    Draw text on an image with optional shadow and alpha blending.
+
+    Parameters:
+        img: The image to draw on (BGR or BGRA)
+        x, y: Text position
+        text: Text string to draw
+        color: RGB color tuple
+        alpha: Alpha blending factor (0-1)
+        shadow_offset: Shadow offset (int or tuple)
+        shadow_color: Shadow RGB color
+        shadow_alpha: Shadow alpha
+        thickness: Text thickness
+        font_scale: Font scale
+        font: OpenCV font
+
+    Returns:
+        The modified image
+    """
 
     is_rgba = (img.shape[2] == 4)
     h, w = img.shape[:2]
@@ -385,7 +428,14 @@ def draw_text(img, x, y, text,
 
     return img
 
-def get_bottom_right_position(frame, text, font, font_scale=1.0, thickness=2, padding=10):
+def get_bottom_right_position(
+    frame: np.ndarray,
+    text: str,
+    font: int,
+    font_scale: float = 1.0,
+    thickness: int = 2,
+    padding: int = 10,
+) -> Tuple[int, int]:
     """
     Calculate (x, y) starting position to draw text in the lower-right corner with padding.
 
@@ -395,14 +445,12 @@ def get_bottom_right_position(frame, text, font, font_scale=1.0, thickness=2, pa
     (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
     frame_height, frame_width = frame.shape[:2]
 
-    # x is left edge of text so that right edge is at (frame_width - padding)
     x = frame_width - padding - text_width
-    # y is the baseline so that bottom of text is at (frame_height - padding)
     y = frame_height - padding - baseline
 
     return x, y
 
-def get_device_by_label(label:str) -> str|None:
+def get_device_by_label(label: str) -> Optional[str]:
     base = "/sys/class/video4linux"
     for dev in os.listdir(base):
         card_path = safe_path(base, dev, "name")
@@ -463,23 +511,28 @@ class OneEuroFilter:
     - dcutoff (float): Cutoff frequency for the derivative filter.
     - init (float | None): Initial value.
     """
-    def __init__(self, freq=30, min_cutoff=1.0, beta=0.01, dcutoff=1.0, init=None):
-        self.freq = freq              # Hz, frame rate estimate
-        self.min_cutoff = min_cutoff  # baseline smoothing
-        self.beta = beta              # speed sensitivity
-        self.dcutoff = dcutoff        # derivative smoothing
-        self.last_time = None
-        self.x_prev = init
-        self.dx_prev = 0
+    def __init__(
+        self,
+        freq: float = 30,
+        min_cutoff: float = 1.0,
+        beta: float = 0.01,
+        dcutoff: float = 1.0,
+        init: Optional[float] = None,
+    ) -> None:
+        self.freq = freq
+        self.min_cutoff = min_cutoff
+        self.beta = beta
+        self.dcutoff = dcutoff
+        self.last_time: Optional[float] = None
+        self.x_prev: Optional[float] = init
+        self.dx_prev: float = 0
 
-    def _alpha(self, cutoff, dt):
+    def _alpha(self, cutoff: float, dt: float) -> float:
         """Calculates the smoothing factor based on cutoff frequency and time step."""
-        import math
-
         tau = 1.0 / (2 * math.pi * cutoff)
         return 1.0 / (1.0 + tau / dt)
 
-    def update(self, x):
+    def update(self, x: float) -> float:
         """Applies the filter to the new value x."""
         now = time.time()
         if self.last_time is None:
@@ -508,17 +561,16 @@ class OneEuroFilter:
         self.dx_prev = dx_hat
         return x_hat
 
-def get_centroid(pts: np.ndarray):
+def get_centroid(pts: np.ndarray) -> Tuple[float, float]:
     """
     Calculates the centroid (center of mass) of a contour or set of points.
 
     Args:
-        pts (np.ndarray): A numpy array of points (e.g., shape (N, 2) or (N, 1, 2)).
+        pts: A numpy array of points (e.g., shape (N, 2) or (N, 1, 2)).
 
     Returns:
-        tuple[float, float]: (cx, cy) coordinates of the centroid.
+        (cx, cy) coordinates of the centroid.
     """
-    # Ensure points are in the correct format for cv2.moments
     if pts.ndim == 3:
         pts = pts.reshape(-1, 2)
 
@@ -630,65 +682,72 @@ def interpolate_sequential(index: int, total_length: int, start_value: float, en
     Returns:
         The interpolated value.
     """
-    # Ensure index is within bounds for interpolation
     if index <= 0 or total_length <= 1:
-        return start_value # Or handle error
+        return start_value
 
-    # Use numpy.interp to map the index within the [1, total_length] range
-    # to the [start_value, end_value] range.
-    return np.interp(index, [1, total_length], [start_value, end_value])
+    result = np.interp(index, [1, total_length], [start_value, end_value])
+    return float(result)
 
 # Example Use:
 # thickness = interpolate_sequential(i, MAX_TRAIL_LENGTH, 1.0, 8.0)
 
-def draw_diagnostics_overlay(frame, diagnostics):
+def draw_diagnostics_overlay(frame: np.ndarray, diagnostics: Dict[str, float]) -> None:
+    """Draw diagnostics overlay on a GL frame."""
     y_offset = 30
     for key, val in diagnostics.items():
         text = f"{key}: {val:.2f}"
-        # Use existing render_text from util.py
         render_text(text, 10, y_offset, color=(0, 255, 255, 1.0))
         y_offset += 20
 
-import math
-
-def stable_phase(seed, hash_base=31, scramble_shift1=16, scramble_shift2=3) -> float:
+def stable_phase(
+    seed: Any,
+    hash_base: int = 31,
+    scramble_shift1: int = 16,
+    scramble_shift2: int = 3,
+) -> float:
     """
     Generate a stable [0, 2π) phase offset from any hashable seed.
     Close seeds produce distinct but smooth phase values.
     
     Parameters:
-    - seed: any hashable value (str, int, tuple)
-    - hash_base: base multiplier for rolling hash
-    - scramble_shift1: first bitwise shift for scrambling
-    - scramble_shift2: second bitwise shift for scrambling
+        seed: any hashable value (str, int, tuple)
+        hash_base: base multiplier for rolling hash
+        scramble_shift1: first bitwise shift for scrambling
+        scramble_shift2: second bitwise shift for scrambling
+    
+    Returns:
+        Phase value in radians [0, 2π)
     """
-    # Convert seed to string to handle any hashable input
     s = str(seed)
     
-    # Rolling hash with positional weighting
     v = 0
     for i, c in enumerate(s):
         v = (v * hash_base + ord(c) * (i + 1)) & 0xFFFFFFFF
     
-    # Gentle scrambling for decorrelation
     v ^= (v >> scramble_shift1)
     v ^= (v << scramble_shift2) & 0xFFFFFFFF
     
-    # Normalize to [0, 2π)
     phase = (v / 2**32) * (2 * math.pi)
     return phase
 
-def floating_bounce(seed, amplitude=0.05, frequency=1.0, time=0.0) -> float:
+def floating_bounce(
+    seed: Any,
+    amplitude: float = 0.05,
+    frequency: float = 1.0,
+    time: float = 0.0,
+) -> float:
     """
     Compute a gentle floating offset using a stable phase.
     
     Parameters:
-    - seed: any hashable value to generate a unique phase
-    - amplitude: max vertical displacement
-    - frequency: speed of the bounce (cycles per second)
-    - time: current time in seconds
+        seed: any hashable value to generate a unique phase
+        amplitude: max vertical displacement
+        frequency: speed of the bounce (cycles per second)
+        time: current time in seconds
+    
+    Returns:
+        Vertical offset value
     """
-    phase = _stable_phase(seed)
-    # Sine wave bounce with unique phase per seed
+    phase = stable_phase(seed, hash_base=31, scramble_shift1=16, scramble_shift2=3)
     offset = amplitude * math.sin(2 * math.pi * frequency * time + phase)
     return offset
