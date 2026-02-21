@@ -173,7 +173,7 @@ def create_texture() -> int:
     return texture_id
 
 def update_texture(texture_id: int, frame: Optional[np.ndarray]) -> None:
-    """Upload a BGR frame (e.g. from OpenCV) as a GL texture."""
+    """Upload a BGR frame (e.g. from OpenCV) as an OpenGL texture."""
     if frame is None:
         return
 

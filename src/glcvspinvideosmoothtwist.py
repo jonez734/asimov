@@ -136,11 +136,10 @@ while not glfw.window_should_close(window):
         if not ret:
             break
 
-    # Convert frame to OpenGL texture format
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Flip vertically for OpenGL texture coordinates
     frame = np.flip(frame, axis=0)
 
-    # Update texture using asimov.util
+    # Update texture using asimov.util (handles BGR->RGB conversion)
     update_texture(texture, frame)
 
     # Get interpolated animation values
