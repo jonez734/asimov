@@ -88,40 +88,43 @@ gl.glBindVertexArray(0)
 # Create Texture using asimov.util
 texture = create_texture()
 
-# Animation state
+# Animation state - moves until hitting border, then changes direction
 anim_state = {
-    'current': {'x': 0, 'y': 0, 'z': 0, 'angle': 0},
-    'target': {'x': 0, 'y': 0, 'z': 0, 'angle': 0},
-    'progress': 1.0,
+    'x': 0.0,
+    'y': 0.0,
+    'z': 0.0,
+    'angle': 0.0,
+    'vel_x': 0.01,
+    'vel_y': 0.01,
+    'vel_z': 0.0,
+    'vel_angle': 0.2,
+    'x_range': (-0.7, 0.7),
+    'y_range': (-0.7, 0.7),
+    'z_range': (-0.3, 0.0),
+    'angle_range': (-15, 15),
 }
 
-def anim_random_target():
-    return {
-        'x': random.uniform(-0.5, 0.5),
-        'y': random.uniform(-0.5, 0.5),
-        'z': random.uniform(-0.5, 0.0),
-        'angle': random.uniform(-15, 15),
-    }
-
-def anim_update(state, dt=1/60):
-    state['progress'] += dt
-    t = min(state['progress'], 1.0)
-    eased = smooth_step(t)
+def anim_update(state):
+    # Update positions
+    state['x'] += state['vel_x']
+    state['y'] += state['vel_y']
+    state['z'] += state['vel_z']
+    state['angle'] += state['vel_angle']
     
-    if state['progress'] >= 1.0:
-        state['current'] = state['target']
-        state['target'] = anim_random_target()
-        state['progress'] -= 1.0
+    # Bounce off borders and change direction
+    if state['x'] <= state['x_range'][0] or state['x'] >= state['x_range'][1]:
+        state['vel_x'] *= -1
+        state['x'] = max(state['x_range'][0], min(state['x_range'][1], state['x']))
     
-    return {
-        'x': lerp(state['current']['x'], state['target']['x'], eased),
-        'y': lerp(state['current']['y'], state['target']['y'], eased),
-        'z': lerp(state['current']['z'], state['target']['z'], eased),
-        'angle': lerp(state['current']['angle'], state['target']['angle'], eased),
-    }
-
-# Initialize animation
-anim_state['target'] = anim_random_target()
+    if state['y'] <= state['y_range'][0] or state['y'] >= state['y_range'][1]:
+        state['vel_y'] *= -1
+        state['y'] = max(state['y_range'][0], min(state['y_range'][1], state['y']))
+    
+    if state['angle'] <= state['angle_range'][0] or state['angle'] >= state['angle_range'][1]:
+        state['vel_angle'] *= -1
+        state['angle'] = max(state['angle_range'][0], min(state['angle_range'][1], state['angle']))
+    
+    return state
 
 # Main loop
 while not glfw.window_should_close(window):
