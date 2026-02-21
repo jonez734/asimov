@@ -1,3 +1,4 @@
+# DEPRECATED: This module is not used.
 # asimov.io.echovars Specification
 
 ## Overview
