@@ -80,7 +80,9 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
         detector = ns["detector"]
 
-        hands, drawn = detector.findHands(frame, draw=False, flipType=True)
+        # Get hands and overlay - use draw=True to capture skeleton, but on a copy
+        frame_copy = frame.copy()
+        hands, drawn = detector.findHands(frame_copy, draw=True, flipType=True)
         ns["overlay"] = drawn
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
@@ -111,8 +113,9 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     if cfg.get("SHOW_LANDMARKS"):
         overlay = ns.get("overlay")
         if overlay is not None and overlay.shape == frame.shape:
-            alpha = cfg.get("OVERLAY_ALPHA", 0.7)
-            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+            # Draw overlay directly without alpha blending to avoid ghosting
+            mask = overlay > 0
+            frame[mask] = overlay[mask]
 
     # ---- Draw bounding box ----
     if cfg.get("SHOW_BBOX"):
