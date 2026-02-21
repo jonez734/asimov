@@ -164,7 +164,7 @@ You can also register custom emojis at runtime:
 
 ```python
 from asimov.io import set_emojis
-set_emojis({"horse": "🐴", "grain": "🌾"})
+set_emojis({"horse": "\\U0001F40E", "grain": "\\U0001F33E"})
 echo(":horse: :grain:")
 ```
 
