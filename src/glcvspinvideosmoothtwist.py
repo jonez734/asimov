@@ -1,3 +1,5 @@
+import argparse
+
 import cv2
 import numpy as np
 import glfw
@@ -7,9 +9,14 @@ import OpenGL.GL.shaders as shaders
 from asimov.util import create_texture, update_texture
 from asimov.anim import rotate_vertex, bounce_animation_update, create_bounce_state
 
+parser = argparse.ArgumentParser(description="OpenGL Video Player with Smooth Twist")
+parser.add_argument("--capture-dev", type=str, default="1", help="Capture device index or video file path (default: 1)")
+args = parser.parse_args()
+
+capture_dev = int(args.capture_dev) if args.capture_dev.isdigit() else args.capture_dev
+
 # Initialize OpenCV video capture
-video_path = 1
-cap = cv2.VideoCapture(video_path)
+cap = cv2.VideoCapture(capture_dev)
 
 if not cap.isOpened():
     print("Error: Could not open video file.")

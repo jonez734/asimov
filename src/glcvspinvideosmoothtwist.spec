@@ -12,16 +12,11 @@ OpenGL video player that displays a video with smooth position/rotation animatio
 - `OpenGL.GL` - Rendering
 - `asimov.util` - Utility functions
 
-## Imports from asimov.util
+## Imports
 
 ```python
-from asimov.util import (
-    create_texture,
-    update_texture,
-    rotate_vertex,
-    bounce_animation_update,
-    create_bounce_state,
-)
+from asimov.util import create_texture, update_texture
+from asimov.anim import rotate_vertex, bounce_animation_update, create_bounce_state
 ```
 
 ## Functionality
@@ -59,7 +54,6 @@ Returns dict with `x`, `y`, `z`, `angle` values.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| video_path | 1 | Video source (int for webcam, str for file) |
 | window_size | 800x600 | OpenGL window dimensions |
 | x_range | (-0.9, 0.9) | X movement bounds |
 | y_range | (-0.9, 0.9) | Y movement bounds |
@@ -67,6 +61,12 @@ Returns dict with `x`, `y`, `z`, `angle` values.
 | vel_x | 0.005 | X velocity per frame |
 | vel_y | 0.005 | Y velocity per frame |
 | vel_angle | 0.1 | Angular velocity per frame |
+
+## Command Line Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--capture-dev` | "1" | Capture device index (int) or video file path (str). Default: "1" |
 
 ## Shaders
 
