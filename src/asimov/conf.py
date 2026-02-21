@@ -119,6 +119,21 @@ INDEXFINGERTIP = {
 }
 
 # ------------------------------------------------------------
+# FPS Overlay
+# ------------------------------------------------------------
+
+FPS_OVERLAY = {
+    "DRAW": {
+        "enabled": True,
+        "pos": (10, 80),
+        "bg_color": (255, 0, 255),
+        "text_color": (255, 255, 255),
+        "scale": 1.0,
+        "thickness": 2,
+    },
+}
+
+# ------------------------------------------------------------
 # Rect / Touch Interaction
 # ------------------------------------------------------------
 
@@ -179,6 +194,13 @@ GLITCH = {
 
 OVERLAYS = {
     # Example overlays; adjust enable/order as needed
+
+    "fps_overlay": {
+        "module_path": "asimov.modules.fps_overlay",
+        "enabled": True,
+        "order": 5,
+        "hotkey": "",
+    },
 
     "hand": {
         "module_path": "asimov.modules.hand",
@@ -400,6 +422,11 @@ FLOAT_CARD = {
 SCENE = {
     "name": "float_card",
     "modules": [
+        {
+            "name": "fps_overlay",
+            "module": "asimov.modules.fps_overlay",
+            "conf": {},
+        },
         {
             "name": "hand",
             "module": "asimov.modules.hand",

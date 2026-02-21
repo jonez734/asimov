@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import ttk
 import json
 from PIL import Image, ImageTk
+from cvzone.FPS import FPS as CVZoneFPS
 
 from . import io, conf, module, common, scene
 from .common import ThreadSafeContext
@@ -19,6 +20,9 @@ from .playingcard import cards
 
 context = ThreadSafeContext()
 logic_lock = threading.Lock()
+
+logic_fps = CVZoneFPS(avgCount=30)
+render_fps = CVZoneFPS(avgCount=30)
 
 
 # --- Tkinter Dashboard UI Components ---
@@ -428,6 +432,8 @@ class DashboardApp:
             return conf.MOTIONBLUR
         elif name_lower == "float_playingcard":
             return conf.FLOAT_PLAYINGCARD
+        elif name_lower == "fps_overlay":
+            return conf.FPS_OVERLAY
         
         return None
     
@@ -484,6 +490,8 @@ def _consumer(modules: list, args: argparse.Namespace):
                     except Exception:
                         io.echo_traceback(f"Logic Thread Error in module: {item['name']}")
 
+            logic_fps_val, _ = logic_fps.update()
+            context["FPS"] = {"logic": logic_fps_val}
             time.sleep(0.01)
 
     except Exception:
@@ -613,6 +621,14 @@ def main(args, **kwargs):
                                 frame = result
                         except Exception:
                             io.echo_traceback(f"draw() failure in module '{item['name']}'")
+
+                    # Update render FPS
+                    render_fps_val, _ = render_fps.update()
+                    fps_data = context.get("FPS")
+                    if fps_data is None:
+                        fps_data = {}
+                    fps_data["render"] = render_fps_val
+                    context["FPS"] = fps_data
 
                     # Send to virtual camera
                     vcam.send(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))

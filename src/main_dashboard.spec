@@ -17,7 +17,7 @@
 │  │   PIL → PhotoImage │  │ Notebook Tabs               │  │
 │  │                     │  │ (per-module ui_schema)      │  │
 │  │                     │  ├─────────────────────────────┤  │
-│  │                     │  │ Status Output Text         │  │
+│  │                     │  │ Status Output Text           │  │
 │  └─────────────────────┴──┴─────────────────────────────┴──┘
 └─────────────────────────────────────────────────────────────┘
          ▲                          ▲
@@ -25,17 +25,22 @@
     cv2.VideoCapture           pyvirtualcam.Camera
          │                          │
          ▼                          │
-┌─────────────────────┐             │
-│  SHARED_FRAME      │─────────────┘
+┌─────────────────────┐              │
+│  SHARED_FRAME      │──────────────┘
 │  (ThreadSafeContext)
 │         ▲
          │
 ┌────────┴────────┐
-│ Logic Thread   │
-│ (detect only)  │
+│ Logic Thread    │
+│ (detect only)   │────── cvzone.FPS (logic_fps)
+│                 │      context["FPS"]["logic"]
 └────────┬────────┘
          │
     Module.detect()
+
+Render Thread ─── cvzone.FPS (render_fps)
+                   context["FPS"]["render"]
+                   Module.draw()
 ```
 
 ## Architectural Principle
@@ -98,6 +103,14 @@ This ensures:
 - Runs module `detect()` functions
 - Uses `logic_lock` to synchronize frame access
 - Updates `context["SHARED_FRAME"]`
+- Tracks FPS via `cvzone.FPS` → stored in `context["FPS"]["logic"]`
+
+### 5. FPS Tracking
+
+- **logic_fps**: cvzone.FPS counter in logic thread (detect phase)
+- **render_fps**: cvzone.FPS counter in render thread (draw/display phase)
+- Stored in context as `{"logic": fps_value, "render": fps_value}`
+- Displayed via `fps_overlay` module using cvzone.putTextRect
 
 ## Module Interface
 
@@ -134,6 +147,7 @@ Modules map to `conf` attributes:
 | eyes_next   | conf.EYES    |
 | glitch      | conf.GLITCH  |
 | motionblur  | conf.MOTIONBLUR |
+| fps_overlay | conf.FPS_OVERLAY |
 
 ## UI Schema Types
 

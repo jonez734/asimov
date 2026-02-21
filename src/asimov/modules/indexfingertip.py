@@ -49,6 +49,11 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
         hand = hand_ns["hands"][0]
 
+        # Check detection confidence
+        detection_con = hand.get("detectionCon", 0)
+        if detection_con < conf.INDEXFINGERTIP.get("DETECTION_CON", 0.6):
+            return
+
         # cvzone finger state (geometry-only, no detection)
         fingers = hand_ns["detector"].fingersUp(hand)
         if fingers != INDEX_UP_PATTERN:
@@ -77,6 +82,9 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     if not ns:
         return frame
 
+    if not conf.INDEXFINGERTIP.get("DRAW", {}).get("enabled", True):
+        return frame
+
     if ns.get("error_state"):
         cv2.putText(
             frame,
@@ -99,16 +107,46 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     cv2.circle(
         frame,
         (int(data["x"]), int(data["y"])),
-        conf.INDEXFINGERTIP.get("CIRCLE_RADIUS", 10),
-        conf.INDEXFINGERTIP.get("COLOR", (0, 255, 0)),
-        cv2.FILLED,
+        conf.INDEXFINGERTIP["DRAW"]["radius"],
+        conf.INDEXFINGERTIP["DRAW"]["color"],
+        conf.INDEXFINGERTIP["DRAW"]["thickness"],
     )
 
     return frame
 
 def ui_schema(args=None, context=None) -> dict | None:
     return {
+        "DETECTION_CON": {
+            "type": "float",
+            "default": 0.6,
+            "min": 0.1,
+            "max": 1.0,
+            "step": 0.05,
+            "label": "Detection Confidence"
+        },
+
         "FILTER": {
+            "enabled": {
+                "type": "bool",
+                "default": True,
+                "label": "Enable Filter"
+            },
+            "alpha": {
+                "type": "float",
+                "default": 0.4,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.05,
+                "label": "Smoothing Factor"
+            },
+            "deadzone": {
+                "type": "int",
+                "default": 2,
+                "min": 0,
+                "max": 20,
+                "step": 1,
+                "label": "Deadzone (pixels)"
+            },
             "FREQ": {
                 "type": "float",
                 "default": 30.0,
@@ -135,48 +173,32 @@ def ui_schema(args=None, context=None) -> dict | None:
             }
         },
 
-        "POINTER": {
-            "ENABLED": {
+        "DRAW": {
+            "enabled": {
                 "type": "bool",
                 "default": True,
-                "label": "Enable Pointer"
+                "label": "Draw Pointer"
             },
-            "RADIUS": {
+            "radius": {
                 "type": "int",
-                "default": 8,
+                "default": 6,
                 "min": 1,
                 "max": 50,
                 "step": 1,
                 "label": "Pointer Radius"
             },
-            "COLOR": {
+            "color": {
                 "type": "color",
-                "default": [0, 255, 0],  # BGR
+                "default": [0, 255, 0],
                 "label": "Pointer Color (BGR)"
             },
-            "ALPHA": {
-                "type": "float",
-                "default": 0.8,
-                "min": 0.0,
-                "max": 1.0,
-                "step": 0.05,
-                "label": "Pointer Opacity"
-            }
-        },
-
-        "GESTURE": {
-            "PINCH_ENABLED": {
-                "type": "bool",
-                "default": False,
-                "label": "Enable Pinch Detection"
-            },
-            "PINCH_THRESHOLD": {
-                "type": "float",
-                "default": 0.05,
-                "min": 0.001,
-                "max": 0.2,
-                "step": 0.005,
-                "label": "Pinch Activation Threshold"
+            "thickness": {
+                "type": "int",
+                "default": -1,
+                "min": -1,
+                "max": 10,
+                "step": 1,
+                "label": "Thickness (-1=filled)"
             }
         },
 
