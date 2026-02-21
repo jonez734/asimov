@@ -4,13 +4,13 @@ from typing import Dict, Tuple, List
 import cv2
 import numpy as np
 
-from . import conf
+from .. import conf
+from .rect_touch import CTX_TOUCHES
 
 MODULE_NAME = "rect"
 
 # Context keys
 CTX_RECTS = "rects"
-CTX_TOUCHES = "rect_touches"
 
 
 # ------------------------
@@ -29,29 +29,13 @@ def _point_in_rect(pt: Tuple[int, int], rect: Dict) -> bool:
 
 def detect(frame: np.ndarray, context):
     """
-    Detect index fingertip touching rects.
+    Manage rectangles in context.
+    Creates default rectangles if none exist.
     """
-
     rects: List[Dict] = context.get(CTX_RECTS, [])
     
     if not rects:
         init_default_rects(context)
-        rects = context.get(CTX_RECTS, [])
-    
-    fingertip_ns = context.get("INDEXFINGERTIP")
-
-    touches: List[str] = []
-
-    if fingertip_ns and fingertip_ns.get("active"):
-        data = fingertip_ns.get("data")
-        if data:
-            pt = (int(data["x"]), int(data["y"]))
-
-            for rect in rects:
-                if _point_in_rect(pt, rect):
-                    touches.append(rect.get("id", "unknown"))
-
-    context[CTX_TOUCHES] = touches
 
 
 def draw(frame: np.ndarray, context):

@@ -146,6 +146,12 @@ RECT = {
     "LABEL_THICKNESS": 1,
 }
 
+RECT_TOUCH = {
+    "DETECTION": {
+        "enabled": True,
+    },
+}
+
 
 # ------------------------------------------------------------
 # Glitch system (already partially restored elsewhere)
@@ -220,10 +226,17 @@ OVERLAYS = {
     },
 
     "rect": {
-        "module_path": "asimov.rect",
+        "module_path": "asimov.modules.rect",
         "enabled": True,
         "order": 25,
         "hotkey": "r",
+    },
+
+    "rect_touch": {
+        "module_path": "asimov.modules.rect_touch",
+        "enabled": True,
+        "order": 26,
+        "hotkey": "",
     },
 
     "face": {
@@ -438,7 +451,12 @@ SCENE = {
         },
         {
             "name": "rect",
-            "module": "asimov.rect",
+            "module": "asimov.modules.rect",
+            "conf": {},
+        },
+        {
+            "name": "rect_touch",
+            "module": "asimov.modules.rect_touch",
             "conf": {},
         },
         {

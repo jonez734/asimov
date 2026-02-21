@@ -436,6 +436,8 @@ class DashboardApp:
             return conf.FPS_OVERLAY
         elif name_lower == "rect":
             return conf.RECT
+        elif name_lower == "rect_touch":
+            return conf.RECT_TOUCH
         
         return None
     

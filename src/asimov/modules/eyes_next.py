@@ -211,3 +211,73 @@ def access(args, op, /, **kwargs):
 
 def buildargs(args, **kwargs):
     return None
+
+
+def ui_schema(args=None, context=None) -> dict | None:
+    return {
+        "FILTER": {
+            "FREQ": {
+                "type": "float",
+                "default": 60.0,
+                "min": 1.0,
+                "max": 240.0,
+                "step": 1.0,
+                "label": "Filter Frequency (Hz)"
+            },
+            "MIN_CUTOFF": {
+                "type": "float",
+                "default": 1.0,
+                "min": 0.01,
+                "max": 10.0,
+                "step": 0.1,
+                "label": "Min Cutoff"
+            },
+            "BETA": {
+                "type": "float",
+                "default": 0.01,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.01,
+                "label": "Beta (Responsiveness)"
+            }
+        },
+        "BAR": {
+            "WIDTH_SCALE": {
+                "type": "float",
+                "default": 1.6,
+                "min": 0.5,
+                "max": 3.0,
+                "step": 0.1,
+                "label": "Bar Width Scale"
+            },
+            "HEIGHT_SCALE": {
+                "type": "float",
+                "default": 2.2,
+                "min": 0.5,
+                "max": 5.0,
+                "step": 0.1,
+                "label": "Bar Height Scale"
+            },
+            "COLOR": {
+                "type": "color",
+                "default": [0, 0, 0],
+                "label": "Bar Color (BGR)"
+            },
+            "ALPHA": {
+                "type": "float",
+                "default": 0.85,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.05,
+                "label": "Bar Opacity"
+            },
+            "GRACE_PERIOD": {
+                "type": "float",
+                "default": 0.35,
+                "min": 0.0,
+                "max": 2.0,
+                "step": 0.05,
+                "label": "Grace Period (seconds)"
+            }
+        }
+    }
