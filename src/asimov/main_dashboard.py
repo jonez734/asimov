@@ -590,6 +590,8 @@ def main(args, **kwargs):
                         break
 
                     frame = raw_frame.copy()
+                    # Flip before modules run so flipType=True correctly handles labels
+                    frame = cv2.flip(frame, 1)
 
                     with logic_lock:
                         context["SHARED_FRAME"] = frame
@@ -607,9 +609,6 @@ def main(args, **kwargs):
                                 frame = result
                         except Exception:
                             io.echo_traceback(f"draw() failure in module '{item['name']}'")
-
-                    # Flip after modules run, before display
-                    frame = cv2.flip(frame, 1)
 
                     # Send to virtual camera
                     vcam.send(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
