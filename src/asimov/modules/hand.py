@@ -215,7 +215,8 @@ def ui_schema(args=None, context=None) -> dict | None:
             "SHOW_LANDMARKS": {
                 "type": "bool",
                 "default": True,
-                "label": "Draw Landmarks"
+                "label": "Draw Landmarks",
+                "enabled": False
             },
             "SHOW_BBOX": {
                 "type": "bool",

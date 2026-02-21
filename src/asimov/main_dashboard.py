@@ -107,6 +107,10 @@ def make_bool_field(parent, section, key, meta, config_obj):
     )
     check.pack(anchor="w", padx=10, pady=5)
     
+    # Disable widget if "enabled": False in meta
+    if meta.get("enabled", True) is False:
+        check.config(state="disabled")
+    
     def on_change(*args):
         config_obj[section][key] = var.get()
     
