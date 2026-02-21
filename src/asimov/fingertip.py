@@ -1,3 +1,8 @@
+# UNUSED - DEPRECATED
+# This module is not used by main_dashboard. Left for reference.
+# Use asimov.modules.indexfingertip instead.
+# Note: This file has broken conf references and should not be used.
+
 from . import conf
 
 import cv2

@@ -1,3 +1,7 @@
+# UNUSED - DEPRECATED
+# This module is not used by main_dashboard. Left for reference.
+# Note: This file has broken conf references and should not be used.
+
 from cv2 import pointPolygonTest
 from . import conf
 

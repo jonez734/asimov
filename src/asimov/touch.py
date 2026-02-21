@@ -1,3 +1,9 @@
+# UNUSED - DEPRECATED
+# This module is not used by main_dashboard. Left for reference.
+# Use rect.py for rectangle touch detection instead.
+#
+# Note: This file has broken conf references and should not be used.
+
 import cv2
 
 from . import conf
