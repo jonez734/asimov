@@ -83,3 +83,22 @@ def configure(cap, width=None, height=None, fps=None):
     actual_fps = int(cap.get(cv2.CAP_PROP_FPS)) or 1
 
     return (actual_width, actual_height, actual_fps)
+
+
+def release(cap):
+    """Safely release a camera handle.
+
+    Args:
+        cap: cv2.VideoCapture object or None
+
+    Returns:
+        True if released successfully, False otherwise
+    """
+    if cap is None:
+        return False
+    try:
+        if hasattr(cap, "isOpened") and cap.isOpened():
+            cap.release()
+        return True
+    except Exception:
+        return False

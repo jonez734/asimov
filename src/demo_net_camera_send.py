@@ -138,13 +138,13 @@ def main():
         io.echo("Waiting for camera...")
         if not cap.ready(cap, timeout=5):
             io.echo("Camera not ready, exiting", level="error")
-            cap.release()
+            cap.release(cap)
             return 1
 
         result = configure_capture(cap, args.width, args.height, args.fps)
         if result is None:
             io.echo("Failed to configure capture, exiting", level="error")
-            cap.release()
+            cap.release(cap)
             return 1
 
         actual_w, actual_h, actual_fps = result
@@ -195,8 +195,7 @@ def main():
         io.echo("\nStopped")
     finally:
         sender.close()
-        if cap is not None:
-            cap.release()
+        cap.release(cap)
         cv2.destroyAllWindows()
 
     return 0

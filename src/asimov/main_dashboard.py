@@ -624,14 +624,14 @@ def main(args, **kwargs):
     )
     if cap_result is None:
         io.echo("Failed to configure capture", level="error")
-        cap_handle.release()
+        cap.release(cap_handle)
         return False
 
     actual_width, actual_height, actual_fps = cap_result
 
     if not cap.ready(cap_handle):
         io.echo("Camera hardware failed to initialize", level="error")
-        cap_handle.release()
+        cap.release(cap_handle)
         return False
 
     # Start logic thread
@@ -703,7 +703,7 @@ def main(args, **kwargs):
         finally:
             app.update_status("Stopped")
             app.running = False
-            cap_handle.release()
+            cap.release(cap_handle)
 
     render_thread = threading.Thread(target=render_loop, daemon=True)
     render_thread.start()
