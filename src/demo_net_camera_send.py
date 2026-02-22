@@ -14,19 +14,19 @@ from asimov.util import configure_capture
 QUIT_FILE = "/tmp/asimov_send_quit"
 
 
-def generate_test_pattern(width, height, frame_id):
-    """Generate an animated test pattern frame."""
+def generate_test_pattern(width, height, t):
+    """Generate an animated test pattern frame based on time t (seconds)."""
     frame = np.zeros((height, width, 3), dtype=np.uint8)
 
     # Animated gradient background (shifts left-right)
-    offset = int((frame_id * 3) % width)
+    offset = int((t * 30) % width)
     for x in range(width):
         val = int(((x + offset) % width) * 255 / width)
         frame[:, x, 2] = val
 
     # Color bars on top (moves up-down)
     bar_height = height // 8
-    bar_offset = (frame_id * 2) % (height + bar_height * 2)
+    bar_offset = int(t * 20) % (height + bar_height * 2)
     colors = [
         (255, 255, 255),  # White
         (255, 255, 0),  # Yellow
@@ -48,13 +48,13 @@ def generate_test_pattern(width, height, frame_id):
             frame[y:y_end, :] = color
 
     # Bouncing ball
-    ball_x = int((frame_id * 5) % (width - 40))
-    ball_y = int(abs(np.sin(frame_id * 0.1) * (height - 40)))
+    ball_x = int((t * 50) % (width - 40))
+    ball_y = int(abs(np.sin(t * 1.0) * (height - 40)))
     cv2.circle(frame, (ball_x + 20, ball_y + 20), 20, (255, 255, 255), -1)
 
     # Rotating square in center
     center_x, center_y = width // 2, height // 2
-    angle = frame_id * 5
+    angle = t * 50
     size = 50
     import math
 
@@ -68,18 +68,6 @@ def generate_test_pattern(width, height, frame_id):
     y4 = int(center_y + size * math.sin(math.radians(angle + 270)))
     pts = np.array([[x1, y1], [x2, y2], [x3, y3], [x4, y4]], np.int32)
     cv2.fillPoly(frame, [pts], (255, 0, 0))
-
-    # Frame counter
-    cv2.rectangle(frame, (5, 5), (220, 40), (0, 0, 0), -1)
-    cv2.putText(
-        frame,
-        f"Frame {frame_id}",
-        (10, 30),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (0, 255, 0),
-        2,
-    )
 
     return frame
 
@@ -144,6 +132,7 @@ def main():
     io.echo(f"Press ESC to quit, or create {QUIT_FILE} to quit")
 
     frame_id = 0
+    start_time = time.time()
     try:
         while True:
             # Check for quit file
@@ -158,7 +147,8 @@ def main():
                     time.sleep(0.001)
                     continue
             else:
-                frame = generate_test_pattern(args.width, args.height, frame_id)
+                t = time.time() - start_time
+                frame = generate_test_pattern(args.width, args.height, t)
                 time.sleep(1.0 / args.fps)
 
             sender.send_frame(frame, frame_id, full_frame=True)
