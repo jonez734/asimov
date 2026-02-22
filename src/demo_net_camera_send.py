@@ -103,7 +103,10 @@ def main():
     )
     parser.add_argument("--fps", type=int, default=conf.CAPTURE_FPS, help="Capture FPS")
     parser.add_argument(
-        "--test", action="store_true", help="Use test pattern instead of camera"
+        "--test", action="store_true", default=True, help="Use test pattern (default)"
+    )
+    parser.add_argument(
+        "--camera", action="store_true", help="Use camera instead of test pattern"
     )
     parser.add_argument(
         "--debug", action="store_true", help="Show debug info (frame shape)"
@@ -118,20 +121,33 @@ def main():
     io.echo(f"Sending to {args.host}:{args.port}")
 
     cap = None
-    if not args.test:
+    use_camera = args.camera and not args.test
+
+    if use_camera:
         cap = cv2.VideoCapture(device)
         if cap.isOpened():
-            result = configure_capture(cap, args.width, args.height, args.fps)
-            if result is None:
+            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 1000)
+            ret, frame = cap.read()
+            if not ret or frame is None:
                 io.echo(
-                    "Failed to configure capture, falling back to test pattern",
+                    "Cannot read from camera, falling back to test pattern",
                     level="warn",
                 )
                 cap.release()
                 cap = None
             else:
-                actual_w, actual_h, actual_fps = result
-                io.echo(f"Camera: {actual_w}x{actual_h} @ {actual_fps} FPS")
+                result = configure_capture(cap, args.width, args.height, args.fps)
+                if result is None:
+                    io.echo(
+                        "Failed to configure capture, falling back to test pattern",
+                        level="warn",
+                    )
+                    cap.release()
+                    cap = None
+                else:
+                    actual_w, actual_h, actual_fps = result
+                    io.echo(f"Camera: {actual_w}x{actual_h} @ {actual_fps} FPS")
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         else:
             io.echo("No camera available, falling back to test pattern", level="warn")
             cap = None
