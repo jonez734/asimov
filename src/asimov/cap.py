@@ -134,6 +134,32 @@ def ready(cap, timeout=5):
         time.sleep(0.10)
 
 
+def open_ready(device, open_timeout=2, ready_timeout=5):
+    """Open camera and wait for it to be ready (return first frame).
+
+    This is a convenience function that combines open() and ready() and
+    handles cleanup on failure.
+
+    Args:
+        device: Device index (int) or path (str)
+        open_timeout: Maximum seconds to wait for camera to open
+        ready_timeout: Maximum seconds to wait for first valid frame
+
+    Returns:
+        cv2.VideoCapture object if successful, None if failed
+        error message string if failed, None if successful
+    """
+    cap_handle, error = open(device, timeout=open_timeout)
+    if cap_handle is None:
+        return None, error
+
+    if not ready(cap_handle, timeout=ready_timeout):
+        release(cap_handle)
+        return None, "Camera not ready (no frame received)"
+
+    return cap_handle, None
+
+
 def configure(cap, width=None, height=None, fps=None):
     """Configure camera capture properties.
 

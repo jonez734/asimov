@@ -614,9 +614,11 @@ def main(args, **kwargs):
     io.echo(f"Loaded {len(modules)} modules", level="debug")
 
     io.echo(f"Opening camera: {args.capture_device}")
-    cap_handle = cap.open(args.capture_device, timeout=2)
+    cap_handle, error = cap.open_ready(
+        args.capture_device, open_timeout=2, ready_timeout=5
+    )
     if cap_handle is None:
-        io.echo(f"Failed to open camera device {args.capture_device}", level="error")
+        io.echo(f"Cannot open camera: {error}", level="error")
         return False
 
     cap_result = cap.configure(
@@ -628,11 +630,6 @@ def main(args, **kwargs):
         return False
 
     actual_width, actual_height, actual_fps = cap_result
-
-    if not cap.ready(cap_handle):
-        io.echo("Camera hardware failed to initialize", level="error")
-        cap.release(cap_handle)
-        return False
 
     # Start logic thread
     t = threading.Thread(target=_consumer, args=(modules, args), daemon=True)
