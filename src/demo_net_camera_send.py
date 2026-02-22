@@ -133,19 +133,19 @@ def main():
             io.echo(
                 f"Cannot open camera device {device} (timeout), exiting", level="error"
             )
-            return 1
+            sys.exit(1)
 
         io.echo("Waiting for camera...")
         if not cap.ready(cap_handle, timeout=5):
             io.echo("Camera not ready, exiting", level="error")
             cap.release(cap_handle)
-            return 1
+            sys.exit(1)
 
         result = configure_capture(cap_handle, args.width, args.height, args.fps)
         if result is None:
             io.echo("Failed to configure capture, exiting", level="error")
             cap.release(cap_handle)
-            return 1
+            sys.exit(1)
 
         actual_w, actual_h, actual_fps = result
         io.echo(f"Camera: {actual_w}x{actual_h} @ {actual_fps} FPS")
