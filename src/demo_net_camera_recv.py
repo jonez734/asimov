@@ -17,6 +17,9 @@ def main():
     parser = argparse.ArgumentParser(description="Receive camera via UDP")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Bind host")
     parser.add_argument("--port", type=int, default=5000, help="Bind port")
+    parser.add_argument(
+        "--debug", action="store_true", help="Show debug info (frame shape)"
+    )
     args = parser.parse_args()
 
     io.echo(f"Listening on {args.host}:{args.port}")
@@ -37,7 +40,8 @@ def main():
             if isinstance(result, np.ndarray):
                 global last_frame_id
                 last_frame_id += 1
-                io.echo(f"Recv: {result.shape}")
+                if args.debug:
+                    io.echo(f"Recv: {result.shape}")
                 cv2.imshow("Recv", result)
 
             key = cv2.waitKey(1)

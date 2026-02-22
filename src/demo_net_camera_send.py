@@ -104,6 +104,9 @@ def main():
     parser.add_argument(
         "--test", action="store_true", help="Use test pattern instead of camera"
     )
+    parser.add_argument(
+        "--debug", action="store_true", help="Show debug info (frame shape)"
+    )
     args = parser.parse_args()
 
     try:
@@ -162,7 +165,8 @@ def main():
             frame_id += 1
 
             cv2.imshow("Send", frame)
-            io.echo(f"Send: {frame.shape}")
+            if args.debug:
+                io.echo(f"Send: {frame.shape}")
             key = cv2.waitKey(1)
             if key == 27:
                 break
