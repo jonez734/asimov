@@ -10,33 +10,11 @@ import threading
 
 from asimov import io
 from asimov import conf
-from asimov.common import camera_ready
+from asimov import cap
 from asimov.net import UDPSender
 from asimov.util import configure_capture
 
 QUIT_FILE = "/tmp/asimov_send_quit"
-
-
-def open_camera(device, timeout=2):
-    """Open camera with timeout to avoid hanging on invalid devices."""
-    result = {"cap": None, "opened": False}
-
-    def try_open():
-        cap = cv2.VideoCapture(device)
-        result["cap"] = cap
-        if cap.isOpened():
-            result["opened"] = True
-
-    t = threading.Thread(target=try_open)
-    t.daemon = True
-    t.start()
-    t.join(timeout)
-
-    if t.is_alive():
-        if result["cap"]:
-            result["cap"].release()
-        return None
-    return result["cap"] if result["opened"] else None
 
 
 def generate_test_pattern(width, height, t, frame_id=0, debug=False):
@@ -150,7 +128,7 @@ def main():
 
     if use_camera:
         io.echo(f"Opening camera device {device}...")
-        cap = open_camera(device, timeout=2)
+        cap = cap.open(device, timeout=2)
         if cap is None:
             io.echo(
                 f"Cannot open camera device {device} (timeout), exiting", level="error"
@@ -158,7 +136,7 @@ def main():
             return 1
 
         io.echo("Waiting for camera...")
-        if not camera_ready(cap, timeout=5):
+        if not cap.ready(cap, timeout=5):
             io.echo("Camera not ready, exiting", level="error")
             cap.release()
             return 1

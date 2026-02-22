@@ -10,47 +10,6 @@ import cv2
 from . import conf, io
 
 
-def camera_ready(cap, timeout=5):
-    start_time = time.time()
-    while True:
-        ret, frame = cap.read()
-        if ret and frame is not None:
-            return True  # Camera gave a valid frame
-        if time.time() - start_time >= timeout:
-            return False  # Timeout reached, return failure
-        time.sleep(0.10)  # Avoid busy waiting
-
-
-def open_camera(device, timeout=2):
-    """Open camera with timeout to avoid hanging on invalid/unavailable devices.
-
-    Args:
-        device: Camera device index (int) or path (str)
-        timeout: Maximum seconds to wait for camera to open
-
-    Returns:
-        cv2.VideoCapture object if successful, None if timeout/failed
-    """
-    result = {"cap": None, "opened": False}
-
-    def try_open():
-        cap = cv2.VideoCapture(device)
-        result["cap"] = cap
-        if cap.isOpened():
-            result["opened"] = True
-
-    t = threading.Thread(target=try_open)
-    t.daemon = True
-    t.start()
-    t.join(timeout)
-
-    if t.is_alive():
-        if result["cap"]:
-            result["cap"].release()
-        return None
-    return result["cap"] if result["opened"] else None
-
-
 # Define the get_safe_path function within the utility module
 def safe_path(
     *components: Union[str, os.PathLike],

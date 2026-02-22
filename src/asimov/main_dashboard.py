@@ -13,7 +13,7 @@ import json
 from PIL import Image, ImageTk
 from cvzone.FPS import FPS as CVZoneFPS
 
-from . import io, conf, common, scene
+from . import io, conf, common, scene, cap
 from .common import ThreadSafeContext
 from .playingcard import cards
 
@@ -614,23 +614,25 @@ def main(args, **kwargs):
     io.echo(f"Loaded {len(modules)} modules", level="debug")
 
     io.echo(f"Opening camera: {args.capture_device}")
-    cap = common.open_camera(args.capture_device, timeout=2)
-    if cap is None:
+    cap_handle = cap.open(args.capture_device, timeout=2)
+    if cap_handle is None:
         io.echo(f"Failed to open camera device {args.capture_device}", level="error")
         return False
 
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.capture_width)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.capture_height)
-    cap.set(cv2.CAP_PROP_FPS, args.capture_fps)
-
-    if not common.camera_ready(cap):
-        io.echo("Camera hardware failed to initialize", level="error")
-        cap.release()
+    cap_result = cap.configure(
+        cap_handle, args.capture_width, args.capture_height, args.capture_fps
+    )
+    if cap_result is None:
+        io.echo("Failed to configure capture", level="error")
+        cap_handle.release()
         return False
 
-    actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    actual_fps = int(cap.get(cv2.CAP_PROP_FPS)) or 1
+    actual_width, actual_height, actual_fps = cap_result
+
+    if not cap.ready(cap_handle):
+        io.echo("Camera hardware failed to initialize", level="error")
+        cap_handle.release()
+        return False
 
     # Start logic thread
     t = threading.Thread(target=_consumer, args=(modules, args), daemon=True)
@@ -653,7 +655,7 @@ def main(args, **kwargs):
                 app.update_status("Running")
 
                 while app.running:
-                    success, raw_frame = cap.read()
+                    success, raw_frame = cap_handle.read()
                     if not success:
                         break
 
@@ -701,7 +703,7 @@ def main(args, **kwargs):
         finally:
             app.update_status("Stopped")
             app.running = False
-            cap.release()
+            cap_handle.release()
 
     render_thread = threading.Thread(target=render_loop, daemon=True)
     render_thread.start()
