@@ -39,9 +39,12 @@ class UDPSender:
         self.addr = (host, port)
         self.blocking = blocking
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
         if bind_port > 0:
             self.sock.bind(('0.0.0.0', bind_port))
+        else:
+            self.sock.bind(('0.0.0.0', 0))
         
         if not blocking:
             self.sock.setblocking(False)
@@ -79,13 +82,12 @@ class UDPSender:
         is_delta = not full_frame and prev_frame is not None
         
         if cols <= 0 or rows <= 0:
-            block_size = math.gcd(width, height)
-            cols = width // block_size
-            rows = height // block_size
-            if cols == 0:
-                cols = 1
-            if rows == 0:
-                rows = 1
+            max_block_size = 64
+            block_size = min(max_block_size, math.gcd(width, height))
+            if block_size < 8:
+                block_size = 8
+            cols = (width + block_size - 1) // block_size
+            rows = (height + block_size - 1) // block_size
         
         block_w = width // cols
         block_h = height // rows
@@ -199,7 +201,9 @@ class UDPReceiver:
         self.timeout = timeout
         
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind((host, port))
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 10 * 1024 * 1024)  # 10MB
+        self.sock.bind(('0.0.0.0', port))
         
         if not blocking:
             self.sock.setblocking(False)
@@ -242,7 +246,7 @@ class UDPReceiver:
         if not data:
             return None
 
-        packet_type_raw = struct.unpack("!I", data[:4])[0]
+        packet_type_raw = struct.unpack("!B", data[:1])[0]
 
         if packet_type_raw == PACKET_TYPE_PING:
             self.send_pong()
@@ -368,7 +372,7 @@ class UDPReceiver:
         if self.frame_received_callback:
             self.frame_received_callback(full_frame, frame_id)
 
-        return full_frame
+        return full_frame.copy()
 
     def send_pong(self, timestamp: float = 0.0):
         """Send a PONG response."""

@@ -131,11 +131,11 @@ class Packet:
 
 
 # Frame packet header format:
-# packet_type (I) + timestamp (d) + frame_id (I) + block_id (I) + 
-# cols (H) + rows (H) + block_w (H) + block_h (H) + 
-# total_blocks (H) + is_delta (B) + compressed (B) + blocks_in_packet (H)
-# = 4 + 8 + 4 + 4 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2 = 36 bytes
-FRAME_PACKET_HEADER_FORMAT = "!BdIIIIHHHHBBH"
+# packet_type (B) + timestamp (d) + frame_id (I) + block_id (I) +
+# cols (H) + rows (H) + block_w (H) + block_h (H) + total_blocks (H) +
+# is_delta (B) + compressed (B) + blocks_in_packet (H)
+# = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 = 12 items
+FRAME_PACKET_HEADER_FORMAT = "!BdIIHHHHHBBH"
 FRAME_PACKET_HEADER_SIZE = struct.calcsize(FRAME_PACKET_HEADER_FORMAT)
 
 

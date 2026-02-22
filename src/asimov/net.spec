@@ -283,6 +283,15 @@ def configure_capture(
 
 ## Usage Examples
 
+### Best Practices
+
+- **Default host**: Always use `127.0.0.1` as the default host, never `0.0.0.0`
+  - `0.0.0.0` means "all interfaces" and is for server binding
+  - `127.0.0.1` is local-only and more secure for demos/cli tools
+- **Ports**: Use port 5000 as default for demos
+- **Delta frames**: Enable by default for bandwidth efficiency
+- **Auto-batching**: Enabled by default to maximize packet efficiency
+
 ### UDP Frame Sender
 
 ```python
@@ -320,7 +329,7 @@ cap.release()
 from asimov.net import UDPReceiver
 import cv2
 
-receiver = UDPReceiver("0.0.0.0", 5000, blocking=False, timeout=1.0)
+receiver = UDPReceiver("127.0.0.1", 5000, blocking=False, timeout=1.0)
 
 while True:
     result = receiver.receive()
