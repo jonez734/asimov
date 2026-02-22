@@ -6,7 +6,7 @@ import time
 import cv2
 
 
-def open(device, timeout=5):
+def open(device, timeout=2):
     """Open camera with timeout to avoid hanging on invalid/unavailable devices.
 
     Args:
@@ -18,16 +18,12 @@ def open(device, timeout=5):
         error message string if failed, None if successful
     """
     try:
+        # Try V4L2 backend first - it's more reliable on Linux
         code = f"""
 import cv2
-import sys
-vc = cv2.VideoCapture({device})
+vc = cv2.VideoCapture({device}, cv2.CAP_V4L2)
 if vc.isOpened():
-    ret, frame = vc.read()
-    if ret and frame is not None:
-        print('OK', flush=True)
-    else:
-        print('NO_FRAME', flush=True)
+    print('OK', flush=True)
 else:
     print('FAIL', flush=True)
 """
@@ -38,12 +34,10 @@ else:
         stderr = result.stderr.decode() if result.stderr else ""
 
         if "OK" in stdout:
-            return cv2.VideoCapture(device), None
+            return cv2.VideoCapture(device, cv2.CAP_V4L2), None
 
         # Parse error from stderr
         error_msg = _parse_cv_error(stderr)
-        if "NO_FRAME" in stdout:
-            error_msg = "Camera opened but returned no frame"
         return None, error_msg
     except subprocess.TimeoutExpired:
         return None, "Timeout waiting for camera"
