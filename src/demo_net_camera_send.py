@@ -123,35 +123,35 @@ def main():
 
     io.echo(f"Sending to {args.host}:{args.port}")
 
-    cap = None
+    cap_handle = None
     use_camera = args.camera or (not args.test and not args.camera)
 
     if use_camera:
         io.echo(f"Opening camera device {device}...")
-        cap = cap.open(device, timeout=2)
-        if cap is None:
+        cap_handle = cap.open(device, timeout=2)
+        if cap_handle is None:
             io.echo(
                 f"Cannot open camera device {device} (timeout), exiting", level="error"
             )
             return 1
 
         io.echo("Waiting for camera...")
-        if not cap.ready(cap, timeout=5):
+        if not cap.ready(cap_handle, timeout=5):
             io.echo("Camera not ready, exiting", level="error")
-            cap.release(cap)
+            cap.release(cap_handle)
             return 1
 
-        result = configure_capture(cap, args.width, args.height, args.fps)
+        result = configure_capture(cap_handle, args.width, args.height, args.fps)
         if result is None:
             io.echo("Failed to configure capture, exiting", level="error")
-            cap.release(cap)
+            cap.release(cap_handle)
             return 1
 
         actual_w, actual_h, actual_fps = result
         io.echo(f"Camera: {actual_w}x{actual_h} @ {actual_fps} FPS")
-        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        cap_handle.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-    if cap is None:
+    if cap_handle is None:
         io.echo(f"Test pattern: {args.width}x{args.height} @ {args.fps} FPS")
 
     sender = UDPSender(args.host, args.port)
@@ -169,8 +169,8 @@ def main():
                 io.echo("Quit file detected")
                 break
 
-            if cap is not None:
-                ret, frame = cap.read()
+            if cap_handle is not None:
+                ret, frame = cap_handle.read()
                 if not ret or frame is None:
                     time.sleep(0.001)
                     continue
@@ -195,7 +195,7 @@ def main():
         io.echo("\nStopped")
     finally:
         sender.close()
-        cap.release(cap)
+        cap.release(cap_handle)
         cv2.destroyAllWindows()
 
     return 0
