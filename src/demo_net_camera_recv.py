@@ -37,10 +37,11 @@ def main():
             if isinstance(result, np.ndarray):
                 global last_frame_id
                 last_frame_id += 1
+                io.echo(f"Recv: {result.shape}")
                 cv2.imshow("Recv", result)
 
             key = cv2.waitKey(1)
-            if key == 27 or key == ord('q'):
+            if key == 27 or key == ord("q"):
                 break
 
             if isinstance(result, np.ndarray):

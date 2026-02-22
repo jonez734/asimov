@@ -55,7 +55,7 @@ python demo_net_camera_recv.py [options]
 
 - Calculates max blocks per UDP packet based on block size
 - Max UDP payload: 65442 bytes
-- Header overhead: 37 bytes
+- Header overhead: 35 bytes (includes original width/height for accurate frame reconstruction)
 - Example: 64x64 blocks (12288 bytes) → 5 blocks/packet
 
 ## Test Pattern

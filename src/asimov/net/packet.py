@@ -17,32 +17,37 @@ _packet_type_registry: Dict[int, type] = {}
 
 class NetError(Exception):
     """Base exception for network errors."""
+
     pass
 
 
 class PacketTypeError(NetError):
     """Raised when packet type is unknown."""
+
     pass
 
 
 class PING:
     """Sentinel for PING packets."""
+
     pass
 
 
 class PONG:
     """Sentinel for PONG packets."""
+
     pass
 
 
 class EOS:
     """Sentinel for End-of-Stream packets."""
+
     pass
 
 
 def register_packet_type(packet_class):
     """Register a packet class for dynamic decoding."""
-    if hasattr(packet_class, 'packet_type'):
+    if hasattr(packet_class, "packet_type"):
         _packet_type_registry[packet_class.packet_type] = packet_class
     return packet_class
 
@@ -53,7 +58,7 @@ def encode_packet(packet_type: int, **kwargs) -> bytes:
         payload = struct.pack("!d", time.time())
         return _encode_header(PACKET_TYPE_PING, payload) + payload
     elif packet_type == PACKET_TYPE_PONG:
-        orig_ts = kwargs.get('timestamp', time.time())
+        orig_ts = kwargs.get("timestamp", time.time())
         payload = struct.pack("!d", orig_ts)
         return _encode_header(PACKET_TYPE_PONG, payload) + payload
     elif packet_type == PACKET_TYPE_EOS:
@@ -76,20 +81,20 @@ def decode_packet(data: bytes) -> Dict[str, Any]:
         raise NetError("Packet data too short")
 
     packet_type, timestamp, payload_len = struct.unpack("!IdI", data[:16])
-    payload = data[16:16 + payload_len]
+    payload = data[16 : 16 + payload_len]
 
     result = {
-        'packet_type': packet_type,
-        'timestamp': timestamp,
-        'payload': payload,
+        "packet_type": packet_type,
+        "timestamp": timestamp,
+        "payload": payload,
     }
 
     if packet_type == PACKET_TYPE_PING:
-        result['packet_type'] = PING
+        result["packet_type"] = PING
     elif packet_type == PACKET_TYPE_PONG:
-        result['packet_type'] = PONG
+        result["packet_type"] = PONG
     elif packet_type == PACKET_TYPE_EOS:
-        result['packet_type'] = EOS
+        result["packet_type"] = EOS
 
     return result
 
@@ -99,6 +104,7 @@ class Packet:
     Packet with type, payload, timestamp.
     Serialized as: [type (I)][timestamp (d)][payload length (I)][payload]
     """
+
     def __init__(self, ptype: int, payload: bytes = b"", timestamp: float = 0.0):
         self.ptype = ptype
         self.payload = payload
@@ -114,12 +120,13 @@ class Packet:
         if len(data) < 16:
             raise ValueError("Packet data too short")
         ptype, timestamp, payload_len = struct.unpack("!IdI", data[:16])
-        payload = data[16:16 + payload_len]
+        payload = data[16 : 16 + payload_len]
         return Packet(ptype, payload, timestamp)
 
     @staticmethod
     def recv(sock: socket.socket) -> Optional["Packet"]:
         from .socket import recv_all
+
         header = recv_all(sock, 16)
         if header is None:
             return None
@@ -132,22 +139,25 @@ class Packet:
 
 # Frame packet header format:
 # packet_type (B) + timestamp (d) + frame_id (I) + block_id (I) +
-# cols (H) + rows (H) + block_w (H) + block_h (H) + total_blocks (H) +
-# is_delta (B) + compressed (B) + blocks_in_packet (H)
-# = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 = 12 items
-FRAME_PACKET_HEADER_FORMAT = "!BdIIHHHHHBBH"
+# cols (H) + rows (H) + block_w (H) + block_h (H) + width (H) + height (H) +
+# total_blocks (H) + is_delta (B) + compressed (B) + blocks_in_packet (H)
+# = 1 + 8 + 4 + 4 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2 = 27 bytes
+FRAME_PACKET_HEADER_FORMAT = "!BdIIHHHHHHHBBH"
 FRAME_PACKET_HEADER_SIZE = struct.calcsize(FRAME_PACKET_HEADER_FORMAT)
 
 
 @dataclass
 class FramePacket(Packet):
     """Packet for transmitting frame chunks with delta and batching support."""
+
     frame_id: int = 0
     block_id: int = 0
     cols: int = 0
     rows: int = 0
     block_w: int = 0
     block_h: int = 0
+    width: int = 0
+    height: int = 0
     total_blocks: int = 0
     is_delta: bool = False
     compressed: bool = False
@@ -172,17 +182,19 @@ def encode_frame_header(packet: FramePacket) -> bytes:
         packet.rows,
         packet.block_w,
         packet.block_h,
+        packet.width,
+        packet.height,
         packet.total_blocks,
         1 if packet.is_delta else 0,
         1 if packet.compressed else 0,
-        packet.blocks_in_packet
+        packet.blocks_in_packet,
     )
 
 
 def encode_frame_packet(packet: FramePacket) -> bytes:
     """Encode frame packet with header and body."""
     header = encode_frame_header(packet)
-    body = b''.join(packet.blocks)
+    body = b"".join(packet.blocks)
     return header + body
 
 
@@ -199,19 +211,23 @@ def decode_frame_packet(data: bytes) -> FramePacket:
         rows,
         block_w,
         block_h,
+        width,
+        height,
         total_blocks,
         is_delta_flag,
         compressed_flag,
-        blocks_in_packet
+        blocks_in_packet,
     ) = struct.unpack(FRAME_PACKET_HEADER_FORMAT, header)
 
     blocks = []
     offset = header_size
-    block_data_len = len(data[header_size:]) // blocks_in_packet if blocks_in_packet > 0 else 0
-    
+    block_data_len = (
+        len(data[header_size:]) // blocks_in_packet if blocks_in_packet > 0 else 0
+    )
+
     for _ in range(blocks_in_packet):
         if offset + block_data_len <= len(data):
-            block = data[offset:offset + block_data_len]
+            block = data[offset : offset + block_data_len]
             blocks.append(block)
             offset += block_data_len
 
@@ -222,10 +238,12 @@ def decode_frame_packet(data: bytes) -> FramePacket:
         rows=rows,
         block_w=block_w,
         block_h=block_h,
+        width=width,
+        height=height,
         total_blocks=total_blocks,
         is_delta=bool(is_delta_flag),
         compressed=bool(compressed_flag),
         blocks=blocks,
         timestamp=timestamp,
-        blocks_in_packet=blocks_in_packet
+        blocks_in_packet=blocks_in_packet,
     )
