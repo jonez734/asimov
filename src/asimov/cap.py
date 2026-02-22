@@ -1,22 +1,74 @@
 # cap.py - Camera capture utilities
 
+import os
 import subprocess
 import sys
 import time
 import cv2
+
+from .common import safe_path
+
+
+def list_devices():
+    """List available video capture devices.
+
+    Returns:
+        List of device indices that can be opened
+    """
+    devices = []
+    for i in range(16):
+        try:
+            code = f"import cv2; vc = cv2.VideoCapture({i}, cv2.CAP_V4L2); print('OK' if vc.isOpened() else 'FAIL', flush=True)"
+            result = subprocess.run(
+                [sys.executable, "-c", code], capture_output=True, timeout=1
+            )
+            if b"OK" in result.stdout:
+                devices.append(i)
+        except Exception:
+            pass
+    return devices
+
+
+def device_exists(device):
+    """Check if a device exists and can be opened.
+
+    Args:
+        device: Device index (int) or path (str)
+
+    Returns:
+        True if device can be opened, False otherwise
+    """
+    if isinstance(device, str):
+        return os.path.exists(device)
+
+    # For numeric indices, check if in list of available devices
+    available = list_devices()
+    return device in available
 
 
 def open(device, timeout=2):
     """Open camera with timeout to avoid hanging on invalid/unavailable devices.
 
     Args:
-        device: Camera device index (int) or path (str)
+        device: Device index (int) or path (str)
         timeout: Maximum seconds to wait for camera to open
 
     Returns:
         cv2.VideoCapture object if successful, None if timeout/failed
         error message string if failed, None if successful
     """
+    # Convert string devices using safe_path
+    if isinstance(device, str):
+        device = safe_path(device)
+
+    # Check if device exists first
+    if isinstance(device, int) and not device_exists(device):
+        available = list_devices()
+        return None, f"Device {device} not found. Available: {available}"
+
+    if isinstance(device, str) and not os.path.exists(device):
+        return None, f"Device file {device} not found"
+
     try:
         # Try V4L2 backend first - it's more reliable on Linux
         code = f"""
