@@ -2,7 +2,7 @@
 
 ## Overview
 
-`demo_net_camera` demonstrates streaming camera capture over UDP with automatic chunking and delta compression. Includes sender and receiver components.
+`demo_net_camera` demonstrates streaming camera capture over UDP with automatic chunking. Includes sender and receiver components.
 
 ## Usage
 
@@ -29,6 +29,7 @@ python demo_net_camera_recv.py [options]
 | `--height` | int | conf.CAPTURE_HEIGHT | Frame height |
 | `--fps` | int | conf.CAPTURE_FPS | Capture FPS |
 | `--test` | flag | False | Use animated test pattern instead of camera |
+| `--debug` | flag | False | Show debug info (frame shape) |
 
 ## Receiver Arguments
 
@@ -36,6 +37,7 @@ python demo_net_camera_recv.py [options]
 |----------|------|---------|-------------|
 | `--host` | str | "127.0.0.1" | Bind host |
 | `--port` | int | 5000 | Bind port |
+| `--debug` | flag | False | Show debug info (frame shape) |
 
 ## Features
 
@@ -65,7 +67,8 @@ When `--test` is specified, generates an animated test pattern including:
 - Color bars (moves up-down)
 - Bouncing ball
 - Rotating square in center
-- Frame counter overlay
+
+Animation is time-based, so it runs at the same speed regardless of FPS setting.
 
 ## Example
 
