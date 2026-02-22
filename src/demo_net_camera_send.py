@@ -8,6 +8,7 @@ import numpy as np
 
 from asimov import io
 from asimov import conf
+from asimov.common import camera_ready
 from asimov.net import UDPSender
 from asimov.util import configure_capture
 
@@ -121,36 +122,29 @@ def main():
     io.echo(f"Sending to {args.host}:{args.port}")
 
     cap = None
-    use_camera = args.camera and not args.test
+    use_camera = args.camera or (not args.test and not args.camera)
 
     if use_camera:
         cap = cv2.VideoCapture(device)
-        if cap.isOpened():
-            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 1000)
-            ret, frame = cap.read()
-            if not ret or frame is None:
-                io.echo(
-                    "Cannot read from camera, falling back to test pattern",
-                    level="warn",
-                )
-                cap.release()
-                cap = None
-            else:
-                result = configure_capture(cap, args.width, args.height, args.fps)
-                if result is None:
-                    io.echo(
-                        "Failed to configure capture, falling back to test pattern",
-                        level="warn",
-                    )
-                    cap.release()
-                    cap = None
-                else:
-                    actual_w, actual_h, actual_fps = result
-                    io.echo(f"Camera: {actual_w}x{actual_h} @ {actual_fps} FPS")
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-        else:
-            io.echo("No camera available, falling back to test pattern", level="warn")
-            cap = None
+        if not cap.isOpened():
+            io.echo(f"Cannot open camera device {device}", level="error")
+            return 1
+
+        io.echo("Waiting for camera...")
+        if not camera_ready(cap, timeout=5):
+            io.echo("Camera not ready, exiting", level="error")
+            cap.release()
+            return 1
+
+        result = configure_capture(cap, args.width, args.height, args.fps)
+        if result is None:
+            io.echo("Failed to configure capture, exiting", level="error")
+            cap.release()
+            return 1
+
+        actual_w, actual_h, actual_fps = result
+        io.echo(f"Camera: {actual_w}x{actual_h} @ {actual_fps} FPS")
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     if cap is None:
         io.echo(f"Test pattern: {args.width}x{args.height} @ {args.fps} FPS")
