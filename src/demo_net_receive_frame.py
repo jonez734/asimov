@@ -10,7 +10,7 @@ DEFAULT_PORT = 5000
 
 def main():
     parser = argparse.ArgumentParser(description="Receive cv2 frames over UDP")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port to listen on")
     args = parser.parse_args()
 

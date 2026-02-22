@@ -30,7 +30,7 @@ def idle_callback():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="UDP Frame Receiver")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to listen on")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to listen on")
     parser.add_argument("--port", type=int, default=5000, help="Port to listen on")
     args = parser.parse_args()
 
