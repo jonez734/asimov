@@ -3,8 +3,8 @@
 import time
 import numpy as np
 
-from net import UDPReceiver, PacketDispatcher, PingPacket, PongPacket, FramePacket
-from net import decode_block, display_frame
+from asimov.net import UDPReceiver, PacketDispatcher, PingPacket, PongPacket, FramePacket
+from asimov.net import decode_block, display_frame
 
 def handle_ping(packet: PingPacket, addr, receiver: UDPReceiver):
     print(f"Received PING from {addr} (seq={packet.sequence}, ts={packet.timestamp})")

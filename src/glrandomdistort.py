@@ -11,7 +11,7 @@ apply_distortion = False
 next_distortion_time = time.time() + random.uniform(2, 5)
 
 # OpenCV video capture
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 def create_texture():
     global texture_id
