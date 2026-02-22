@@ -127,9 +127,11 @@ def main():
     use_camera = args.camera or (not args.test and not args.camera)
 
     if use_camera:
-        cap_handle = cap.open(device, timeout=2)
+        cap_handle, error = cap.open(device, timeout=2)
         if cap_handle is None:
-            io.echo(f"Cannot open camera device {device}, exiting", level="error")
+            io.echo(
+                f"Cannot open camera device {device}: {error}, exiting", level="error"
+            )
             return 1
 
         io.echo("Waiting for camera...")

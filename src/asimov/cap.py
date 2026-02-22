@@ -6,7 +6,7 @@ import time
 import cv2
 
 
-def open(device, timeout=2):
+def open(device, timeout=5):
     """Open camera with timeout to avoid hanging on invalid/unavailable devices.
 
     Args:
@@ -15,17 +15,57 @@ def open(device, timeout=2):
 
     Returns:
         cv2.VideoCapture object if successful, None if timeout/failed
+        error message string if failed, None if successful
     """
     try:
-        code = f"import cv2; vc = cv2.VideoCapture({device}); print('OK' if vc.isOpened() else 'FAIL', flush=True)"
+        code = f"""
+import cv2
+import sys
+vc = cv2.VideoCapture({device})
+if vc.isOpened():
+    ret, frame = vc.read()
+    if ret and frame is not None:
+        print('OK', flush=True)
+    else:
+        print('NO_FRAME', flush=True)
+else:
+    print('FAIL', flush=True)
+"""
         result = subprocess.run(
             [sys.executable, "-c", code], capture_output=True, timeout=timeout
         )
-        if result.returncode == 0 and b"OK" in result.stdout:
-            return cv2.VideoCapture(device)
-    except Exception:
-        pass
-    return None
+        stdout = result.stdout.decode() if result.stdout else ""
+        stderr = result.stderr.decode() if result.stderr else ""
+
+        if "OK" in stdout:
+            return cv2.VideoCapture(device), None
+
+        # Parse error from stderr
+        error_msg = _parse_cv_error(stderr)
+        if "NO_FRAME" in stdout:
+            error_msg = "Camera opened but returned no frame"
+        return None, error_msg
+    except subprocess.TimeoutExpired:
+        return None, "Timeout waiting for camera"
+    except Exception as e:
+        return None, str(e)
+
+
+def _parse_cv_error(stderr):
+    """Parse OpenCV error message to extract useful info."""
+    if not stderr:
+        return "Unknown error"
+    if "index out of range" in stderr:
+        return "Camera index out of range"
+    if "can't open camera" in stderr:
+        return "Cannot open camera"
+    if "No such file" in stderr:
+        return "Device file not found"
+    if "Permission denied" in stderr:
+        return "Permission denied"
+    # Return first line of error
+    lines = stderr.strip().split("\n")
+    return lines[0] if lines else "Unknown error"
 
 
 def ready(cap, timeout=5):
