@@ -1,0 +1,24 @@
+# asimov/net/conf.py
+# Network configuration for Asimov frame transmission
+
+# Re-exported from asimov.conf for convenience in demos
+from asimov.conf import CAPTURE_WIDTH, CAPTURE_HEIGHT, CAPTURE_FPS, CAPTURE_DEVICE  # noqa: F401
+
+
+CHUNK_SIZE = 64
+DEFAULT_PORT = 5000
+COMPRESSION_ENABLED = False
+BUFFER_SIZE = 65507
+
+VIDEOCAPTURE_HOST = "127.0.0.1"
+VIDEOCAPTURE_PORT = 5000
+PROCESSING_HOST = "127.0.0.1"
+PROCESSING_PORT = 6000
+RENDER_HOST = "127.0.0.1"
+RENDER_PORT = 6000
+
+TCP_BUFFER_SIZE = 8192
+UDP_BUFFER_SIZE = 65507
+
+RETRY_DELAY = 0.2
+RETRY_COUNT = 5

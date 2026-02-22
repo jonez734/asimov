@@ -777,3 +777,39 @@ def floating_bounce(
     phase = stable_phase(seed, hash_base=31, scramble_shift1=16, scramble_shift2=3)
     offset = amplitude * math.sin(2 * math.pi * frequency * time + phase)
     return offset
+
+
+def configure_capture(
+    cap: cv2.VideoCapture,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    fps: Optional[int] = None,
+) -> Optional[Tuple[int, int, int]]:
+    """
+    Configure video capture properties and return actual values.
+    
+    Args:
+        cap: OpenCV VideoCapture object
+        width: Desired frame width (None = don't set)
+        height: Desired frame height (None = don't set)
+        fps: Desired FPS (None = don't set)
+    
+    Returns:
+        Tuple of (actual_width, actual_height, actual_fps) on success
+        None if capture is not open
+    """
+    if not cap.isOpened():
+        return None
+
+    if width is not None:
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    if height is not None:
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    if fps is not None:
+        cap.set(cv2.CAP_PROP_FPS, fps)
+
+    actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    actual_fps = int(cap.get(cv2.CAP_PROP_FPS))
+
+    return actual_width, actual_height, actual_fps
