@@ -9,23 +9,28 @@ import cv2
 
 from . import conf, io
 
+
 def camera_ready(cap, timeout=5):
     start_time = time.time()
     while True:
-        if cap.read() is not None:
+        ret, frame = cap.read()
+        if ret and frame is not None:
             return True  # Camera gave a valid frame
         if time.time() - start_time >= timeout:
             return False  # Timeout reached, return failure
         time.sleep(0.10)  # Avoid busy waiting
 
+
 # Define the get_safe_path function within the utility module
-def safe_path(*components: Union[str, os.PathLike], 
-                  base_dir: Optional[Union[str, os.PathLike]] = None, 
-                  must_exist: bool = False, 
-                  resolve_symlinks: bool = True) -> str:
+def safe_path(
+    *components: Union[str, os.PathLike],
+    base_dir: Optional[Union[str, os.PathLike]] = None,
+    must_exist: bool = False,
+    resolve_symlinks: bool = True,
+) -> str:
     """
     Construct a robust, secure, and flexible filesystem path.
-    
+
     Expands user (~) and environment variables, normalizes, makes the path absolute,
     and (optionally) ensures it stays within a specified base directory (security check).
 
@@ -34,7 +39,7 @@ def safe_path(*components: Union[str, os.PathLike],
     *components : str | os.PathLike
         Path components to join, e.g. ("~/data", "images", "foo.png").
     base_dir : str | os.PathLike | None
-        Optional. If given, ensures the resulting path is inside this directory 
+        Optional. If given, ensures the resulting path is inside this directory
         and validates that the base_dir exists and is a directory.
     must_exist : bool
         If True, raises FileNotFoundError if the final path does not exist.
@@ -72,19 +77,28 @@ def safe_path(*components: Union[str, os.PathLike],
     if base_dir is not None:
         base_dir_expanded = os.path.expandvars(os.path.expanduser(str(base_dir)))
         base_dir_abs = os.path.abspath(base_dir_expanded)
-        base_dir_resolved = os.path.realpath(base_dir_abs) if resolve_symlinks else base_dir_abs
-        
+        base_dir_resolved = (
+            os.path.realpath(base_dir_abs) if resolve_symlinks else base_dir_abs
+        )
+
         # Security Check 1: Base directory must exist and be a directory
         if not os.path.isdir(base_dir_resolved):
-             raise ValueError(f"Invalid base_dir: Base directory must exist and be a directory: {base_dir_resolved}")
+            raise ValueError(
+                f"Invalid base_dir: Base directory must exist and be a directory: {base_dir_resolved}"
+            )
 
         # Security Check 2: Check for path escape (directory traversal)
-        # Ensure resolved_path starts with base_dir_resolved plus the separator 
+        # Ensure resolved_path starts with base_dir_resolved plus the separator
         # OR is exactly the base_dir_resolved path (if the target IS the base dir).
-        is_contained = resolved_path.startswith(base_dir_resolved + os.sep) or resolved_path == base_dir_resolved
-        
+        is_contained = (
+            resolved_path.startswith(base_dir_resolved + os.sep)
+            or resolved_path == base_dir_resolved
+        )
+
         if not is_contained:
-            raise ValueError(f"Invalid path: {resolved_path} is outside allowed base_dir {base_dir_resolved}")
+            raise ValueError(
+                f"Invalid path: {resolved_path} is outside allowed base_dir {base_dir_resolved}"
+            )
 
     # 5. Existence Check
     if must_exist and not os.path.exists(resolved_path):
@@ -92,7 +106,9 @@ def safe_path(*components: Union[str, os.PathLike],
 
     return resolved_path
 
+
 get_safe_path = safe_path
+
 
 def safe_distance(p1, p2):
     """
@@ -114,14 +130,19 @@ def safe_distance(p1, p2):
         p1 = tuple(p1)
         p2 = tuple(p2)
     except TypeError:
-        raise ValueError(f"safe_distance: Points must be iterable, got {type(p1)} and {type(p2)}")
+        raise ValueError(
+            f"safe_distance: Points must be iterable, got {type(p1)} and {type(p2)}"
+        )
 
     if len(p1) != len(p2):
-        raise ValueError(f"safe_distance: Points must have same dimensions, got {len(p1)} and {len(p2)}")
+        raise ValueError(
+            f"safe_distance: Points must have same dimensions, got {len(p1)} and {len(p2)}"
+        )
 
     # Compute Euclidean distance
     squared_diff_sum = sum((a - b) ** 2 for a, b in zip(p1, p2))
     return math.sqrt(squared_diff_sum)
+
 
 # ---------
 # logging
@@ -131,10 +152,20 @@ import logging.handlers
 
 # default syslog handler
 default_handler = logging.handlers.SysLogHandler(address="/dev/log")
-default_formatter = logging.Formatter('%(name)s[%(process)d]: %(levelname)s %(message)s')
+default_formatter = logging.Formatter(
+    "%(name)s[%(process)d]: %(levelname)s %(message)s"
+)
 default_handler.setFormatter(default_formatter)
 
-def logentry(message, level=logging.INFO, *, handler=None, formatter=None, logger_name=conf.LOGGER_NAME):
+
+def logentry(
+    message,
+    level=logging.INFO,
+    *,
+    handler=None,
+    formatter=None,
+    logger_name=conf.LOGGER_NAME,
+):
     """
     Write a log entry to syslog (by default), with optional handler/formatter overrides.
 
@@ -153,28 +184,29 @@ def logentry(message, level=logging.INFO, *, handler=None, formatter=None, logge
     h.setFormatter(f)
 
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)   # capture all levels
+    logger.setLevel(logging.DEBUG)  # capture all levels
     if not any(isinstance(x, type(h)) for x in logger.handlers):
         logger.addHandler(h)
 
     levels = {
-        "debug":    logging.DEBUG,
-        "info":     logging.INFO,
-        "warn":     logging.WARNING,
-        "warning":  logging.WARNING,
-        "error":    logging.ERROR,
+        "debug": logging.DEBUG,
+        "info": logging.INFO,
+        "warn": logging.WARNING,
+        "warning": logging.WARNING,
+        "error": logging.ERROR,
         "critical": logging.CRITICAL,
-        "crit":     logging.CRITICAL,
-#        "exception":logging.EXCEPTION,
+        "crit": logging.CRITICAL,
+        #        "exception":logging.EXCEPTION,
     }
 
     if level in levels:
-      level = levels[level]
+        level = levels[level]
     else:
-      level = logging.INFO
+        level = logging.INFO
 
     logger.log(level, message)
     return
+
 
 class CameraCapture(threading.Thread):
     def __init__(self, source):
@@ -255,6 +287,7 @@ class ThreadSafeContext(dict):
     A dictionary subclass that uses a threading lock for all access.
     Maintains backward compatibility with existing detection and drawing functions.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._lock = threading.Lock()
@@ -262,19 +295,23 @@ class ThreadSafeContext(dict):
             "capture_fps": 0.0,
             "processing_fps": 0.0,
             "render_fps": 0.0,
-            "avg_fps": 0.0
+            "avg_fps": 0.0,
         }
 
-    
     def set_stat(self, key, value):
         with self._lock:
             self._stats[key] = value
             # Recalculate average whenever a component updates
-            self._stats["avg_fps"] = sum([
-                self._stats["capture_fps"],
-                self._stats["processing_fps"],
-                self._stats["render_fps"]
-            ]) / 3.0
+            self._stats["avg_fps"] = (
+                sum(
+                    [
+                        self._stats["capture_fps"],
+                        self._stats["processing_fps"],
+                        self._stats["render_fps"],
+                    ]
+                )
+                / 3.0
+            )
 
     def get_stats(self):
         with self._lock:
@@ -305,16 +342,18 @@ class ThreadSafeContext(dict):
         with self._lock:
             return super().copy()
 
+
 class OneEuroFilter:
     """
     One Euro Filter: https://cristal.univ-lille.fr/~casiez/1euro/
     Keeps smooth values but reacts faster to quick movements.
     """
+
     def __init__(self, freq=30, min_cutoff=1.0, beta=0.01, dcutoff=1.0, init=None):
-        self.freq = freq              # Hz, frame rate estimate
+        self.freq = freq  # Hz, frame rate estimate
         self.min_cutoff = min_cutoff  # baseline smoothing
-        self.beta = beta              # speed sensitivity
-        self.dcutoff = dcutoff        # derivative smoothing
+        self.beta = beta  # speed sensitivity
+        self.dcutoff = dcutoff  # derivative smoothing
         self.last_time = None
         self.x_prev = init
         self.dx_prev = 0
