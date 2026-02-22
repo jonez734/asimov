@@ -1,8 +1,8 @@
 # cap.py - Camera capture utilities
 
-import threading
+import subprocess
+import sys
 import time
-
 import cv2
 
 
@@ -16,24 +16,16 @@ def open(device, timeout=2):
     Returns:
         cv2.VideoCapture object if successful, None if timeout/failed
     """
-    result = {"cap": None, "opened": False}
-
-    def try_open():
-        cap = cv2.VideoCapture(device)
-        result["cap"] = cap
-        if cap.isOpened():
-            result["opened"] = True
-
-    t = threading.Thread(target=try_open)
-    t.daemon = True
-    t.start()
-    t.join(timeout)
-
-    if t.is_alive():
-        if result["cap"]:
-            result["cap"].release()
-        return None
-    return result["cap"] if result["opened"] else None
+    try:
+        code = f"import cv2; vc = cv2.VideoCapture({device}); print('OK' if vc.isOpened() else 'FAIL', flush=True)"
+        result = subprocess.run(
+            [sys.executable, "-c", code], capture_output=True, timeout=timeout
+        )
+        if result.returncode == 0 and b"OK" in result.stdout:
+            return cv2.VideoCapture(device)
+    except Exception:
+        pass
+    return None
 
 
 def ready(cap, timeout=5):
@@ -97,8 +89,7 @@ def release(cap):
     if cap is None:
         return False
     try:
-        if hasattr(cap, "isOpened") and cap.isOpened():
-            cap.release()
+        cap.release()
         return True
     except Exception:
         return False

@@ -4,7 +4,7 @@ import argparse
 import cv2
 import time
 import os
-import sys
+import os
 import numpy as np
 import threading
 
@@ -127,25 +127,22 @@ def main():
     use_camera = args.camera or (not args.test and not args.camera)
 
     if use_camera:
-        io.echo(f"Opening camera device {device}...")
         cap_handle = cap.open(device, timeout=2)
         if cap_handle is None:
-            io.echo(
-                f"Cannot open camera device {device} (timeout), exiting", level="error"
-            )
-            sys.exit(1)
+            io.echo(f"Cannot open camera device {device}, exiting", level="error")
+            return 1
 
         io.echo("Waiting for camera...")
         if not cap.ready(cap_handle, timeout=5):
             io.echo("Camera not ready, exiting", level="error")
             cap.release(cap_handle)
-            sys.exit(1)
+            os._exit(1)
 
         result = configure_capture(cap_handle, args.width, args.height, args.fps)
         if result is None:
             io.echo("Failed to configure capture, exiting", level="error")
             cap.release(cap_handle)
-            sys.exit(1)
+            os._exit(1)
 
         actual_w, actual_h, actual_fps = result
         io.echo(f"Camera: {actual_w}x{actual_h} @ {actual_fps} FPS")
