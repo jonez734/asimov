@@ -69,12 +69,12 @@ def generate_test_pattern(width, height, t, frame_id=0, debug=False):
     pts = np.array([[x1, y1], [x2, y2], [x3, y3], [x4, y4]], np.int32)
     cv2.fillPoly(frame, [pts], (255, 0, 0))
 
-    # Frame counter overlay (debug only)
+    # Frame counter and time overlay (debug only)
     if debug:
         cv2.rectangle(frame, (5, 5), (220, 40), (0, 0, 0), -1)
         cv2.putText(
             frame,
-            f"Frame {frame_id}",
+            f"F:{frame_id} T:{t:.1f}s",
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,

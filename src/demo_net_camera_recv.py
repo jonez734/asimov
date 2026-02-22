@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import time
 import cv2
 import numpy as np
 
@@ -27,6 +28,8 @@ def main():
 
     receiver = UDPReceiver(args.host, args.port, blocking=False, timeout=1.0)
 
+    start_time = time.time()
+
     try:
         while True:
             # Check for quit file
@@ -40,12 +43,13 @@ def main():
             if isinstance(result, np.ndarray):
                 global last_frame_id
                 last_frame_id += 1
+                elapsed = time.time() - start_time
                 if args.debug:
                     io.echo(f"Recv: {result.shape}")
                     cv2.rectangle(result, (5, 5), (220, 40), (0, 0, 0), -1)
                     cv2.putText(
                         result,
-                        f"Frame {last_frame_id}",
+                        f"F:{last_frame_id} T:{elapsed:.1f}s",
                         (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.7,
