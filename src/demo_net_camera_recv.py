@@ -42,6 +42,16 @@ def main():
                 last_frame_id += 1
                 if args.debug:
                     io.echo(f"Recv: {result.shape}")
+                    cv2.rectangle(result, (5, 5), (220, 40), (0, 0, 0), -1)
+                    cv2.putText(
+                        result,
+                        f"Frame {last_frame_id}",
+                        (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.7,
+                        (0, 255, 0),
+                        2,
+                    )
                 cv2.imshow("Recv", result)
 
             key = cv2.waitKey(1)

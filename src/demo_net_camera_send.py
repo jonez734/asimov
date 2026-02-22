@@ -14,7 +14,7 @@ from asimov.util import configure_capture
 QUIT_FILE = "/tmp/asimov_send_quit"
 
 
-def generate_test_pattern(width, height, t):
+def generate_test_pattern(width, height, t, frame_id=0, debug=False):
     """Generate an animated test pattern frame based on time t (seconds)."""
     frame = np.zeros((height, width, 3), dtype=np.uint8)
 
@@ -68,6 +68,19 @@ def generate_test_pattern(width, height, t):
     y4 = int(center_y + size * math.sin(math.radians(angle + 270)))
     pts = np.array([[x1, y1], [x2, y2], [x3, y3], [x4, y4]], np.int32)
     cv2.fillPoly(frame, [pts], (255, 0, 0))
+
+    # Frame counter overlay (debug only)
+    if debug:
+        cv2.rectangle(frame, (5, 5), (220, 40), (0, 0, 0), -1)
+        cv2.putText(
+            frame,
+            f"Frame {frame_id}",
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
+            2,
+        )
 
     return frame
 
@@ -148,7 +161,9 @@ def main():
                     continue
             else:
                 t = time.time() - start_time
-                frame = generate_test_pattern(args.width, args.height, t)
+                frame = generate_test_pattern(
+                    args.width, args.height, t, frame_id, args.debug
+                )
                 time.sleep(1.0 / args.fps)
 
             sender.send_frame(frame, frame_id, full_frame=True)
