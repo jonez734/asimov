@@ -6,14 +6,13 @@ build-backend = "setuptools.build_meta"
 name = "asimov"
 version = "0.1.0"
 description = "Asimov computer vision and terminal I/O library"
-requires-python = ">=3.8"
+requires-python = ">=3.9,<=3.12"
 license = {text = "MIT"}
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -21,6 +20,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "asimov-net",
     "cvzone>=1.5.6",
     "mediapipe>=0.8.9",
     "numpy>=1.21.0",
@@ -40,4 +40,4 @@ Homepage = "https://zoidtechnologies.com/asimov/"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["asimov*"]
+include = ["asimov*", "asimov_net*"]
