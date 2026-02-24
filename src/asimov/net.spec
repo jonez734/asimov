@@ -1,13 +1,13 @@
-# asimov.net Specification
+# asimov_net Specification
 
 ## Overview
 
-`asimov.net` is a subpackage for TCP/UDP network communication and cv2 frame transmission. It provides socket helpers, packet encoding/decoding, and client/server classes for sending and receiving video frames over the network.
+`asimov_net` is a package for TCP/UDP network communication and cv2 frame transmission. It provides socket helpers, packet encoding/decoding, and client/server classes for sending and receiving video frames over the network.
 
 ## Architecture
 
 ```
-asimov/net/
+asimov_net/
 ├── __init__.py    # Re-exports all symbols
 ├── conf.py        # Configuration constants
 ├── socket.py      # Low-level socket helpers
@@ -22,7 +22,7 @@ asimov/net/
 Configuration constants for network communication. Some values are imported from `asimov.conf`.
 
 ```python
-from asimov.net import (
+from asimov_net import (
     CHUNK_SIZE,           # Block size for frame chunking (default: 64)
     DEFAULT_PORT,         # Default network port (default: 5000)
     COMPRESSION_ENABLED,  # Enable zlib compression (default: False)
@@ -295,7 +295,7 @@ def configure_capture(
 ### UDP Frame Sender
 
 ```python
-from asimov.net import UDPSender
+from asimov_net import UDPSender
 from asimov import util
 import cv2
 
@@ -326,7 +326,7 @@ cap.release()
 ### UDP Frame Receiver
 
 ```python
-from asimov.net import UDPReceiver
+from asimov_net import UDPReceiver
 import cv2
 
 receiver = UDPReceiver("127.0.0.1", 5000, blocking=False, timeout=1.0)
@@ -353,7 +353,7 @@ cv2.destroyAllWindows()
 ### Ping/Pong Handshake
 
 ```python
-from asimov.net import UDPSender, UDPReceiver, send_ping_and_wait_for_pong
+from asimov_net import UDPSender, UDPReceiver, send_ping_and_wait_for_pong
 
 # Server: respond to pings
 server = UDPReceiver("127.0.0.1", 5000)

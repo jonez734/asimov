@@ -9,7 +9,7 @@ import time
 import socket
 import ctypes
 
-from .net import UDPReceiver
+from asimov.net import UDPReceiver
 from . import conf
 
 

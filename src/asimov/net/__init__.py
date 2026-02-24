@@ -1,7 +1,8 @@
 # asimov/net/__init__.py
-# Network package for Asimov - TCP/UDP frame transmission
+# Re-export from asimov_net for backward compatibility
+# Allows both `import asimov_net` and `import asimov.net`
 
-from .conf import (
+from asimov_net import (
     CHUNK_SIZE,
     DEFAULT_PORT,
     COMPRESSION_ENABLED,
@@ -20,17 +21,11 @@ from .conf import (
     CAPTURE_HEIGHT,
     CAPTURE_FPS,
     CAPTURE_DEVICE,
-)
-
-from .socket import (
     recv_all,
     recv_udp,
     send_with_length,
     recv_with_length,
     retry_until_connected,
-)
-
-from .packet import (
     Packet,
     FramePacket,
     encode_packet,
@@ -47,29 +42,19 @@ from .packet import (
     PACKET_TYPE_PONG,
     PACKET_TYPE_EOS,
     PACKET_TYPE_FRAME,
-)
-
-from .tcp import (
     TCPSender,
     TCPReceiver,
-)
-
-from .udp import (
     UDPSender,
     UDPReceiver,
     UDP_MAX_PAYLOAD,
-)
-
-from .ping import (
     respond_to_ping,
     send_ping_and_wait_for_pong,
     wait_for_pong,
 )
 
 __all__ = [
-    # conf
     "CHUNK_SIZE",
-    "DEFAULT_PORT", 
+    "DEFAULT_PORT",
     "COMPRESSION_ENABLED",
     "BUFFER_SIZE",
     "VIDEOCAPTURE_HOST",
@@ -86,13 +71,11 @@ __all__ = [
     "CAPTURE_HEIGHT",
     "CAPTURE_FPS",
     "CAPTURE_DEVICE",
-    # socket
     "recv_all",
-    "recv_udp", 
+    "recv_udp",
     "send_with_length",
     "recv_with_length",
     "retry_until_connected",
-    # packet
     "Packet",
     "FramePacket",
     "encode_packet",
@@ -109,14 +92,11 @@ __all__ = [
     "PACKET_TYPE_PONG",
     "PACKET_TYPE_EOS",
     "PACKET_TYPE_FRAME",
-    # tcp
     "TCPSender",
     "TCPReceiver",
-    # udp
     "UDPSender",
     "UDPReceiver",
     "UDP_MAX_PAYLOAD",
-    # ping
     "respond_to_ping",
     "send_ping_and_wait_for_pong",
     "wait_for_pong",
