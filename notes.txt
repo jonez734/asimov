@@ -1,0 +1,41 @@
+@since 20250713
+
+- open camera
+- obtain actual_width and actual_height from camera
+- chunksize = math.gcd(a_w, a_h) --> 640x480=160
+
+- frames are composed of blocks and differences are sent over the network
+  (ray)
+
+- pyvirtualcam - can send nparrays to obs/amzn/jitsi/etc as a video source.
+  works with linux/windows and mac GPLv2+
+
+- https://letmaik.github.io/pyvirtualcam/
+
+$ source ~/projects/asimov/src/asimov/asimovenv/bin/activate
+$ sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-41.noarch.rpm
+$ sudo dnf install kmod-v4l2loopback
+$ pip install pyvirtualcam
+
+$ sudo dnf install v4l-utils
+$ v4l2-ctl --list-devices
+# $ v4l2-ctl --device=/dev/video0 --list-formats-ext
+
+$ sudo modprobe v4l2loopback devices=2 video_nr=10,11 card_label="asimov.cam0","obs.vcam" exclusive_caps=1
+
+$ sudo joe /etc/modprobe.d/v4l2loopback.conf
+  options v4l2loopback devices=2 video_nr=10,11 card_label="asimov.cam0","obs.vcam" exclusive_caps=1
+
+- untouched rect = blue border
+- finger tip = yellow
+- touched rect = blue + yellow = green border
+
+(asimovenv) jam@minotaur:~/projects/asimov/src$ groups jam
+jam : jam wheel repo www
+
+- jam is not in the 'video' group, so cannot access /dev/video*
+$ sudo usermod -aG video jam
+
+(asimovenv) jam@minotaur:~/projects/asimov/src$ groups jam
+jam : jam wheel video repo www
+
