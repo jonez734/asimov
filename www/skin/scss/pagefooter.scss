@@ -1,0 +1,26 @@
+@import "vars";
+@import "mixins";
+
+///* skin/scss/pagefooter.scss */
+
+footer#pagefooter {
+  @include textshadow(4px, 3px, 3px, rgba(0,0,0,0.4));
+  margin: $pagefooter-margin;
+  padding: 0.50em;
+  text-align: center;
+  border: $blurb-border;
+  flex: 0 1 auto;
+//	@include css3prefix(box-shadow, none);
+
+  background-color: $blurb-backgroundcolor;
+  .copyright {
+    text-align: center;
+    font-size: 0.75em;
+  }
+
+  ul {
+  	margin: 0;
+  	padding: 0;
+  }
+
+}

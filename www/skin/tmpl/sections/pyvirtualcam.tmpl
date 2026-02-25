@@ -1,0 +1,27 @@
+<div class="blurb">
+  <div class="header">
+    <h1 id="pyvirtualcam-title">PyVirtualCam</h1>
+  </div>
+  <div class="body">
+<h2>How It Works</h2><p><a href="https://github.com/letmaik/pyvirtualcam" rel="noopener noreferrer">PyVirtualCam</a>
+ lets your Python program act like a real webcam by sending video frames into a virtual camera device that other applications can see.</p>
+<h2>Summary</h2>
+    <ul>
+      <li><strong>Linux</strong>: v4l2loopback</li>
+      <li><strong>macOS</strong>: OBS Virtual Camera</li>
+      <li><strong>Windows</strong>: OBS Virtual Camera or Unity Capture</li>
+    </ul>
+<h2>Detail</h2>
+    <ul>
+<li><h2>Linux</h2>
+    <p>PyVirtualCam uses the <code>v4l2loopback</code> kernel module to create a virtual video device (e.g., <code>/dev/video0</code>). Your Python script writes frames into this device, and other applications can read it as if it were a hardware camera.</p>
+</li>
+<li><h2>macOS</h2>
+    <p>macOS support is provided through the OBS Virtual Camera. Install OBS Studio, enable its virtual camera once, and PyVirtualCam will send frames to that system-registered camera. On macOS 13 or later, OBS 30 or newer is required.</p>
+</li>
+<li><h2>Windows</h2>
+    <p>On Windows, PyVirtualCam can use the OBS Virtual Camera (OBS 26.0+). It also optionally supports Unity Capture for advanced scenarios like RGBA frames. Windows 10 and 11 are the reliably supported OS versions, as older versions of Windows are not officially documented as compatible.</p>
+</li>
+</ul>
+  </div>
+</div>
