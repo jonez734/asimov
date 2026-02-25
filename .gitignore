@@ -1,4 +1,12 @@
-__pycache__/
+__pycache__*
 *.pyc
-.venv/
+*.egg-info/
+build/
+dist/
+.ruff_cache/
+*.pgdump
+*~
+.sass-cache/
+*.scssc
 .DS_Store
+.venv/
