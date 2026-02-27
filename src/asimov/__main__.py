@@ -12,6 +12,7 @@ def buildargs(args=None, **kwargs:dict):
     parser.add_argument("--debug", action="store_true", dest="debug")
     parser.add_argument("--basedir", default="$HOME/projects/playingcarddata")
     parser.add_argument("--set-name", default="bicycle")
+    parser.add_argument("--main", type=str, default="dashboard")
     parser.add_argument("--capture-device", type=str, default=conf.CAPTURE_DEVICE)
     parser.add_argument("--capture-width", type=int, default=conf.CAPTURE_WIDTH)
     parser.add_argument("--capture-height", type=int, default=conf.CAPTURE_HEIGHT)
@@ -27,7 +28,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        libasimov.runmodule(args, "main_dashboard")
+        libasimov.runmodule(args, f"main_{args.main}")
     except KeyboardInterrupt:
         io.echo("{/all}*INTR*")
     except EOFError:
