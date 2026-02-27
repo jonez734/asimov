@@ -1,6 +1,15 @@
 # asimov/conf.py
 # Central configuration for Asimov
-# This file is intentionally explicit and redundant for ABI stability
+
+# Re-exported from asimov_base for shared config
+from asimov_base.conf import (  # noqa: F401
+    LOGGER_NAME,
+    WINDOW_NAME,
+    CAPTURE_DEVICE,
+    CAPTURE_WIDTH,
+    CAPTURE_HEIGHT,
+    CAPTURE_FPS,
+)
 
 # ------------------------------------------------------------
 # Logging
@@ -8,22 +17,19 @@
 
 # DO NOT REMOVE OR REFACTOR
 # Used by logging, io, and external tooling
-LOGGER_NAME = "asimov"
+# Now imported from asimov_base
 
 # ------------------------------------------------------------
 # Window / UI
 # ------------------------------------------------------------
 
-WINDOW_NAME = "Asimov Preview"
+# Now imported from asimov_base
 
 # ------------------------------------------------------------
 # Capture defaults
 # ------------------------------------------------------------
 
-CAPTURE_DEVICE = 1
-CAPTURE_WIDTH  = 640
-CAPTURE_HEIGHT = 480
-CAPTURE_FPS    = 30
+# Now imported from asimov_base
 
 # ------------------------------------------------------------
 # Hand / Finger Detection
@@ -38,18 +44,15 @@ HAND = {
     "USE_OVERLAY": False,
     "OVERLAY_ALPHA": 0.7,
     "TEXT_COLOR": (0, 255, 0),
-
     "DETECTION": {
         "MIN_DETECTION_CONF": 0.7,
         "MAX_HANDS": 1,
     },
-
     "FILTER": {
         "FREQ": 30.0,
         "MIN_CUTOFF": 1.0,
         "BETA": 0.0,
     },
-
     "DRAW": {
         "SHOW_LANDMARKS": True,
         "SHOW_BBOX": False,
@@ -57,7 +60,6 @@ HAND = {
         "DRAW_SKELETON": True,
         "DRAW_CONFIDENCE": False,
     },
-
     "DEBUG": {
         "SHOW_FPS": False,
     },
@@ -79,34 +81,29 @@ INDEXFINGERTIP = {
     # MediaPipe landmark index
     # --------------------------------------------------------
     "LANDMARK_ID": 8,
-
     # --------------------------------------------------------
     # Detection confidence threshold
     # Used to gate whether fingertip data is considered valid
     # --------------------------------------------------------
     "DETECTION_CON": 0.6,
-
     # --------------------------------------------------------
     # Update / sampling frequency (Hz)
     # Used to throttle detection or smoothing
     # --------------------------------------------------------
     "FREQ": 30,
-
     # --------------------------------------------------------
     # Temporal filtering (EMA-style smoothing)
     # --------------------------------------------------------
     "FILTER": {
         "enabled": True,
-        "alpha": 0.4,      # smoothing factor
-        "deadzone": 2,     # pixels
-        "FREQ": 30.0,        # Hz (can mirror INDEXFINGERTIP.FREQ)
-        "MIN_CUTOFF": 1.0,   # minimum cutoff frequency
-        "BETA": 0.0,         # speed coefficient
-
+        "alpha": 0.4,  # smoothing factor
+        "deadzone": 2,  # pixels
+        "FREQ": 30.0,  # Hz (can mirror INDEXFINGERTIP.FREQ)
+        "MIN_CUTOFF": 1.0,  # minimum cutoff frequency
+        "BETA": 0.0,  # speed coefficient
         # Optional but commonly used
-        "D_CUTOFF": 1.0,     # derivative cutoff frequency
+        "D_CUTOFF": 1.0,  # derivative cutoff frequency
     },
-
     # --------------------------------------------------------
     # Optional drawing / debug visualization
     # --------------------------------------------------------
@@ -179,7 +176,6 @@ GLITCH = {
     "MAX_DURATION": 2.5,
     "MAX_CONCURRENT": GLITCH_DEFAULT_MAX_CONCURRENT,
     "DEFAULT_MODULE": GLITCH_DEFAULT_MODULE,
-
     "REGISTRY": {
         "vhs_warp": {"enabled": True, "weight": 1.0},
         "datamosh": {"enabled": True, "weight": 0.8},
@@ -203,42 +199,36 @@ GLITCH = {
 
 OVERLAYS = {
     # Example overlays; adjust enable/order as needed
-
     "fps_overlay": {
         "module_path": "asimov.modules.fps_overlay",
         "enabled": True,
         "order": 5,
         "hotkey": "",
     },
-
     "hand": {
         "module_path": "asimov.modules.hand",
         "enabled": True,
         "order": 10,
         "hotkey": "h",
     },
-
     "indexfingertip": {
         "module_path": "asimov.modules.indexfingertip",
         "enabled": True,
         "order": 20,
         "hotkey": "i",
     },
-
     "rect": {
         "module_path": "asimov.modules.rect",
         "enabled": True,
         "order": 25,
         "hotkey": "r",
     },
-
     "rect_touch": {
         "module_path": "asimov.modules.rect_touch",
         "enabled": True,
         "order": 26,
         "hotkey": "",
     },
-
     "face": {
         "module_path": "asimov.modules.face",
         "enabled": True,
@@ -251,18 +241,18 @@ OVERLAYS = {
         "order": 40,
         "hotkey": "e",
     },
-##    "motionblur": {
-##        "module_path": "asimov.modules.motionblur",
-##        "enabled": True,
-##        "order": 50,
-##        "hotkey": "m",
-##    },
-##    "glitch": {
-##        "module_path": "asimov.modules.glitch",
-##        "enabled": False,
-##        "order": 100,
-##        "hotkey": "g",
-##    },
+    ##    "motionblur": {
+    ##        "module_path": "asimov.modules.motionblur",
+    ##        "enabled": True,
+    ##        "order": 50,
+    ##        "hotkey": "m",
+    ##    },
+    ##    "glitch": {
+    ##        "module_path": "asimov.modules.glitch",
+    ##        "enabled": False,
+    ##        "order": 100,
+    ##        "hotkey": "g",
+    ##    },
 }
 
 # ------------------------------------------------------------
@@ -290,24 +280,18 @@ EYES = {
     # --------------------------------------------------------
     "FACEMESH": {
         "LANDMARKS": {
-            "LEFT_EYE": [
-                33, 133, 160, 159, 158, 157, 173
-            ],
-            "RIGHT_EYE": [
-                362, 263, 387, 386, 385, 384, 398
-            ],
+            "LEFT_EYE": [33, 133, 160, 159, 158, 157, 173],
+            "RIGHT_EYE": [362, 263, 387, 386, 385, 384, 398],
         },
     },
-
     # --------------------------------------------------------
     # One Euro Filter configuration
     # --------------------------------------------------------
     "FILTER": {
-        "FREQ": 60.0,        # Expected frame rate (Hz)
-        "MIN_CUTOFF": 1.0,   # Smoothness
-        "BETA": 0.01,        # Responsiveness
+        "FREQ": 60.0,  # Expected frame rate (Hz)
+        "MIN_CUTOFF": 1.0,  # Smoothness
+        "BETA": 0.01,  # Responsiveness
     },
-
     # --------------------------------------------------------
     # Privacy bar geometry & behavior
     # --------------------------------------------------------
@@ -315,11 +299,9 @@ EYES = {
         # Scaling relative to eye bounding box
         "WIDTH_SCALE": 1.6,
         "HEIGHT_SCALE": 2.2,
-
         # Rendering
         "COLOR": (0, 0, 0),  # BGR
-        "ALPHA": 0.85,       # 0.0–1.0
-
+        "ALPHA": 0.85,  # 0.0–1.0
         # Seconds to keep bar after detection loss
         "GRACE_PERIOD": 0.35,
     },
@@ -350,31 +332,25 @@ FACE = {
     # Global enable
     # --------------------------------------------------------
     "ENABLED": True,
-
     # --------------------------------------------------------
     # Face mesh detector configuration
     # --------------------------------------------------------
     "MESH": {
         "MAX_FACES": 1,
-
         # Initial detection confidence
         "DETECTION_CON": 0.5,
-
         # Temporal tracking confidence
         "TRACKING_CON": 0.5,
     },
-
     # --------------------------------------------------------
     # Output semantics
     # --------------------------------------------------------
     "OUTPUT": {
         # Publish full landmark arrays
         "LANDMARKS": True,
-
         # Seconds to keep last valid face data
         "GRACE_PERIOD": 0.35,
     },
-
     # --------------------------------------------------------
     # Debug / visualization
     # --------------------------------------------------------
@@ -397,33 +373,27 @@ MOTIONBLUR = {
     # --------------------------------------------------------
     # Number of frames to retain for temporal accumulation
     "HISTORY_LEN": 8,
-
     # --------------------------------------------------------
     # Velocity → blur mapping
     # --------------------------------------------------------
     # Velocity (pixels/frame) at which blur reaches maximum
     "VELOCITY_NORM": 40.0,
-
     # Minimum and maximum alpha contribution of newest frame
     "ALPHA_MIN": 0.15,
     "ALPHA_MAX": 0.85,
-
     # --------------------------------------------------------
     # Tail behavior
     # --------------------------------------------------------
     # Minimum weight for oldest frame in history
     "TAIL_ALPHA": 0.05,
     "RADIUS": 12,
-
     # Directional blur
-    "MAX_OFFSET": 20,   # pixels of trail at max velocity
-
+    "MAX_OFFSET": 20,  # pixels of trail at max velocity
     # Color gating
     "COLOR_GATE": True,
-    "YELLOW_MIN": (20, 120, 120),   # HSV
+    "YELLOW_MIN": (20, 120, 120),  # HSV
     "YELLOW_MAX": (40, 255, 255),
-
-    "RADIUS_MIN_FRAC": 0.006,   # % of min(frame_dim)
+    "RADIUS_MIN_FRAC": 0.006,  # % of min(frame_dim)
     "RADIUS_MAX_FRAC": 0.025,
     "RADIUS_VELOCITY_NORM": 40.0,  # velocity at which radius hits max
 }
