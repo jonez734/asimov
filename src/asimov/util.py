@@ -24,7 +24,65 @@ LOGGER_NAME = "asimov"
 
 FRAME_BLOCK_FORMAT = "!HBBH"
 
-# @since 20250326
+
+def add_camera_args(parser, hidden=False):
+    """Add camera capture arguments to an argument parser.
+
+    Args:
+        parser: argparse.ArgumentParser instance
+        hidden: If True, args exist but hidden from --help output
+
+    Example:
+        >>> import argparse
+        >>> parser = argparse.ArgumentParser()
+        >>> add_camera_args(parser)
+    """
+    args = [
+        ('--capture-device', dict(type=int, default=conf.CAPTURE_DEVICE, help='Camera device index')),
+        ('--capture-width', dict(type=int, default=conf.CAPTURE_WIDTH, help='Frame width')),
+        ('--capture-height', dict(type=int, default=conf.CAPTURE_HEIGHT, help='Frame height')),
+        ('--capture-fps', dict(type=int, default=conf.CAPTURE_FPS, help='Capture FPS')),
+    ]
+
+    if hidden:
+        for name, kwargs in args:
+            parser.add_argument(name, **kwargs)
+    else:
+        group = parser.add_argument_group('camera', 'Camera capture options')
+        for name, kwargs in args:
+            group.add_argument(name, **kwargs)
+
+
+def add_network_args(parser, hidden=False):
+    """Add network transmission arguments to an argument parser.
+
+    Args:
+        parser: argparse.ArgumentParser instance
+        hidden: If True, args exist but hidden from --help output
+
+    Example:
+        >>> import argparse
+        >>> parser = argparse.ArgumentParser()
+        >>> add_network_args(parser)
+    """
+    args = [
+        ('--host', dict(type=str, default='127.0.0.1', help='Target host')),
+        ('--port', dict(type=int, default=5000, help='Target port')),
+        ('--cols', dict(type=int, default=0, help='Grid columns (0=auto)')),
+        ('--rows', dict(type=int, default=0, help='Grid rows (0=auto)')),
+        ('--full-frame', dict(action='store_true', help='Send full frame (not just changes)')),
+        ('--compress', dict(action='store_true', help='Enable zlib compression')),
+    ]
+
+    if hidden:
+        for name, kwargs in args:
+            parser.add_argument(name, **kwargs)
+    else:
+        group = parser.add_argument_group('network', 'Network options')
+        for name, kwargs in args:
+            group.add_argument(name, **kwargs)
+
+
 def render_text(
     text: Optional[str],
     x: float,

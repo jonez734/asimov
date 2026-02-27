@@ -1,23 +1,23 @@
-# send_frame_demo Specification
+# demo_net_send_frame Specification
 
 ## Overview
 
-`send_frame_demo` demonstrates sending cv2 video frames over UDP using asimov's frame transmission system with delta compression and auto-batching.
+`demo_net_send_frame` demonstrates sending cv2 video frames over UDP using asimov's frame transmission system with delta compression and auto-batching.
 
 ## Usage
 
 ```bash
-python send_frame_demo.py [options]
+python demo_net_send_frame.py [options]
 ```
 
 ## Arguments
 
+Camera arguments are available but hidden (use directly, not shown in --help).
+
+### Network Arguments
+
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
-| `--capture-device` | int | CAPTURE_DEVICE | Camera device index |
-| `--capture-width` | int | CAPTURE_WIDTH | Frame width |
-| `--capture-height` | int | CAPTURE_HEIGHT | Frame height |
-| `--capture-fps` | int | CAPTURE_FPS | Capture FPS |
 | `--host` | str | "127.0.0.1" | Target host |
 | `--port` | int | 5000 | Target port |
 | `--cols` | int | 0 | Grid columns (0=auto) |
