@@ -154,7 +154,7 @@ RECT_TOUCH = {
 # Glitch system (already partially restored elsewhere)
 # ------------------------------------------------------------
 
-GLITCH_DEFAULT_MODULE = "asimov.modules.glitch"
+GLITCH_DEFAULT_MODULE = "asimov_modules.glitch"
 
 GLITCH_DEFAULT_MAX_CONCURRENT = 2
 GLITCH_DEFAULT_VHS_INTENSITY = 5
@@ -200,55 +200,55 @@ GLITCH = {
 OVERLAYS = {
     # Example overlays; adjust enable/order as needed
     "fps_overlay": {
-        "module_path": "asimov.modules.fps_overlay",
+        "module_path": "asimov_modules.fps_overlay",
         "enabled": True,
         "order": 5,
         "hotkey": "",
     },
     "hand": {
-        "module_path": "asimov.modules.hand",
+        "module_path": "asimov_modules.hand",
         "enabled": True,
         "order": 10,
         "hotkey": "h",
     },
     "indexfingertip": {
-        "module_path": "asimov.modules.indexfingertip",
+        "module_path": "asimov_modules.indexfingertip",
         "enabled": True,
         "order": 20,
         "hotkey": "i",
     },
     "rect": {
-        "module_path": "asimov.modules.rect",
+        "module_path": "asimov_modules.rect",
         "enabled": True,
         "order": 25,
         "hotkey": "r",
     },
     "rect_touch": {
-        "module_path": "asimov.modules.rect_touch",
+        "module_path": "asimov_modules.rect_touch",
         "enabled": True,
         "order": 26,
         "hotkey": "",
     },
     "face": {
-        "module_path": "asimov.modules.face",
+        "module_path": "asimov_modules.face",
         "enabled": True,
         "order": 35,
         "hotkey": "f",
     },
     "eyes_next": {
-        "module_path": "asimov.modules.eyes_next",
+        "module_path": "asimov_modules.eyes_next",
         "enabled": True,
         "order": 40,
         "hotkey": "e",
     },
     ##    "motionblur": {
-    ##        "module_path": "asimov.modules.motionblur",
+    ##        "module_path": "asimov_modules.motionblur",
     ##        "enabled": True,
     ##        "order": 50,
     ##        "hotkey": "m",
     ##    },
     ##    "glitch": {
-    ##        "module_path": "asimov.modules.glitch",
+    ##        "module_path": "asimov_modules.glitch",
     ##        "enabled": False,
     ##        "order": 100,
     ##        "hotkey": "g",
@@ -411,27 +411,27 @@ SCENE = {
     "modules": [
         {
             "name": "fps_overlay",
-            "module": "asimov.modules.fps_overlay",
+            "module": "asimov_modules.fps_overlay",
             "conf": {},
         },
         {
             "name": "hand",
-            "module": "asimov.modules.hand",
+            "module": "asimov_modules.hand",
             "conf": {},
         },
         {
             "name": "rect",
-            "module": "asimov.modules.rect",
+            "module": "asimov_modules.rect",
             "conf": {},
         },
         {
             "name": "rect_touch",
-            "module": "asimov.modules.rect_touch",
+            "module": "asimov_modules.rect_touch",
             "conf": {},
         },
         {
             "name": "float_playingcard",
-            "module": "asimov.modules.float_playingcard",
+            "module": "asimov_modules.float_playingcard",
             "conf": {},
         },
     ],
