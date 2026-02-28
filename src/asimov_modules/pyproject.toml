@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "asimov-modules"
 version = "0.1.0"
 description = "Asimov computer vision modules (hand, face, rect, glitch, etc.)"
-requires-python = ">=3.9"
+requires-python = ">=3.9,<=3.12"
 license = "GPL-2.0-or-later"
 classifiers = [
     "Development Status :: 4 - Beta",
