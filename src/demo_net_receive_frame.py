@@ -4,28 +4,41 @@ import argparse
 import cv2
 
 from asimov import io
-from asimov.net import UDPReceiver
+from asimov.net import UDPReceiver, TCPReceiver
 
 DEFAULT_PORT = 5000
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Receive cv2 frames over UDP")
+    parser = argparse.ArgumentParser(description="Receive cv2 frames over network")
+    parser.add_argument(
+        "--protocol",
+        type=str,
+        default="udp",
+        choices=["tcp", "udp"],
+        help="Protocol to use (tcp or udp)",
+    )
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind to")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port to listen on")
+    parser.add_argument(
+        "--port", type=int, default=DEFAULT_PORT, help="Port to listen on"
+    )
     args = parser.parse_args()
 
-    receiver = UDPReceiver(args.host, args.port, blocking=False, timeout=1.0)
+    if args.protocol == "tcp":
+        receiver = TCPReceiver(args.host, args.port, blocking=False, timeout=1.0)
+    else:
+        receiver = UDPReceiver(args.host, args.port, blocking=False, timeout=1.0)
 
-    io.echo(f"Listening on {args.host}:{args.port}...")
+    io.echo(f"Listening on {args.host}:{args.port} via {args.protocol.upper()}...")
 
     try:
         while True:
             result = receiver.receive()
-            
+
             if result is None:
                 continue
-            
-            if hasattr(result, 'frame_id'):
+
+            if hasattr(result, "frame_id"):
                 packet = result
             else:
                 continue
@@ -35,6 +48,7 @@ def main():
     finally:
         receiver.close()
         cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()
