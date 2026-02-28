@@ -2,7 +2,7 @@
 
 ## Overview
 
-`demo_net_recv` demonstrates receiving data over network using asimov_net.
+`demo_net_recv` demonstrates receiving data over network using net.asimov_net.
 
 ## Usage
 

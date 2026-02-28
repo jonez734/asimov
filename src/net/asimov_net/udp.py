@@ -18,13 +18,16 @@ from .packet import (
     PACKET_TYPE_PING,
     PACKET_TYPE_PONG,
     PACKET_TYPE_EOS,
+    PING,
+    PONG,
+    EOS,
+)
+
+from .frame import (
     PACKET_TYPE_FRAME,
     FramePacket,
     encode_frame_packet,
     decode_frame_packet,
-    PING,
-    PONG,
-    EOS,
     FRAME_PACKET_HEADER_SIZE,
 )
 from .conf import BUFFER_SIZE

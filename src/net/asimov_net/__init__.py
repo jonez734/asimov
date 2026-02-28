@@ -32,11 +32,8 @@ from .socket import (
 
 from .packet import (
     Packet,
-    FramePacket,
     encode_packet,
     decode_packet,
-    encode_frame_packet,
-    decode_frame_packet,
     register_packet_type,
     NetError,
     PacketTypeError,
@@ -46,7 +43,14 @@ from .packet import (
     PACKET_TYPE_PING,
     PACKET_TYPE_PONG,
     PACKET_TYPE_EOS,
+)
+
+from .frame import (
+    FramePacket,
+    encode_frame_packet,
+    decode_frame_packet,
     PACKET_TYPE_FRAME,
+    FRAME_PACKET_HEADER_SIZE,
 )
 
 from .tcp import (
@@ -99,6 +103,7 @@ __all__ = [
     "decode_packet",
     "encode_frame_packet",
     "decode_frame_packet",
+    "FRAME_PACKET_HEADER_SIZE",
     "register_packet_type",
     "NetError",
     "PacketTypeError",

@@ -21,3 +21,4 @@ classifiers = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["asimov_net*"]
+exclude = ["asimov_net.tests*"]

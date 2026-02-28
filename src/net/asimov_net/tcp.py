@@ -10,8 +10,9 @@ from typing import Optional
 
 import numpy as np
 
-from .packet import (
-    Packet,
+from .packet import Packet
+
+from .frame import (
     FramePacket,
     encode_frame_packet,
     FRAME_PACKET_HEADER_SIZE,
