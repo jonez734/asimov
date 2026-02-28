@@ -7,10 +7,9 @@ from typing import Optional, Union
 
 import cv2
 
-from . import conf, io, cap
+from . import conf
 
 
-# Define the get_safe_path function within the utility module
 def safe_path(
     *components: Union[str, os.PathLike],
     base_dir: Optional[Union[str, os.PathLike]] = None,
@@ -223,6 +222,8 @@ class CameraCapture(threading.Thread):
 
     def _run(self):
         """Background thread: Opens, Reads, and Closes the camera."""
+        from . import cap, io
+
         self.cap, error = cap.open_ready(self.source)
         if self.cap is None:
             io.echo(f"{{error}}CameraCapture: Hardware not available: {error}{{/all}}")
