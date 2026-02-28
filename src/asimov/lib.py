@@ -75,11 +75,11 @@ class Asimov(object):
         self.greyscale = False
         self.handlehands = False
 
-        self.builder = Gtk.Builder()
-        self.builder.add_from_file("testgstgtk.glade")
+        # self.builder = Gtk.Builder()
+        # self.builder.add_from_file("testgstgtk.glade")
 
-        Gst.init(sys.argv)
-        Gtk.init(sys.argv)
+        # Gst.init(sys.argv)
+        # Gtk.init(sys.argv)
 
         self.fpsReader = cvzoneFPS(avgCount=FPS)
 
