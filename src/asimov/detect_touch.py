@@ -11,7 +11,7 @@ def should_run(context):
     return "index_finger_tip" in context and "rectangles" in context
 
 def detect(frame, context):
-    fingertip = context.get("fingertip", None);
+    fingertip = context.get("fingertip", None)
 
     for rect in context["rectangles"]:
         polygon = rect["polygon"]

@@ -3,7 +3,6 @@ import os
 import glfw
 from itertools import cycle, product
 from OpenGL.GL import *
-import numpy as np
 import pyrr
 import sys
 sys.path.insert(0, '/home/jam/projects/asimov/src')

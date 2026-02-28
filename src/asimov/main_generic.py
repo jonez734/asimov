@@ -80,7 +80,7 @@ def get_active_modules(args):
 
         try:
             if module.check(args, mod, op="run", silent=False) is False:
-                io.echo(f"get_active_modules.100: module.check() returned False")
+                io.echo("get_active_modules.100: module.check() returned False")
                 continue
         except Exception:
             io.echo_traceback(f"Module rejected: {name}")
@@ -171,7 +171,7 @@ def main(args, **kwargs):
         cap.release()
         return False
 
-    io.echo(f"cap opened and ready", level="debug")
+    io.echo("cap opened and ready", level="debug")
 
     # Prime first frame
 #    while True:

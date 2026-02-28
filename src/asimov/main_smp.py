@@ -10,7 +10,6 @@ import numpy as np
 from multiprocessing import Process, Queue, Event
 import time
 import queue # Import for queue.Empty exception
-import sys # For sys.exit()
 
 # PyGLFW for window management and PyOpenGL for OpenGL bindings
 import glfw
@@ -21,7 +20,6 @@ from OpenGL.GLU import *
 from bbsengine6 import io
 
 from . import conf
-from . import lib as libasimov
 
 # --- Queues for Inter-Process Communication (declared globally for simplicity,
 #     but passed as args to processes) ---
@@ -66,7 +64,7 @@ def video_capture_process(out_q, stop_e):
         else:
             current_retries += 1
             if current_retries >= conf.FPS*5:
-                io.echo(f"too many retries waiting for camera", level="error")
+                io.echo("too many retries waiting for camera", level="error")
                 break
         time.sleep(0.01)
 
@@ -296,7 +294,7 @@ def opengl_render_process(in_q, stop_e):
             break
 
         if frame is None:
-            io.echo(f"asimov.opengl_render_process.120: sentinel")
+            io.echo("asimov.opengl_render_process.120: sentinel")
             break
 
         # --- OpenGL Rendering Logic ---

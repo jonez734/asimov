@@ -10,7 +10,6 @@ import time
 from asimov.io.echo import echo
 from asimov.io.getch import getch_str as getch
 from asimov.io import terminal
-from asimov.common import logentry
 
 
 def fill(text: str, truncate_len: int, pad_len: int, char: str = ' ') -> str:

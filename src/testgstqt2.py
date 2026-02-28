@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 
 # Set up GStreamer pipeline for sending frames
 gst_str = (

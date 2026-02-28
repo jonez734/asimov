@@ -1,4 +1,6 @@
-import sys, termios, tty
+import sys
+import termios
+import tty
 
 ESC = '\x1B'
 

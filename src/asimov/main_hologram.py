@@ -1,4 +1,3 @@
-import time
 import argparse
 
 from . import io
@@ -7,9 +6,8 @@ import cv2
 import pyvirtualcam
 
 
-from .util import draw_text, get_bottom_right_position, get_device_by_label, camera_ready
-from .common import logentry
-from . import conf, glitch, fingertip, touch, eyes_next as eyes, playingcard
+from .util import draw_text, get_device_by_label, camera_ready
+from . import conf, glitch, fingertip, eyes_next as eyes, playingcard
 from .io import echo
 
 # 1. detect fingertip

@@ -7,4 +7,4 @@ if __name__ == "__main__":
         buf = inputstring("> ")
         echo(f"{{f6:3}}{buf=}")
     finally:
-        echo(f"{{savecursor}}{{decstbm}}{{reset}}{{restorecursor}}", flush=True)
+        echo("{savecursor}{decstbm}{reset}{restorecursor}", flush=True)

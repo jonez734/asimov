@@ -1,4 +1,5 @@
-import time, random
+import time
+import random
 import numpy as np
 import cv2
 

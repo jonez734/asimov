@@ -33,10 +33,10 @@ def init(args=None, context=None, **kwargs):
 
     echo(f"{{reset}}- {{labelcolor}}Load set {{valuecolor}}'{set_name}{{labelcolor}}': ", end="", flush=True)
     if load_set(basedir, set_name) is True:
-        echo(f"{{green}}[{{checkmark}} OK]{{reset}}", flush=True)
+        echo("{green}[{checkmark} OK]{reset}", flush=True)
         return True
     else:
-        echo(f"{{red}}[{{crossmark}}FAIL]{{reset}}", flush=True)
+        echo("{red}[{crossmark}FAIL]{reset}", flush=True)
         return False
 
 

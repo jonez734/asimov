@@ -1,6 +1,5 @@
 import cv2
 import subprocess
-import numpy as np
 
 # Define the GStreamer pipeline for sending video over UDP
 gst_pipeline = (

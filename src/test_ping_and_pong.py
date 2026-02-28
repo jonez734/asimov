@@ -1,9 +1,7 @@
 import time
-import socket
 
-from asimov.net import UDPSender, UDPReceiver, encode_packet, decode_packet, respond_to_ping, send_ping_and_wait_for_pong
-from asimov.net import PACKET_TYPE_PING, PACKET_TYPE_PONG
-from asimov import conf
+from asimov.net import UDPSender, UDPReceiver
+from asimov.net import PACKET_TYPE_PING
 
 def wait_for_pong(sender, timeout=1.0):
   deadline = time.time() + timeout
@@ -20,7 +18,7 @@ def test_ping_and_pong():
   sender.send_ping()
   data = receiver.receive()
   if data["packet_type"] == PACKET_TYPE_PING:
-    print(f"[test] received PING")
+    print("[test] received PING")
     sender.send_pong()
 
   print(f"{data=}")

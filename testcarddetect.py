@@ -1,5 +1,4 @@
 from threading import Thread
-import time
 
 import numpy as np
 import cv2
@@ -147,7 +146,7 @@ class Video:
 
 			ret = self.stream.read()
 			if ret is False:
-				io.echo(f"no frame grabbed", level="warning")
+				io.echo("no frame grabbed", level="warning")
 			else:
 				(self.grabbed, self.frame) = ret
 

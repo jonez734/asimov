@@ -20,17 +20,13 @@ import re
 import sys
 import time
 import fcntl
-import select
-import platform
 import threading
 import collections
 
-import tty, termios # get_cursor_position()
+import tty
+import termios # get_cursor_position()
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Iterator
 
-from .util import setbottombar
 
 ##from bbsengine6 import screen
 
@@ -164,7 +160,7 @@ def drain_stream_to_queue(stream, queue):
 
         while True:
             try:
-                print(f"\x07", flush=True, end="")
+                print("\x07", flush=True, end="")
                 ch = stream.read(1)
                 if not ch:
                     break  # EOF or no more data
@@ -194,7 +190,6 @@ def get_dsr(mode="curpos", timeout: float = 1.0) -> str:
     Raises:
         TimeoutError if no complete response is received in time.
     """
-    import time
 
     if mode == "curpos":
         code = "6"

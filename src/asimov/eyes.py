@@ -2,7 +2,6 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
-from .common import logentry
 from . import conf
 
 __all__ = ["draw", "detect"]

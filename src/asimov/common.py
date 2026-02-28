@@ -7,7 +7,7 @@ from typing import Optional, Union
 
 import cv2
 
-from . import conf, io
+from . import conf, io, cap
 
 
 # Define the get_safe_path function within the utility module
@@ -223,13 +223,10 @@ class CameraCapture(threading.Thread):
 
     def _run(self):
         """Background thread: Opens, Reads, and Closes the camera."""
-        self.cap = cv2.VideoCapture(self.source, cv2.CAP_V4L2)
-
-        # Verify hardware before starting loop
-        if not self.cap.isOpened() or not camera_ready(self.cap):
-            io.echo("{{error}}CameraCapture: Hardware not available.{{/all}}")
+        self.cap, error = cap.open_ready(self.source)
+        if self.cap is None:
+            io.echo(f"{{error}}CameraCapture: Hardware not available: {error}{{/all}}")
             self.stopped = True
-            cap.release()
             return
 
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, conf.CAP_WIDTH)

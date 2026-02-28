@@ -1,4 +1,3 @@
-from .common import Token
 from .const import CSI, DEFAULT_PALETTE_NAME
 
 # ----------------------------
@@ -108,7 +107,7 @@ def get_current_palette():
 def get_palette_entry(name):
     global _current_palette
     if _current_palette is None:
-        print(f"setting _current_palette")
+        print("setting _current_palette")
         set_palette(DEFAULT_PALETTE_NAME)
 
     return _current_palette[name]

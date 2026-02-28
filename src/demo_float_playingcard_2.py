@@ -1,7 +1,6 @@
 import cv2
 import argparse
 import time
-import random
 import numpy as np
 from cvzone.HandTrackingModule import HandDetector
 # Removed cvzone.Utils.fps import to use manual time.time() calculation.

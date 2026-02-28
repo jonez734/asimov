@@ -2,7 +2,6 @@ import argparse
 
 import cv2
 import mediapipe as mp
-import numpy as np
 from asimov.playingcard.util import compute_geometry
 from asimov.playingcard import load  as load_card
 from asimov import conf
@@ -15,8 +14,6 @@ from asimov import conf
 CARD_BORDER = 0.25   # minimum border ratio
 CARD_FILE = "ace_of_spades.png"  # example PNG
 
-import cv2
-import mediapipe as mp
 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils

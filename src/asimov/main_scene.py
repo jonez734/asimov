@@ -1,7 +1,6 @@
 # asimov/main_scene.py
 
 import sys
-import argparse
 import threading
 import time
 import cv2

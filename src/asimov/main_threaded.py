@@ -4,7 +4,7 @@ import cv2
 import threading
 import time
 import importlib
-from . import io, conf, glitch
+from . import io, conf
 from .common import ThreadSafeContext
 
 def get_active_modules():

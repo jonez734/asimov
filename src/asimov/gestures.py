@@ -1,9 +1,7 @@
 # File: asimov/gestures.py
 
 import time
-import math
 
-from .common import safe_distance
 
 # --- Named constants ---
 DEFAULT_PINCH_THRESHOLD = 30

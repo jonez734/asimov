@@ -1,11 +1,9 @@
 # DEPRECATED: This module is not used. Use echo.py instead.
 import re
-import sys
 import time
 
 from typing import NamedTuple
 from argparse import Namespace
-from .terminal import _streamout, _streamin
 #from tzlocal import tzlocal
 
 from . import echovars, terminal
@@ -384,7 +382,7 @@ def echo(buf:str="", **kw):
               elif token.kind == "WAIT":
                   time.sleep(WAIT*int(token.value))
               elif token.kind == "F6":
-                  print(f"\n"*int(token.value), flush=True, end="")
+                  print("\n"*int(token.value), flush=True, end="")
                   pos = 0
                   # firstword = True
               elif token.kind == "SPEED":
@@ -397,7 +395,7 @@ def echo(buf:str="", **kw):
               elif token.kind == "WORD":
                   if pos+wcswidth(token.value) >= width-1 and wordwrap is True:
                       pos = 0
-                      print(f"\n", end="")
+                      print("\n", end="")
                   print(token.value, end="", flush=True)
                   pos += wcswidth(token.value)
                   time.sleep(SPEED*speed)
@@ -478,7 +476,7 @@ def set_terminal_background_color(r, g, b):
 
 def reset_terminal_background_color():
   """Resets the terminal background color to default."""
-  print(f"\033]11;\a", end="", flush=True)
+  print("\033]11;\a", end="", flush=True)
 
 def strip_commands(s: str) -> str:
   import re

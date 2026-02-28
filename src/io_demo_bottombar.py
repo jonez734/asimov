@@ -1,4 +1,3 @@
-import asimov.io as io
 
 from bbsengine6 import screen
 

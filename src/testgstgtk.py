@@ -1,19 +1,15 @@
 import threading
 
 import cv2
-import numpy as np
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GLib, GdkPixbuf
+from gi.repository import Gtk, Gdk, GdkPixbuf
  
 from bbsengine6 import io
 
 from asimov import lib as libasimov
 
-import cvzone
-from cvzone.FPS import FPS as cvzoneFPS
-from cvzone.HandTrackingModule import HandDetector
 
 class Asimov(object):
     def __init__(self):

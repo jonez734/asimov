@@ -1,10 +1,8 @@
 import os
-import sys
 import tty
 import select
 import fcntl
 import termios
-from collections import deque
 
 
 from .common import _current_input_stream, _current_stream_lock, _input_queue, _read_current_input_stream

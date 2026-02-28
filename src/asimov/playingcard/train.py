@@ -9,8 +9,7 @@ Precomputes scaled and rotated templates for fast detection.
 import os
 import cv2
 import numpy as np
-from glob import glob
-from ..common import get_safe_path, logentry
+from ..common import get_safe_path
 from .. import conf
 
 from ..io import echo

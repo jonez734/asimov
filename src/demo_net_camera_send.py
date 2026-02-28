@@ -4,9 +4,7 @@ import argparse
 import cv2
 import time
 import os
-import os
 import numpy as np
-import threading
 
 from asimov import io
 from asimov import conf

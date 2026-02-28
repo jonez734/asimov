@@ -10,7 +10,6 @@
 # - String module paths allowed
 # - Explicit lifecycle, minimal magic
 
-from types import ModuleType
 from typing import Any
 
 from . import module, io

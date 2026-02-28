@@ -1,9 +1,8 @@
-import time
 # import locale
 import argparse
 ##from dataclasses import dataclass, field
 
-from . import io, playingcard
+from . import io
 
 import cv2
 import pyvirtualcam
@@ -11,9 +10,9 @@ import pyvirtualcam
 
 ##import mediapipe as mp
 
-from .util import draw_text, get_bottom_right_position, get_device_by_label
-from . import conf, glitch, indexfingertip, touch, eyes_next as eyes, playingcard
-from .common import camera_ready, logentry
+from .util import draw_text, get_device_by_label
+from . import conf, glitch, indexfingertip, eyes_next as eyes
+from .common import camera_ready
 
 # Constants
 #MARGIN = 20  # pixels

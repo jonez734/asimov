@@ -1,17 +1,12 @@
 import sys
 import copy
-import time
-import struct
 import threading
 
-import numpy
 
 import cv2
 
 from bbsengine6 import io
 
-from dataclasses import dataclass, field
-from typing import List
 
 # from cvzone.FPS import FPS as cvzoneFPS
 # from cvzone.HandTrackingModule import HandDetector
@@ -93,7 +88,7 @@ class Asimov(object):
         self.number_frames = 0
 
         # self.gst_str = f"appsrc name=source emit-signals=true format=buffers caps=video/x-raw,format=BGR,width={RESOLUTION[0]},height={RESOLUTION[1]},framerate={FPS}/1 ! queue max-size-buffers=4 ! videoconvert ! udpsink host=localhost port=5000" # autovideosink sync=1"
-        self.gst_str = f"appsrc name=source emit-signals=true format=buffers ! jpegdec ! videoconvert ! x264enc ! rtph264pay ! udpsink port=5000"
+        self.gst_str = "appsrc name=source emit-signals=true format=buffers ! jpegdec ! videoconvert ! x264enc ! rtph264pay ! udpsink port=5000"
         io.echo(f"{self.gst_str=}", level="debug")
         # self.gst_str = f"videotestsrc ! queue max-size-buffers=4 ! videoconvert ! udpsink host=localhost port=5000" # autovideosink sync=1"
 
@@ -195,7 +190,7 @@ class Asimov(object):
         #                                    f.shape[2]*f.shape[1])
         # io.echo(f"{pixbuf=}", level="debug")
         if pixbuf is None:
-            io.echo(f"pixbuf is None", level="debug")
+            io.echo("pixbuf is None", level="debug")
         # io.echo("calling set_from_pixbuf")
         image = self.builder.get_object("image")
         image.set_from_pixbuf(pixbuf.copy())
@@ -247,9 +242,9 @@ class Asimov(object):
             old_state, new_state, pending = message.parse_state_changed()
             io.echo(f"{old_state=} -> {new_state=}")
         elif message.type == Gst.MessageType.ASYNC_DONE:
-            io.echo(f"got async_done", level="debug")
+            io.echo("got async_done", level="debug")
         elif message.type == Gst.MessageType.ASYNC_START:
-            io.echo(f"got async_start", level="debug")
+            io.echo("got async_start", level="debug")
         elif message.type == Gst.MessageType.ERROR:
             error, debug = message.parse_error()
             io.echo(f"ERROR: {message.src.get_name()}: {error.message}", level="error")
@@ -282,7 +277,7 @@ class Asimov(object):
 
     def on_need_data(self, src, length):
         # Convert frame to bytes (assuming BGR format)
-        io.echo(f"on_need_data entered", level="debug")
+        io.echo("on_need_data entered", level="debug")
         if self.frame is None:
             return
 

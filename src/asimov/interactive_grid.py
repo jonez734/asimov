@@ -1,7 +1,6 @@
 # File: asimov/interactive_grid.py
 
 import cv2
-import numpy as np
 
 # ======================
 # Constants / Parameters

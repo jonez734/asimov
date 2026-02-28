@@ -6,7 +6,6 @@ from collections import deque
 import math
 
 # Import path utility from asimov
-from asimov.util import safe_path
 
 # --- ONE EURO FILTER IMPLEMENTATION (For smooth tracking) ---
 class OneEuroFilter:

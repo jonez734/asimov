@@ -77,7 +77,7 @@ def save(basedir=None, set_name=None, filename=None) -> bool:
         set_name = _loaded_set_name or conf.PLAYINGCARD.get("SET_NAME", "bicycle")
 
     if _loaded_set is None:
-        echo(f"{{warning}}️ No card set is currently loaded in memory (_loaded_set is None). Cannot save.")
+        echo("{warning}️ No card set is currently loaded in memory (_loaded_set is None). Cannot save.")
         return False
 
     # Determine the final filename
@@ -107,7 +107,7 @@ def save(basedir=None, set_name=None, filename=None) -> bool:
         # 3. Save the prepared data to the new file
         np.savez_compressed(output_path, **npz_data)
 
-        echo(f"{{checkmark}}OK - {{pluralize(len(npz_data), 'arrray', 'arrays')}}")
+        echo("{checkmark}OK - {pluralize(len(npz_data), 'arrray', 'arrays')}")
         return True
 
     except Exception as e:

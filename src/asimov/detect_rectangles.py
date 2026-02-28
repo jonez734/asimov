@@ -1,6 +1,5 @@
 import cv2
 import time
-import numpy as np
 
 REFRESH_INTERVAL = 1.5  # seconds
 

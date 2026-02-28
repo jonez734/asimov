@@ -9,7 +9,7 @@ gi.require_version("GstApp", "1.0")
 gi.require_version('GObject', '2.0')
 
 #from gi.repository import Gtk, Gdk, GLib, GdkPixbuf
-from gi.repository import Gst, GstApp, GObject, GLib
+from gi.repository import Gst, GLib
 
 from bbsengine6 import io
 
@@ -65,9 +65,9 @@ class Asimov(object):
             old_state, new_state, pending = message.parse_state_changed()
             io.echo(f"{old_state=} -> {new_state=}")
         elif message.type == Gst.MessageType.ASYNC_DONE:
-            io.echo(f"got async_done", level="debug")
+            io.echo("got async_done", level="debug")
         elif message.type == Gst.MessageType.ASYNC_START:
-            io.echo(f"got async_start", level="debug")
+            io.echo("got async_start", level="debug")
         elif message.type == Gst.MessageType.ERROR:
             error, debug = message.parse_error()
             io.echo(f"ERROR: {message.src.get_name()}: {error.message}", level="error")
@@ -76,7 +76,7 @@ class Asimov(object):
   
     def on_need_data(self, src, length):
         # Convert frame to bytes (assuming BGR format)
-        io.echo(f"on_need_data entered", level="debug")
+        io.echo("on_need_data entered", level="debug")
         if self.frame is None:
             return
 
@@ -89,7 +89,7 @@ class Asimov(object):
             print('Debug {}: {}'.format(Gst.DebugLevel.get_name(level), message.get()))
 
     def start(self):
-        io.echo(f"start() called", level="debug")
+        io.echo("start() called", level="debug")
         ret = self.pipeline.set_state(Gst.State.PLAYING)
         io.echo(f"{ret=}", level="debug")
         if ret == Gst.StateChangeReturn.SUCCESS:

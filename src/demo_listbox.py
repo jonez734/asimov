@@ -4,7 +4,6 @@ import argparse
 
 from asimov.io import echo
 from asimov.listbox import ListboxItem, Listbox
-from asimov import listbox
 
 def generate_random_items(n=20):
     base = ["Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel",

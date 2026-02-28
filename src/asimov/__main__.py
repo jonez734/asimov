@@ -1,5 +1,4 @@
 import argparse
-import time, locale
 
 from bbsengine6 import io
 

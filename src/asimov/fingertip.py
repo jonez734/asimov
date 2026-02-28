@@ -6,10 +6,8 @@
 from . import conf
 
 import cv2
-import cvzone
 import mediapipe as mp
 from cvzone.HandTrackingModule import HandDetector
-from .common import logentry
 
 # Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands

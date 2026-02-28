@@ -1,6 +1,5 @@
 # my_project/processes/render.py
 
-import cv2
 import numpy as np
 import OpenGL.GL as gl
 import glfw 

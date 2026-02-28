@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, List, Optional
 from .io import echo, getch, terminal
-from .io.echo import _cursor_col
-from .io.const import ESC
 
 def fill(text: str, truncate_len: int, pad_len: int, char: str = ' ') -> str:
     return text[:truncate_len].ljust(pad_len, char)

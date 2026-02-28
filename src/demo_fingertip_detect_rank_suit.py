@@ -391,7 +391,7 @@ def check_collision_and_draw(frame, finger_tip_pos, current_time):
             if i == 0:
                 warped_card_image = current_warped
                 
-        except Exception as e:
+        except Exception:
             # Handle cases where perspective warp fails (e.g., points too distorted)
             tracked_rect['card_name'] = f"ID #{tracked_rect['card_id']} (Warp Error)"
             pass

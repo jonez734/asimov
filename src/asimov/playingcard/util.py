@@ -3,7 +3,6 @@
 Playing card-specific utilities.
 """
 
-from ..common import get_safe_path, logentry
 
 
 def compute_geometry(frame_w, frame_h, png_w, png_h, border_ratio=0.25):

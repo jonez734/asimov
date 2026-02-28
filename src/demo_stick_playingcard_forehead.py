@@ -1,7 +1,6 @@
 import cv2
 import argparse
 import time
-import random
 import numpy as np
 # NOTE: Switched from HandDetector to FaceMeshDetector to find the forehead
 from cvzone.FaceMeshModule import FaceMeshDetector 

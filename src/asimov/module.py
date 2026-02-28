@@ -2,7 +2,7 @@ import sys
 import argparse
 import importlib
 import inspect
-from typing import get_type_hints, Callable, Union, Any, Optional
+from typing import Callable, Union, Any
 from types import ModuleType
 from dataclasses import dataclass
 

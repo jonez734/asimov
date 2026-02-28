@@ -7,13 +7,10 @@ warnings.warn(
     stacklevel=2
 )
 
-import time
-import threading
 from multiprocessing import Event, Process
 
-import cv2
 
-from . import lib as libasimov, conf, net
+from . import lib as libasimov, net
 
 from bbsengine6 import io
 

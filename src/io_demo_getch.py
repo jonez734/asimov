@@ -1,13 +1,12 @@
 from asimov.io.getch import getch_str as getch
 from asimov.io.echo import echo
-from asimov.io.util import screen_init, setbottombar
 
 def main():
 #    screen_init()
 
 #    setbottombar("foo", "bar")
 
-    echo(f"prompt here: {{decsc}}", end="")
+    echo("prompt here: {decsc}", end="")
     done = False
     while not done:
         ch = getch()

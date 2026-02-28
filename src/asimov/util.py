@@ -1,12 +1,12 @@
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 
-from math import log2, ceil, pi
+from math import log2, ceil
 import struct
 import zlib
 import os
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import time
 
 import numpy as np

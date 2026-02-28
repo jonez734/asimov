@@ -10,8 +10,7 @@ import numpy as np
 
 import mediapipe as mp
 
-from asimov.util import draw_text, get_bottom_right_position, get_device_by_label, configure_capture
-from asimov.net import CAPTURE_WIDTH, CAPTURE_HEIGHT, CAPTURE_FPS, CAPTURE_DEVICE
+from asimov.util import draw_text, get_device_by_label
 from asimov import conf, glitch
 
 # Constants

@@ -1,10 +1,9 @@
 from .echo import echo, rendered_length
 from . import terminal
 #terminal import lines as terminal_lines, columns as terminal_columns
-from .const import MAX_TERMINAL_WIDTH
 from .util import logentry
 
-from typing import Callable, Any, Optional
+from typing import Callable, Any
 
 # ------------------------
 # screen related functions
@@ -16,9 +15,9 @@ def init(args: Any = None, topmargin: int = 1, bottommargin: int = 1) -> None:
   echo("{f6:3}{cursorup:3}", end="", flush=True)
   h = terminal.lines() - bottommargin
   logentry(f"asimov.io.util.screen_init.100: {topmargin=} {h=}", level="debug")
-  echo(f"{{savecursor}}", end="")
+  echo("{savecursor}", end="")
   echo(f"{{decstbm:{topmargin},{h}}}", end="")
-  echo(f"{{restorecursor}}", flush=True, end="")
+  echo("{restorecursor}", flush=True, end="")
 
 #  terminalheight = ttyio.getterminalheight()
 #  ttyio.echo(f"{{decsc}}{{decstbm:{topmargin},{terminalheight-bottommargin}}}{{decrc}}") #  % (topmargin, terminalheight-bottommargin)) #  % (topmargin, terminalheight-bottommargin))

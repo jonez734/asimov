@@ -48,9 +48,9 @@ def main():
 
     trail_canvas = np.zeros((HEIGHT, WIDTH, 4), dtype=np.uint8) 
 
-    print(f"--- Starting Demo ---")
+    print("--- Starting Demo ---")
     print(f"Camera Device Index: {device_index}")
-    print(f"Press 'M' to switch rendering modes. Press 'Q' or 'ESC' to quit.")
+    print("Press 'M' to switch rendering modes. Press 'Q' or 'ESC' to quit.")
     
     # --- 3. Virtual Camera Setup and Main Loop ---
     with pyvirtualcam.Camera(width=WIDTH, height=HEIGHT, fps=30, fmt=pyvirtualcam.PixelFormat.BGR) as cam:

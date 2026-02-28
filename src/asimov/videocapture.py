@@ -3,7 +3,6 @@
 import cv2
 import time
 # from multiprocessing import Event
-import socket # Still needed for socket.error and ConnectionError if caught explicitly
 
 # Import the UDP sender abstraction
 from . import conf, net

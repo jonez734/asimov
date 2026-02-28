@@ -1,12 +1,8 @@
-import os
 import argparse
 
 import cv2
-import numpy as np
 
-import cv2
 
-from asimov.common import get_safe_path
 
 import asimov.playingcard.templates as libtemplates
 
