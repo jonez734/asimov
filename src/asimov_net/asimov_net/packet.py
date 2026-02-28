@@ -140,9 +140,9 @@ class Packet:
 # Frame packet header format:
 # packet_type (B) + timestamp (d) + frame_id (I) + block_id (I) +
 # cols (H) + rows (H) + block_w (H) + block_h (H) + width (H) + height (H) +
-# total_blocks (H) + is_delta (B) + compressed (B) + blocks_in_packet (H)
-# = 1 + 8 + 4 + 4 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2 = 27 bytes
-FRAME_PACKET_HEADER_FORMAT = "!BdIIHHHHHHHBBH"
+# total_blocks (H) + is_delta (B) + compressed (B) + blocks_in_packet (H) + has_block_sizes (B)
+# = 1 + 8 + 4 + 4 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2 + 1 = 28 bytes
+FRAME_PACKET_HEADER_FORMAT = "!BdIIHHHHHHHBBHB"
 FRAME_PACKET_HEADER_SIZE = struct.calcsize(FRAME_PACKET_HEADER_FORMAT)
 
 
@@ -156,6 +156,7 @@ class FramePacket(Packet):
     rows: int = 0
     block_w: int = 0
     block_h: int = 0
+    block_size: int = 0
     width: int = 0
     height: int = 0
     total_blocks: int = 0
@@ -165,6 +166,7 @@ class FramePacket(Packet):
     packet_type: int = field(init=False, default=PACKET_TYPE_FRAME)
     timestamp: float = field(default_factory=time.time)
     blocks_in_packet: int = 1
+    block_sizes: Optional[List[int]] = None
 
     def __post_init__(self):
         self.packet_type = PACKET_TYPE_FRAME
@@ -188,13 +190,20 @@ def encode_frame_header(packet: FramePacket) -> bytes:
         1 if packet.is_delta else 0,
         1 if packet.compressed else 0,
         packet.blocks_in_packet,
+        1 if packet.block_sizes else 0,
     )
 
 
 def encode_frame_packet(packet: FramePacket) -> bytes:
     """Encode frame packet with header and body."""
     header = encode_frame_header(packet)
-    body = b"".join(packet.blocks)
+
+    if packet.block_sizes:
+        sizes_data = b"".join(struct.pack("!H", s) for s in packet.block_sizes)
+        body = sizes_data + b"".join(packet.blocks)
+    else:
+        body = b"".join(packet.blocks)
+
     return header + body
 
 
@@ -217,19 +226,37 @@ def decode_frame_packet(data: bytes) -> FramePacket:
         is_delta_flag,
         compressed_flag,
         blocks_in_packet,
+        has_block_sizes,
     ) = struct.unpack(FRAME_PACKET_HEADER_FORMAT, header)
 
+    body = data[header_size:]
     blocks = []
-    offset = header_size
-    block_data_len = (
-        len(data[header_size:]) // blocks_in_packet if blocks_in_packet > 0 else 0
-    )
+    block_sizes = None
 
-    for _ in range(blocks_in_packet):
-        if offset + block_data_len <= len(data):
-            block = data[offset : offset + block_data_len]
-            blocks.append(block)
-            offset += block_data_len
+    if has_block_sizes and blocks_in_packet > 0:
+        block_sizes = []
+        sizes_size = blocks_in_packet * 2
+        if len(body) >= sizes_size:
+            sizes_data = body[:sizes_size]
+            for i in range(blocks_in_packet):
+                size = struct.unpack("!H", sizes_data[i * 2 : (i + 1) * 2])[0]
+                block_sizes.append(size)
+
+            body = body[sizes_size:]
+            offset = 0
+            for size in block_sizes:
+                if offset + size <= len(body):
+                    block = body[offset : offset + size]
+                    blocks.append(block)
+                    offset += size
+    else:
+        block_data_len = len(body) // blocks_in_packet if blocks_in_packet > 0 else 0
+        offset = 0
+        for _ in range(blocks_in_packet):
+            if offset + block_data_len <= len(body):
+                block = body[offset : offset + block_data_len]
+                blocks.append(block)
+                offset += block_data_len
 
     return FramePacket(
         frame_id=frame_id,
@@ -246,4 +273,5 @@ def decode_frame_packet(data: bytes) -> FramePacket:
         blocks=blocks,
         timestamp=timestamp,
         blocks_in_packet=blocks_in_packet,
+        block_sizes=block_sizes,
     )

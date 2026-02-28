@@ -346,20 +346,30 @@ def get_changed_blocks(
         return []  # No changes
 
     h, w, _ = frame.shape
-    block_size = find_best_power_of_two_block_size(h, w)
+    max_block_size = 64
+    block_size = min(max_block_size, math.gcd(w, h))
+    if block_size < 8:
+        block_size = 8
 
-    cols = w // block_size
-    rows = h // block_size
+    cols = (w + block_size - 1) // block_size
+    rows = (h + block_size - 1) // block_size
+
+    block_w = w // cols
+    block_h = h // rows
 
     changed_blocks = []
 
     for block_id in range(rows * cols):
         row = block_id // cols
         col = block_id % cols
-        y, x = row * block_size, col * block_size
+        y = row * block_h
+        x = col * block_w
 
-        block = frame[y:y+block_size, x:x+block_size]
-        prev_block = previous_frame[y:y+block_size, x:x+block_size]
+        y1 = min(y + block_h, h)
+        x1 = min(x + block_w, w)
+
+        block = frame[y:y1, x:x1]
+        prev_block = previous_frame[y:y1, x:x1]
 
         if not np.array_equal(block, prev_block):
             data = block.tobytes()

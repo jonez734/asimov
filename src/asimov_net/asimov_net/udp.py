@@ -1,6 +1,7 @@
 # asimov/net/udp.py
 # UDP sender/receiver classes with frame transmission support
 
+import logging
 import socket
 import struct
 import time
@@ -296,6 +297,23 @@ class UDPReceiver:
         is_delta = packet.is_delta
         compressed = packet.compressed
 
+        if frame_id in self.frame_meta:
+            old_meta = self.frame_meta[frame_id]
+            if (
+                old_meta["width"] != width
+                or old_meta["height"] != height
+                or old_meta["total_blocks"] != total_blocks
+            ):
+                logging.warning(
+                    f"Frame {frame_id} dimensions changed (was {old_meta['width']}x{old_meta['height']} "
+                    f"blocks={old_meta['total_blocks']}, now {width}x{height} blocks={total_blocks}), "
+                    "discarding old frame data"
+                )
+                if frame_id in self.frames:
+                    del self.frames[frame_id]
+                self.prev_frame = None
+                is_delta = False
+
         self.frame_meta[frame_id] = {
             "cols": cols,
             "rows": rows,
@@ -334,11 +352,11 @@ class UDPReceiver:
 
         meta = self.frame_meta[frame_id]
         cols = meta["cols"]
-        rows = meta["rows"]
         block_w = meta["block_w"]
         block_h = meta["block_h"]
         width = meta["width"]
         height = meta["height"]
+        total_blocks = meta["total_blocks"]
         is_delta = meta["is_delta"]
 
         blocks = self.frames[frame_id]
@@ -355,6 +373,12 @@ class UDPReceiver:
             apply_to_prev = False
 
         for block_id, block_data in blocks.items():
+            if block_id >= total_blocks:
+                logging.warning(
+                    f"Skipping block {block_id}: exceeds total_blocks {total_blocks}"
+                )
+                continue
+
             row = block_id // cols
             col = block_id % cols
             x = col * block_w
@@ -363,21 +387,42 @@ class UDPReceiver:
             actual_block_w = min(block_w, width - x)
             actual_block_h = min(block_h, height - y)
 
+            if actual_block_h <= 0 or actual_block_w <= 0:
+                logging.warning(
+                    f"Skipping block {block_id}: invalid dimensions {actual_block_w}x{actual_block_h}"
+                )
+                continue
+
             try:
                 block_img = np.frombuffer(block_data, dtype=np.uint8).reshape(
                     (actual_block_h, actual_block_w, 3)
                 )
-            except ValueError:
+            except ValueError as e:
+                logging.warning(f"Skipping block {block_id}: reshape failed: {e}")
                 continue
 
             h, w = block_img.shape[:2]
+
+            if y + h > height or x + w > width:
+                logging.warning(
+                    f"Skipping block {block_id}: would exceed bounds "
+                    f"(y={y}+h={h} > height={height} or x={x}+w={w} > width={width})"
+                )
+                continue
+
             full_frame[y : y + h, x : x + w] = block_img
 
         del self.frames[frame_id]
         self.frame_meta.pop(frame_id, None)
 
-        if apply_to_prev:
+        if apply_to_prev and self.prev_frame is not None:
             for block_id, block_data in blocks.items():
+                if block_id >= total_blocks:
+                    logging.warning(
+                        f"Skipping block {block_id} in prev_frame: exceeds total_blocks {total_blocks}"
+                    )
+                    continue
+
                 row = block_id // cols
                 col = block_id % cols
                 x = col * block_w
@@ -386,14 +431,30 @@ class UDPReceiver:
                 actual_block_w = min(block_w, width - x)
                 actual_block_h = min(block_h, height - y)
 
+                if actual_block_h <= 0 or actual_block_w <= 0:
+                    logging.warning(
+                        f"Skipping block {block_id} in prev_frame: invalid dimensions"
+                    )
+                    continue
+
                 try:
                     block_img = np.frombuffer(block_data, dtype=np.uint8).reshape(
                         (actual_block_h, actual_block_w, 3)
                     )
-                except ValueError:
+                except ValueError as e:
+                    logging.warning(
+                        f"Skipping block {block_id} in prev_frame: reshape failed: {e}"
+                    )
                     continue
 
                 h, w = block_img.shape[:2]
+
+                if y + h > height or x + w > width:
+                    logging.warning(
+                        f"Skipping block {block_id} in prev_frame: would exceed bounds"
+                    )
+                    continue
+
                 self.prev_frame[y : y + h, x : x + w] = block_img
         else:
             self.prev_frame = full_frame.copy()

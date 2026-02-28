@@ -55,6 +55,7 @@ def main():
                 io.echo("Unable to read frame.")
                 break
 
+            io.echo(f"sending frame: {frame_id}")
             sender.send_frame(
                 frame,
                 frame_id,

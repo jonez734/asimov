@@ -2,6 +2,7 @@
 
 import argparse
 import cv2
+import numpy as np
 
 from asimov import io
 from asimov.net import UDPReceiver, TCPReceiver
@@ -31,6 +32,7 @@ def main():
 
     io.echo(f"Listening on {args.host}:{args.port} via {args.protocol.upper()}...")
 
+    first_packet_received = False
     try:
         while True:
             result = receiver.receive()
@@ -38,12 +40,18 @@ def main():
             if result is None:
                 continue
 
-            if hasattr(result, "frame_id"):
-                packet = result
-            else:
+            if not first_packet_received:
+                io.echo("Received first packet!")
+                first_packet_received = True
+
+            if result is None or not isinstance(result, np.ndarray):
                 continue
 
-            io.echo(f"Received frame {packet.frame_id}")
+            io.echo(f"Received frame ({result.shape})")
+
+            cv2.imshow("Received Frame", result)
+            if cv2.waitKey(1) == 27:
+                break
 
     finally:
         receiver.close()
