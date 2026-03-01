@@ -2,7 +2,7 @@
 # Re-export from asimov_net for backward compatibility
 # Allows both `import asimov_net` and `import asimov.net`
 
-from asimov_net import (
+from net.asimov_net import (
     CHUNK_SIZE,
     DEFAULT_PORT,
     COMPRESSION_ENABLED,

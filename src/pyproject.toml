@@ -22,6 +22,8 @@ dependencies = [
     "asimov-base",
     "asimov-net",
     "asimov-modules",
+    "asimov-io",
+    "asimov-playingcard",
     "cvzone>=1.5.6",
     "mediapipe>=0.8.9",
     "numpy>=1.21.0",
@@ -41,4 +43,4 @@ Homepage = "https://zoidtechnologies.com/asimov/"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["asimov*", "asimov_base*", "asimov_modules*", "asimov_net*"]
+include = ["asimov*", "base*", "modules*", "asimov_net*", "asimov_io*", "asimov_playingcard*"]
