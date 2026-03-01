@@ -1,0 +1,10 @@
+[project]
+name = "asimov-demo"
+version = "0.1.0"
+dependencies = ["asimov"]
+
+[tool.setuptools]
+py-modules = []
+
+[tool.setuptools.package-dir]
+asimov-demo = "."

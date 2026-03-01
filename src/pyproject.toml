@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "asimov"
 version = "0.1.0"
 description = "Asimov computer vision and terminal I/O library"
-requires-python = ">=3.9,<=3.12"
+requires-python = ">=3.9,<3.13"
 license = "GPL-2.0-or-later"
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -19,11 +19,6 @@ classifiers = [
 ]
 
 dependencies = [
-    "asimov-base",
-    "asimov-net",
-    "asimov-modules",
-    "asimov-io",
-    "asimov-playingcard",
     "cvzone>=1.5.6",
     "mediapipe>=0.8.9",
     "numpy>=1.21.0",
@@ -36,11 +31,15 @@ dev = [
     "build",
     "twine",
     "ruff",
+    "asimov-demo",
 ]
 
 [project.urls]
 Homepage = "https://zoidtechnologies.com/asimov/"
 
+[project.scripts]
+asimov = "asimov.__main__:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["asimov*", "base*", "modules*", "asimov_net*", "asimov_io*", "asimov_playingcard*"]
+include = ["asimov", "asimov.base", "asimov.io", "asimov.net", "asimov.modules", "asimov.playingcard"]

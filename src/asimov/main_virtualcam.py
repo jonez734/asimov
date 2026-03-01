@@ -11,15 +11,15 @@ import pyvirtualcam
 ##import mediapipe as mp
 
 from .util import draw_text, get_device_by_label
-from . import conf, glitch, indexfingertip, eyes_next as eyes
+from .base import conf, glitch, indexfingertip, eyes_next as eyes
 from .common import camera_ready
 
 # Constants
-#MARGIN = 20  # pixels
-#TITLE = "Project Asimov v202509.0"
-#CAP_HEIGHT = 480
-#CAP_WIDTH = 640
-#CAP_FPS = 30
+# MARGIN = 20  # pixels
+# TITLE = "Project Asimov v202509.0"
+# CAP_HEIGHT = 480
+# CAP_WIDTH = 640
+# CAP_FPS = 30
 
 ## moved to .conf
 ##FINGERTIP_COLOR = (0, 255, 255) # yellow BGR
@@ -37,22 +37,60 @@ from .common import camera_ready
 # 6. draw rectangles
 # 7. draw eyebars
 
+
 def apply_title(frame, context):
-    return draw_text(frame, 10, 15, conf.TITLE, color=conf.WATERMARK_COLOR, font_scale=0.50, alpha=0.75, shadow_alpha=0.75, shadow_offset=2)
+    return draw_text(
+        frame,
+        10,
+        15,
+        conf.TITLE,
+        color=conf.WATERMARK_COLOR,
+        font_scale=0.50,
+        alpha=0.75,
+        shadow_alpha=0.75,
+        shadow_offset=2,
+    )
+
 
 def apply_glitches(frame, context):
     glitch.scheduler()
     return glitch.apply(frame)
 
+
 OVERLAYS = [
-            { "key": "f", "enabled":True, "running":True,  "label": "fingertip",  "func": lambda frame, context: indexfingertip.draw(frame, context)},
-#            { "key": "r", "enabled":True, "running":True,  "label": "rects",      "func": lambda frame, context: rect.draw(frame, context)},
-#            { "key": "p", "enabled":True, "running":True,  "label": "playingcards",      "func": lambda frame, context: playingcard.draw(frame, context)},
-            { "key": "e", "enabled":True, "running":True,  "label": "eyes",       "func": eyes.draw}, #lambda frame, context: eyes.draw(frame, context)},
-#            { "key": "w", "enabled":True, "running":True,  "label": "watermark", "func": lambda frame, context: watermark.draw(frame, context)},
-            { "key": "t", "enabled":True, "running":False, "label": "title",      "func": lambda frame, context: apply_title(frame, context)},
-            { "key": "g", "enabled":True, "running":False, "label": "glitches",   "func": lambda frame, context: apply_glitches(frame, context)},
-        ]
+    {
+        "key": "f",
+        "enabled": True,
+        "running": True,
+        "label": "fingertip",
+        "func": lambda frame, context: indexfingertip.draw(frame, context),
+    },
+    #            { "key": "r", "enabled":True, "running":True,  "label": "rects",      "func": lambda frame, context: rect.draw(frame, context)},
+    #            { "key": "p", "enabled":True, "running":True,  "label": "playingcards",      "func": lambda frame, context: playingcard.draw(frame, context)},
+    {
+        "key": "e",
+        "enabled": True,
+        "running": True,
+        "label": "eyes",
+        "func": eyes.draw,
+    },  # lambda frame, context: eyes.draw(frame, context)},
+    #            { "key": "w", "enabled":True, "running":True,  "label": "watermark", "func": lambda frame, context: watermark.draw(frame, context)},
+    {
+        "key": "t",
+        "enabled": True,
+        "running": False,
+        "label": "title",
+        "func": lambda frame, context: apply_title(frame, context),
+    },
+    {
+        "key": "g",
+        "enabled": True,
+        "running": False,
+        "label": "glitches",
+        "func": lambda frame, context: apply_glitches(frame, context),
+    },
+]
+
 
 def apply_overlays(frame, context):
     global OVERLAYS
@@ -66,6 +104,7 @@ def apply_overlays(frame, context):
         if callable(f):
             frame = f(frame, context)
     return frame
+
 
 def main(args, **kwargs):
     global OVERLAYS
@@ -85,7 +124,6 @@ def main(args, **kwargs):
         if not cap.isOpened():
             raise RuntimeError("Could not open webcam. check group membership.")
 
-
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, conf.CAP_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, conf.CAP_HEIGHT)
         if cap.set(cv2.CAP_PROP_FPS, conf.CAP_FPS) is False:
@@ -102,15 +140,23 @@ def main(args, **kwargs):
 
         # get virtual camera device by label
         device = get_device_by_label(conf.VIRTCAM_LABEL)
-        
+
         context = {}
-##        io.echo(f"{{labelcolor}}virtualcam label {{valuecolor}}{conf.CAM_LABEL} {{labelcolor}}, device {{valuecolor}}{device}{{/all}}")
-##        playingcard.init(args.basedir, args.set_name, context)
+        ##        io.echo(f"{{labelcolor}}virtualcam label {{valuecolor}}{conf.CAM_LABEL} {{labelcolor}}, device {{valuecolor}}{device}{{/all}}")
+        ##        playingcard.init(args.basedir, args.set_name, context)
         # Start the virtual camera
         device = get_device_by_label(conf.VIRTCAM_LABEL)
         io.echo(f"----> virtual camera device: {device}")
-        with pyvirtualcam.Camera(width=actual_width, height=actual_height, fps=actual_fps, print_fps=True, device=device) as cam:
-            io.echo(f"{{labelcolor}}Capture: {{valuecolor}}{conf.CAP_DEVICE}, virtcam: ({cam.device}) {actual_width}{{labelcolor}}x{{valuecolor}}{actual_height} {{labelcolor}}@ {{valuecolor}}{actual_fps} {{labelcolor}}fps{{/all}}")
+        with pyvirtualcam.Camera(
+            width=actual_width,
+            height=actual_height,
+            fps=actual_fps,
+            print_fps=True,
+            device=device,
+        ) as cam:
+            io.echo(
+                f"{{labelcolor}}Capture: {{valuecolor}}{conf.CAP_DEVICE}, virtcam: ({cam.device}) {actual_width}{{labelcolor}}x{{valuecolor}}{actual_height} {{labelcolor}}@ {{valuecolor}}{actual_fps} {{labelcolor}}fps{{/all}}"
+            )
             while True:
                 ret, frame = cap.read()
                 if frame is None:
@@ -122,11 +168,11 @@ def main(args, **kwargs):
                     break
 
                 frame = cv2.flip(frame, 1)
-##                logentry(f"main_virtualcam.100: {context=}")
-##                playingcard.detect(frame, context)
-##                rect.detect(frame, context)
+                ##                logentry(f"main_virtualcam.100: {context=}")
+                ##                playingcard.detect(frame, context)
+                ##                rect.detect(frame, context)
                 indexfingertip.detect(frame, context)
-##                touch.detect(frame, context)
+                ##                touch.detect(frame, context)
                 eyes.detect(frame, context)
 
                 frame = apply_overlays(frame, context)
@@ -154,20 +200,23 @@ def main(args, **kwargs):
     finally:
         cap.release()
 
-def buildargs(args=None, **kw:dict):
+
+def buildargs(args=None, **kw: dict):
     parser = argparse.ArgumentParser("asimov")
     parser.add_argument("--verbose", action="store_true", dest="verbose")
     parser.add_argument("--debug", action="store_true", dest="debug")
     parser.add_argument("--basedir", default="$HOME/projects/playingcarddata")
     parser.add_argument("--set-name", default="bicycle")
 
-#    defaults = {"databasename": "zoid6", "databasehost":"localhost", "databaseuser": None, "databaseport":5432, "databasepassword":None}
-#    database.buildargs(parser, defaults, suppress=True)
+    #    defaults = {"databasename": "zoid6", "databasehost":"localhost", "databaseuser": None, "databaseport":5432, "databasepassword":None}
+    #    database.buildargs(parser, defaults, suppress=True)
 
     return parser
 
+
 def init(args, **kwargs):
     return True
+
 
 def access(args, op, **kwargs):
     return True

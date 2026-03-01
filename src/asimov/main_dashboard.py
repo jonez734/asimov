@@ -13,9 +13,10 @@ import json
 from PIL import Image, ImageTk
 from cvzone.FPS import FPS as CVZoneFPS
 
-from . import io, conf, scene, cap
+from .. import io
+from asimov import conf, scene, cap
 from .common import ThreadSafeContext
-from .playingcard import cards
+from asimov.playingcard import cards
 
 context = ThreadSafeContext()
 logic_lock = threading.Lock()

@@ -6,7 +6,7 @@ from typing import Callable, Union, Any
 from types import ModuleType
 from dataclasses import dataclass
 
-from .. import io
+from asimov import io
 
 
 @dataclass

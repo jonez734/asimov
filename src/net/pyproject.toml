@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "asimov-net"
 version = "0.1.0"
 description = "Asimov networking library (TCP/UDP frame transmission)"
-requires-python = ">=3.9,<=3.12"
+requires-python = ">=3.9,<3.13"
 license = "GPL-2.0-or-later"
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -18,7 +18,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["asimov_net*"]
-exclude = ["asimov_net.tests*"]
+[tool.setuptools]
+packages = ["asimov_net"]
+
+[tool.setuptools.package-dir]
+asimov_net = "."

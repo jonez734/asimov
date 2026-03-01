@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "asimov-io"
 version = "0.1.0"
 description = "Asimov terminal I/O library"
-requires-python = ">=3.9,<=3.12"
+requires-python = ">=3.9,<3.13"
 license = "GPL-2.0-or-later"
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -18,6 +18,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["asimov_io*"]
+[tool.setuptools]
+packages = ["asimov_io"]
+
+[tool.setuptools.package-dir]
+asimov_io = "."

@@ -7,7 +7,8 @@ import threading
 import time
 import numpy as np
 import pyvirtualcam
-from . import io, conf, module, common
+from . import io
+from .base import conf, module, common
 from .common import ThreadSafeContext
 
 # Initialize shared context and global lock
@@ -16,18 +17,23 @@ logic_lock = threading.Lock()
 
 # --- 1. Signature Callables for Validation ---
 
+
 def _stub_ui_schema(context: ThreadSafeContext, /, **kwargs) -> dict:
     pass
+
 
 def _stub_detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
     """Template for detect() signature validation."""
     pass
 
+
 def _stub_draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     """Template for draw() signature validation."""
     pass
 
+
 # --- 2. Thread Logic ---
+
 
 def _consumer(modules: list, args: argparse.Namespace):
     """
@@ -63,7 +69,9 @@ def _consumer(modules: list, args: argparse.Namespace):
     except Exception:
         io.echo_traceback("CRITICAL: Consumer thread collapsed")
 
+
 # --- 3. Helper Functions ---
+
 
 def get_active_modules(args):
     active = []
@@ -86,14 +94,17 @@ def get_active_modules(args):
             io.echo_traceback(f"Module rejected: {name}")
             continue
 
-        active.append({
-            "name": name,
-            "module_path": mod_path,
-            "module_ref": mod,
-            "config": cfg,
-        })
+        active.append(
+            {
+                "name": name,
+                "module_path": mod_path,
+                "module_ref": mod,
+                "config": cfg,
+            }
+        )
 
     return active
+
 
 def handle_hotkeys(key, modules):
     """Toggles module state based on hotkeys in conf.py."""
@@ -102,13 +113,26 @@ def handle_hotkeys(key, modules):
         if item.get("config", {}).get("hotkey") == char:
             item["config"]["enabled"] = not item["config"]["enabled"]
             # Using new echo levels from echo.py
-            io.echo(f"TOGGLE: {item['name']} is now {item['config']['enabled']}", level="info")
+            io.echo(
+                f"TOGGLE: {item['name']} is now {item['config']['enabled']}",
+                level="info",
+            )
+
 
 # --- 4. Module Lifecycle ---
 
-def init(args, **kwargs): return True
-def access(args, op="run", **kwargs): return op == "run"
-def buildargs(args=None, **kwargs): return None 
+
+def init(args, **kwargs):
+    return True
+
+
+def access(args, op="run", **kwargs):
+    return op == "run"
+
+
+def buildargs(args=None, **kwargs):
+    return None
+
 
 def main(args, **kwargs):
     """
@@ -121,7 +145,9 @@ def main(args, **kwargs):
     # 1. Resolve and validate active modules (ONCE)
     # -------------------------------------------------
     modules = get_active_modules(args)
-    io.echo(f"asimov.main_generic.main.100: loaded {len(modules)} modules", level="debug")
+    io.echo(
+        f"asimov.main_generic.main.100: loaded {len(modules)} modules", level="debug"
+    )
 
     # Run lifecycle once and cache capabilities
     for item in modules:
@@ -133,7 +159,9 @@ def main(args, **kwargs):
         try:
             # Full lifecycle once
             if module.run(args, mod, context=context, argv=sys.argv) is False:
-                io.echo(f"Module '{item['name']}' rejected during lifecycle", level="error")
+                io.echo(
+                    f"Module '{item['name']}' rejected during lifecycle", level="error"
+                )
                 continue
 
             # Cache detect() validity
@@ -144,9 +172,7 @@ def main(args, **kwargs):
 
             # Cache draw() validity
             if hasattr(mod, "draw"):
-                item["can_draw"] = module.validate_function(
-                    mod, "draw", _stub_draw
-                )
+                item["can_draw"] = module.validate_function(mod, "draw", _stub_draw)
 
             if hasattr(mod, "ui_schema"):
                 item["has_ui_schema"] = module.validate_function(
@@ -174,23 +200,19 @@ def main(args, **kwargs):
     io.echo("cap opened and ready", level="debug")
 
     # Prime first frame
-#    while True:
-#        success, frame = cap.read()
-#        if success and frame is not None:
-#            break
+    #    while True:
+    #        success, frame = cap.read()
+    #        if success and frame is not None:
+    #            break
 
-    actual_width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    actual_fps    = int(cap.get(cv2.CAP_PROP_FPS)) or 1
+    actual_fps = int(cap.get(cv2.CAP_PROP_FPS)) or 1
 
     # -------------------------------------------------
     # 3. Start logic thread (detect only, no validation)
     # -------------------------------------------------
-    t = threading.Thread(
-        target=_consumer,
-        args=(modules, args),
-        daemon=True
-    )
+    t = threading.Thread(target=_consumer, args=(modules, args), daemon=True)
     t.start()
 
     # -------------------------------------------------
@@ -198,14 +220,11 @@ def main(args, **kwargs):
     # -------------------------------------------------
     try:
         with pyvirtualcam.Camera(
-            width=actual_width,
-            height=actual_height,
-            fps=actual_fps
+            width=actual_width, height=actual_height, fps=actual_fps
         ) as vcam:
-
             io.echo(
                 f"Virtual Camera Active: {actual_width}x{actual_height} @ {actual_fps}fps",
-                level="ok"
+                level="ok",
             )
 
             while True:
@@ -240,19 +259,14 @@ def main(args, **kwargs):
                         if isinstance(result, np.ndarray):
                             frame = result
                     except Exception:
-                        io.echo_traceback(
-                            f"draw() failure in module '{item['name']}'"
-                        )
+                        io.echo_traceback(f"draw() failure in module '{item['name']}'")
 
                 frame = cv2.flip(frame, 1)
 
                 # Output
                 vcam.send(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 vcam.sleep_until_next_frame()
-                cv2.imshow(
-                    getattr(conf, "WINDOW_NAME", "Asimov Preview"),
-                    frame
-                )
+                cv2.imshow(getattr(conf, "WINDOW_NAME", "Asimov Preview"), frame)
 
     except Exception:
         io.echo_traceback("Main lifecycle crash")

@@ -114,7 +114,8 @@ class UDPSender:
             )
 
         if is_delta:
-            from asimov.util import get_changed_blocks
+            from ...base import util
+            get_changed_blocks = util.get_changed_blocks
 
             changed = get_changed_blocks(frame, prev_frame, frame_id, compress)
             block_ids = [b.id for b in changed]

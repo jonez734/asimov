@@ -5,7 +5,7 @@ import threading
 
 import cv2
 
-from bbsengine6 import io
+from asimov import io
 
 
 # from cvzone.FPS import FPS as cvzoneFPS
@@ -353,6 +353,6 @@ def runmodule(args, modulepath, **kwargs):
     return module.run(args, f"asimov.{modulepath}", **kwargs)
 
 def loadmodule(args, modulepath, **kwargs):
-    from bbsengine6 import module
+    from base import module
     return module.load(args, f"asimov.{modulepath}", **kwargs)
 

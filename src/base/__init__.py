@@ -10,6 +10,8 @@ from .conf import (
     CAPTURE_FPS,
 )
 
+from . import lib
+
 __all__ = [
     "LOGGER_NAME",
     "WINDOW_NAME",
@@ -17,4 +19,5 @@ __all__ = [
     "CAPTURE_WIDTH",
     "CAPTURE_HEIGHT",
     "CAPTURE_FPS",
+    "lib",
 ]

@@ -1,9 +1,9 @@
 import argparse
+from asimov import io
+from asimov import base
 
-from bbsengine6 import io
-
-from . import lib as libasimov
-from . import conf
+libasimov = base.lib
+conf = base.conf
 
 def buildargs(args=None, **kwargs:dict):
     parser = argparse.ArgumentParser("asimov")
@@ -17,12 +17,9 @@ def buildargs(args=None, **kwargs:dict):
     parser.add_argument("--capture-height", type=int, default=conf.CAPTURE_HEIGHT)
     parser.add_argument("--capture-fps", type=int, default=conf.CAPTURE_FPS)
 
-#    defaults = {"databasename": "zoid6", "databasehost":"localhost", "databaseuser": None, "databaseport":5432, "databasepassword":None}
-#    database.buildargs(parser, defaults)
-
     return parser
 
-if __name__ == "__main__":
+def main():
     parser = buildargs()
     args = parser.parse_args()
 
@@ -34,3 +31,6 @@ if __name__ == "__main__":
         io.echo("{/all}*EOF*")
     finally:
         io.echo(f"{{decsc}}{{curpos:{io.terminal.height()},0}}{{el}}{{reset}}{{decrc}}")
+
+if __name__ == "__main__":
+    main()

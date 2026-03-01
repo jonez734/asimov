@@ -4,15 +4,17 @@ import cv2
 import threading
 import time
 import importlib
-from . import io, conf
+from . import io
+from .base import conf
 from .common import ThreadSafeContext
+
 
 def get_active_modules():
     """Dynamically loads modules defined in the OVERLAYS table."""
     active = []
     # Sort by 'order' so pixel-mashing (glitch) happens before UI drawing
     items = sorted(conf.OVERLAYS.items(), key=lambda x: x[1].get("order", 99))
-    
+
     for name, cfg in items:
         try:
             mod = importlib.import_module(cfg["module"])
@@ -21,13 +23,15 @@ def get_active_modules():
             io.echo(f"Failed to load {name}: {e}", level="error")
     return active
 
+
 def processing_thread(context: ThreadSafeContext, modules):
     """The unified background worker for all detections."""
     cap = cv2.VideoCapture(0)
-    
+
     while True:
         success, frame = cap.read()
-        if not success: break
+        if not success:
+            break
 
         with context:
             for item in modules:
@@ -36,14 +40,15 @@ def processing_thread(context: ThreadSafeContext, modules):
                     mod = item["module"]
                     if hasattr(mod, "detect"):
                         mod.detect(frame, context)
-        
+
         time.sleep(0.01)
     cap.release()
+
 
 def main():
     context = ThreadSafeContext()
     modules = get_active_modules()
-    
+
     io.echo(f"Engine started with: {[m['name'] for m in modules]}")
 
     # Start detection worker
@@ -54,14 +59,16 @@ def main():
     cap = cv2.VideoCapture(0)
     while True:
         success, frame = cap.read()
-        if not success: break
+        if not success:
+            break
 
         # 1. Input Handling (Generic Hotkey Logic)
         key_pressed = cv2.waitKey(1) & 0xFF
         if key_pressed != 255:
             char = chr(key_pressed).lower()
-            if char == 'q': break
-            
+            if char == "q":
+                break
+
             # Match character to hotkeys in the table
             for item in modules:
                 if item["config"].get("hotkey") == char:

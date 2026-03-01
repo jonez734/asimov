@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "asimov-modules"
 version = "0.1.0"
 description = "Asimov computer vision modules (hand, face, rect, glitch, etc.)"
-requires-python = ">=3.9,<=3.12"
+requires-python = ">=3.9,<3.13"
 license = "GPL-2.0-or-later"
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -25,6 +25,8 @@ dependencies = [
     "opencv-python>=4.5.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["modules*"]
+[tool.setuptools]
+packages = ["modules"]
+
+[tool.setuptools.package-dir]
+modules = "."

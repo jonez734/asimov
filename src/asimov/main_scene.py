@@ -7,7 +7,8 @@ import cv2
 import numpy as np
 import pyvirtualcam
 
-from . import io, module, common, scene
+from . import io
+from . import module, common
 from .common import ThreadSafeContext
 
 # ------------------------------------------------------------
@@ -22,8 +23,10 @@ stop_event = threading.Event()
 # Signature stubs (validation)
 # ------------------------------------------------------------
 
+
 def _stub_detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
     pass
+
 
 def _stub_draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     pass
@@ -32,6 +35,7 @@ def _stub_draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.nd
 # ------------------------------------------------------------
 # Logic thread (detect only)
 # ------------------------------------------------------------
+
 
 def _logic_thread(modules):
     try:
@@ -46,9 +50,7 @@ def _logic_thread(modules):
                     try:
                         m["ref"].detect(frame, context)
                     except Exception:
-                        io.echo_traceback(
-                            f"detect() crash in module '{m['name']}'"
-                        )
+                        io.echo_traceback(f"detect() crash in module '{m['name']}'")
 
             time.sleep(0.01)
 
@@ -59,6 +61,7 @@ def _logic_thread(modules):
 # ------------------------------------------------------------
 # Scene resolution
 # ------------------------------------------------------------
+
 
 def _resolve_scene_modules(args, scn):
     resolved = []
@@ -72,25 +75,24 @@ def _resolve_scene_modules(args, scn):
 
         # lifecycle (ONCE)
         if module.run(args, mod, context=context, argv=sys.argv) is False:
-            io.echo(
-                f"Module '{entry['name']}' rejected during init",
-                level="error"
-            )
+            io.echo(f"Module '{entry['name']}' rejected during init", level="error")
             continue
 
-        resolved.append({
-            "name": entry["name"],
-            "ref": mod,
-            "enabled": entry.get("enabled", True),
-            "hotkey": entry.get("hotkey"),
-            "can_detect": module.validate_function(
-                mod, "detect", _stub_detect, silent=True
-            ),
-            "can_draw": module.validate_function(
-                mod, "draw", _stub_draw, silent=True
-            ),
-            "conf": entry.get("conf", {}),
-        })
+        resolved.append(
+            {
+                "name": entry["name"],
+                "ref": mod,
+                "enabled": entry.get("enabled", True),
+                "hotkey": entry.get("hotkey"),
+                "can_detect": module.validate_function(
+                    mod, "detect", _stub_detect, silent=True
+                ),
+                "can_draw": module.validate_function(
+                    mod, "draw", _stub_draw, silent=True
+                ),
+                "conf": entry.get("conf", {}),
+            }
+        )
 
     return resolved
 
@@ -99,26 +101,27 @@ def _resolve_scene_modules(args, scn):
 # Input helpers
 # ------------------------------------------------------------
 
+
 def _handle_hotkey(key, modules):
     ch = chr(key).lower()
     for m in modules:
         if m["hotkey"] == ch:
             m["enabled"] = not m["enabled"]
-            io.echo(
-                f"TOGGLE: {m['name']} → {m['enabled']}",
-                level="info"
-            )
+            io.echo(f"TOGGLE: {m['name']} → {m['enabled']}", level="info")
 
 
 # ------------------------------------------------------------
 # Module API (required)
 # ------------------------------------------------------------
 
+
 def init(args, **kwargs):
     return True
 
+
 def access(args, op, /, **kwargs):
     return op == "run"
+
 
 def buildargs(args=None, **kwargs):
     return None
@@ -127,6 +130,7 @@ def buildargs(args=None, **kwargs):
 # ------------------------------------------------------------
 # Main
 # ------------------------------------------------------------
+
 
 def main(args, **kwargs):
     """
@@ -138,11 +142,7 @@ def main(args, **kwargs):
     # --------------------------------------------------------
 
     scn = scene.load(args)
-    io.echo(
-        f"Loaded scene '{scn['name']}' "
-        f"({len(scn['modules'])} modules)",
-        level="ok"
-    )
+    io.echo(f"Loaded scene '{scn['name']}' ({len(scn['modules'])} modules)", level="ok")
 
     modules = _resolve_scene_modules(args, scn)
 
@@ -159,19 +159,15 @@ def main(args, **kwargs):
         io.echo("Camera failed to initialize", level="error")
         return False
 
-    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps    = int(cap.get(cv2.CAP_PROP_FPS)) or 1
+    fps = int(cap.get(cv2.CAP_PROP_FPS)) or 1
 
     # --------------------------------------------------------
     # Start logic thread
     # --------------------------------------------------------
 
-    t = threading.Thread(
-        target=_logic_thread,
-        args=(modules,),
-        daemon=True
-    )
+    t = threading.Thread(target=_logic_thread, args=(modules,), daemon=True)
     t.start()
 
     # --------------------------------------------------------
@@ -180,10 +176,7 @@ def main(args, **kwargs):
 
     try:
         with pyvirtualcam.Camera(width=width, height=height, fps=fps) as vcam:
-            io.echo(
-                f"VirtualCam {width}x{height} @{fps}",
-                level="ok"
-            )
+            io.echo(f"VirtualCam {width}x{height} @{fps}", level="ok")
 
             while True:
                 ok, raw = cap.read()
@@ -211,9 +204,7 @@ def main(args, **kwargs):
                         if isinstance(out, np.ndarray):
                             frame = out
                     except Exception:
-                        io.echo_traceback(
-                            f"draw() crash in module '{m['name']}'"
-                        )
+                        io.echo_traceback(f"draw() crash in module '{m['name']}'")
 
                 vcam.send(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 vcam.sleep_until_next_frame()
