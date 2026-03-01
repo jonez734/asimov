@@ -6,7 +6,7 @@ import glfw
 import OpenGL.GL as gl
 import OpenGL.GL.shaders as shaders
 
-from asimov.util import create_texture, update_texture
+from asimov.base.render import create_texture, update_texture
 from asimov.anim import rotate_vertex, bounce_animation_update, create_bounce_state
 
 parser = argparse.ArgumentParser(description="OpenGL Video Player with Smooth Twist")

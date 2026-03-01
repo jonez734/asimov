@@ -10,7 +10,7 @@ import OpenGL.GL as gl
 import OpenGL.GLU as glu
 import OpenGL.GLUT as glut  # For text rendering
 
-from asimov.util import create_texture, update_texture
+from asimov.base.render import create_texture, update_texture
 
 # Window dimensions
 width, height = 640, 480

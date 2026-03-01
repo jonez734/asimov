@@ -264,3 +264,52 @@ def main(args, stop_e: Event):
             glfw.destroy_window(window)
         glfw.terminate()
         print("OpenGL render process exiting.")
+
+
+# ------------------------------------------------------------
+# Texture utilities (moved from util.py)
+# ------------------------------------------------------------
+
+
+def render_quad(texture_id: int) -> None:
+    """Render a quad with the given texture."""
+    gl.glEnable(gl.GL_TEXTURE_2D)
+    gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
+    gl.glBegin(gl.GL_QUADS)
+    gl.glTexCoord2f(0, 0)
+    gl.glVertex2f(-1, -1)
+    gl.glTexCoord2f(1, 0)
+    gl.glVertex2f(1, -1)
+    gl.glTexCoord2f(1, 1)
+    gl.glVertex2f(1, 1)
+    gl.glTexCoord2f(0, 1)
+    gl.glVertex2f(-1, 1)
+    gl.glEnd()
+    gl.glDisable(gl.GL_TEXTURE_2D)
+
+
+def create_texture() -> int:
+    """Create an OpenGL texture and return its ID."""
+    texture_id = gl.glGenTextures(1)
+    gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
+    gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+    return texture_id
+
+
+def update_texture(texture_id: int, frame) -> None:
+    """Upload a BGR frame (e.g. from OpenCV) as an OpenGL texture."""
+    import cv2
+
+    if frame is None:
+        return
+
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    h, w, _ = frame_rgb.shape
+
+    gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
+    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, w, h, 0, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, frame_rgb)
+    gl.glBindTexture(gl.GL_TEXTURE_2D, 0)

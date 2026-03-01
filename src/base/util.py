@@ -1,5 +1,45 @@
-from OpenGL.GL import *
-from OpenGL.GLUT import *
+from OpenGL.GL import (
+    glBegin,
+    glBindTexture,
+    glBlendFunc,
+    glColor4f,
+    glDisable,
+    glEnable,
+    glEnd,
+    glGenTextures,
+    glGetFloatv,
+    glIsEnabled,
+    glLoadIdentity,
+    glPopMatrix,
+    glPushMatrix,
+    glRasterPos2f,
+    glTexImage2D,
+    glTexCoord2f,
+    glTexParameteri,
+    glVertex2f,
+)
+
+from OpenGL.GL import (
+    GL_BLEND,
+    GL_CLAMP_TO_EDGE,
+    GL_CURRENT_COLOR,
+    GL_LINEAR,
+    GL_ONE_MINUS_SRC_ALPHA,
+    GL_QUADS,
+    GL_RGB,
+    GL_SRC_ALPHA,
+    GL_TEXTURE_2D,
+    GL_TEXTURE_MAG_FILTER,
+    GL_TEXTURE_MIN_FILTER,
+    GL_TEXTURE_WRAP_S,
+    GL_TEXTURE_WRAP_T,
+    GL_UNSIGNED_BYTE,
+)
+
+from OpenGL.GLUT import (
+    GLUT_BITMAP_8_BY_13,
+    glutBitmapCharacter,
+)
 
 from math import log2, ceil
 import struct
@@ -94,6 +134,23 @@ def add_network_args(parser, hidden=False):
         group = parser.add_argument_group("network", "Network options")
         for name, kwargs in args:
             group.add_argument(name, **kwargs)
+
+
+def _get_shadow_offsets(
+    offsets: Optional[List[Tuple[float, float]]],
+) -> List[Tuple[float, float]]:
+    """Get shadow rendering offsets, returning defaults if None."""
+    if offsets is not None:
+        return offsets
+    return [(0.003, 0.003), (0.003, -0.003), (-0.003, 0.003), (-0.003, -0.003)]
+
+
+def _normalize_color(color: Sequence[float]) -> Tuple[float, float, float, float]:
+    """Normalize color values to 0.0-1.0 range."""
+    if len(color) == 3:
+        r, g, b = color
+        return (r, g, b, 1.0)
+    return color  # Assume already normalized or has alpha
 
 
 def render_text(

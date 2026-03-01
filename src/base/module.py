@@ -187,7 +187,6 @@ def check(
     """
     Validates module interface and functional access.
     """
-    debug = getattr(args, "debug", False) if args else False
     silent = kwargs.get("silent", True)
     op = kwargs.pop("op", "run")
 
@@ -221,7 +220,7 @@ def check(
         if not silent:
             io.echo(
                 "access() signature mismatch{f6:2}"
-                f"Expected:{{f6}}  {_format_signature(_access_stub, 'access')}{{f6:2}}"
+                f"Expected:{{f6}}  {_format_signature(_stub_access, 'access')}{{f6:2}}"
                 f"Found:{{f6}}  {_format_signature(m.access)}",
                 level="error",
             )
