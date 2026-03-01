@@ -12,6 +12,11 @@ from .conf import (
 
 from . import lib
 
+try:
+    from asimov.conf import SCENE
+except ImportError:
+    SCENE = {}
+
 __all__ = [
     "LOGGER_NAME",
     "WINDOW_NAME",
@@ -20,4 +25,5 @@ __all__ = [
     "CAPTURE_HEIGHT",
     "CAPTURE_FPS",
     "lib",
+    "SCENE",
 ]

@@ -12,7 +12,8 @@
 
 from typing import Any
 
-from . import module, io
+from asimov.base import module
+from asimov import io
 
 
 # ----------------------------------------------------------------------
