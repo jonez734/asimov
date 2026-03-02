@@ -612,7 +612,6 @@ def draw_text(
             / 255.0
             * rect_alpha
         )
-        box_mask = box_mask[..., None]
 
         if not is_rgba:
             blend_bgr(img, box_overlay, box_mask, rect_alpha)
