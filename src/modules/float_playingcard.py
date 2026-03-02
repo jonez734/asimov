@@ -65,8 +65,8 @@ _MIN_CONFIDENCE = 0.5  # set to 0 to disable
 def ui_schema(args=None, context=None):
     return {
         "Card": {
-            "rank": {"type": "enum", "enum": RANKS, "label": "Rank"},
-            "suit": {"type": "enum", "enum": SUITS, "label": "Suit"},
+            "rank": {"type": "radio", "enum": RANKS, "label": "Rank"},
+            "suit": {"type": "radio", "enum": SUITS, "label": "Suit"},
             "opacity": {
                 "type": "float",
                 "default": 0.8,

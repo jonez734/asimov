@@ -209,6 +209,39 @@ def make_enum_field(parent, section, key, meta, config_obj, on_change=None):
     return frame
 
 
+def make_radio_field(parent, section, key, meta, config_obj, on_change=None):
+    frame = ttk.Frame(parent)
+
+    label = ttk.Label(frame, text=meta.get("label", key))
+    label.pack(anchor="w")
+
+    var = tk.StringVar(value=config_obj[section].get(key, ""))
+
+    options = meta.get("enum", [])
+    radio_frame = ttk.Frame(frame)
+    radio_frame.pack(anchor="w", padx=10, pady=5)
+
+    for opt in options:
+        rb = ttk.Radiobutton(
+            radio_frame,
+            text=opt,
+            variable=var,
+            value=opt,
+            command=lambda v=var: _on_radio_change(v, section, key, config_obj, on_change),
+        )
+        rb.pack(side="left", padx=5)
+
+    frame.pack(fill="x", padx=10, pady=5)
+    return frame
+
+
+def _on_radio_change(var, section, key, config_obj, on_change):
+    val = var.get()
+    config_obj[section][key] = val if val else None
+    if on_change:
+        on_change(section, key, val)
+
+
 def build_field(parent, section, key, meta, config_obj, on_change=None):
     field_type = meta.get("type", "float")
 
@@ -220,6 +253,8 @@ def build_field(parent, section, key, meta, config_obj, on_change=None):
         return make_bool_field(parent, section, key, meta, config_obj)
     elif field_type == "enum":
         return make_enum_field(parent, section, key, meta, config_obj, on_change)
+    elif field_type == "radio":
+        return make_radio_field(parent, section, key, meta, config_obj, on_change)
     return None
 
 

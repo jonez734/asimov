@@ -80,21 +80,32 @@ These are stored during `init(args)` and used to construct card paths.
 ```python
 {
     "rank": {
-        "type": "string",
+        "type": "radio",
         "enum": ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"],
+        "label": "Rank",
     },
     "suit": {
-        "type": "string",
+        "type": "radio",
         "enum": ["hearts", "diamonds", "clubs", "spades"],
+        "label": "Suit",
     },
     "opacity": {
-        "type": "number",
-        "minimum": 0.1,
-        "maximum": 1.0,
+        "type": "float",
         "default": 0.8,
+        "min": 0.1,
+        "max": 1.0,
+        "step": 0.05,
+        "label": "Opacity",
+    },
+    "glitch": {
+        "type": "bool",
+        "default": True,
+        "label": "Enable Glitch",
     },
 }
 ```
+
+The dashboard renders rank and suit as horizontal radio button groups for quick one-click selection.
 
 When rank/suit are set, card loads from `{basedir}/sets/{set-name}/{rank}_of_{suit}.png`.  
 When cleared (None), falls back to:

@@ -55,6 +55,8 @@ python -m asimov main_dashboard --capture-device 1 --capture-width 1280 --captur
 - Edit settings in real-time:
   - **float/int**: Slider + text entry
   - **bool**: Checkbox
+  - **enum**: Dropdown combobox
+  - **radio**: Horizontal radio button group
 
 **Buttons**
 - **Refresh Schema**: Reload configuration UI
