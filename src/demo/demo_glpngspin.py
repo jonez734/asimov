@@ -1,8 +1,50 @@
+import ctypes
+
 import glfw
-from OpenGL.GL import *
-import OpenGL.GL.shaders
 import numpy as np
 import pyrr
+from OpenGL.GL import (
+    GL_ARRAY_BUFFER,
+    GL_COLOR_BUFFER_BIT,
+    GL_DEPTH_BUFFER_BIT,
+    GL_DEPTH_TEST,
+    GL_ELEMENT_ARRAY_BUFFER,
+    GL_FALSE,
+    GL_FLOAT,
+    GL_FRAGMENT_SHADER,
+    GL_LINEAR,
+    GL_RGBA,
+    GL_STATIC_DRAW,
+    GL_TEXTURE_2D,
+    GL_TEXTURE_MAG_FILTER,
+    GL_TEXTURE_MIN_FILTER,
+    GL_TEXTURE_WRAP_S,
+    GL_TEXTURE_WRAP_T,
+    GL_REPEAT,
+    GL_TRIANGLES,
+    GL_UNSIGNED_BYTE,
+    GL_UNSIGNED_INT,
+    GL_VERTEX_SHADER,
+    glBindBuffer,
+    glBindTexture,
+    glBindVertexArray,
+    glBufferData,
+    glClear,
+    glDrawElements,
+    glEnable,
+    glEnableVertexAttribArray,
+    glGenerateMipmap,
+    glGenBuffers,
+    glGenTextures,
+    glGenVertexArrays,
+    glGetUniformLocation,
+    glTexImage2D,
+    glTexParameteri,
+    glUniformMatrix4fv,
+    glUseProgram,
+    glVertexAttribPointer,
+)
+import OpenGL.GL.shaders
 from PIL import Image
 
 def load_texture(image_path):

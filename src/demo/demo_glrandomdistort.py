@@ -2,8 +2,35 @@ import cv2
 import numpy as np
 import random
 import time
-from OpenGL.GL import *
+
 import glfw
+from OpenGL.GL import (
+    GL_COLOR_BUFFER_BIT,
+    GL_DEPTH_BUFFER_BIT,
+    GL_LINEAR,
+    GL_MODELVIEW,
+    GL_PROJECTION,
+    GL_QUADS,
+    GL_RGB,
+    GL_TEXTURE_2D,
+    GL_TEXTURE_MAG_FILTER,
+    GL_TEXTURE_MIN_FILTER,
+    GL_UNSIGNED_BYTE,
+    glBegin,
+    glBindTexture,
+    glClear,
+    glDisable,
+    glEnable,
+    glEnd,
+    glGenTextures,
+    glLoadIdentity,
+    glMatrixMode,
+    glOrtho,
+    glTexCoord2f,
+    glTexImage2D,
+    glTexParameteri,
+    glVertex2f,
+)
 
 # Global variables
 texture_id = None

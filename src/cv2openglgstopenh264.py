@@ -2,16 +2,49 @@ import time
 
 import cv2
 import glfw
-import numpy as np
 import gi
-from OpenGL.GL import *
-from OpenGL.GLUT import *
-from OpenGL.GLU import *
+import numpy as np
+
+from gi.repository import Gst
+
+from OpenGL.GL import (
+    GL_COLOR_BUFFER_BIT,
+    GL_DEPTH_BUFFER_BIT,
+    GL_FRONT,
+    GL_LINEAR,
+    GL_MODELVIEW,
+    GL_PROJECTION,
+    GL_QUADS,
+    GL_RGB,
+    GL_TEXTURE_2D,
+    GL_TEXTURE_MAG_FILTER,
+    GL_TEXTURE_MIN_FILTER,
+    GL_UNSIGNED_BYTE,
+    glBegin,
+    glBindTexture,
+    glClear,
+    glColor3f,
+    glDisable,
+    glEnable,
+    glEnd,
+    glGenTextures,
+    glLoadIdentity,
+    glMatrixMode,
+    glReadBuffer,
+    glReadPixels,
+    glTexCoord2f,
+    glTexImage2D,
+    glTexParameteri,
+    glTranslatef,
+    glVertex2f,
+    glViewport,
+)
+from OpenGL.GLUT import glutInit
+from OpenGL.GLU import gluOrtho2D
 
 from asimov.util import render_text
 
 gi.require_version("Gst", "1.0")
-from gi.repository import Gst
 
 # Initialize GStreamer
 Gst.init(None)
@@ -49,10 +82,14 @@ def render_quad(texture):
     glBindTexture(GL_TEXTURE_2D, texture)
 
     glBegin(GL_QUADS)
-    glTexCoord2f(0, 0); glVertex2f(-1, -1)
-    glTexCoord2f(1, 0); glVertex2f(1, -1)
-    glTexCoord2f(1, 1); glVertex2f(1, 1)
-    glTexCoord2f(0, 1); glVertex2f(-1, 1)
+    glTexCoord2f(0, 0)
+    glVertex2f(-1, -1)
+    glTexCoord2f(1, 0)
+    glVertex2f(1, -1)
+    glTexCoord2f(1, 1)
+    glVertex2f(1, 1)
+    glTexCoord2f(0, 1)
+    glVertex2f(-1, 1)
     glEnd()
 
     glDisable(GL_TEXTURE_2D)
@@ -66,22 +103,19 @@ def capture_frame(width, height):
     return cv2.flip(image, 0)  # Flip back for OpenCV
 
 
-def send_to_gstreamer(frame):
+def send_to_gstreamer(frame, appsrc):
     """Send OpenCV image to GStreamer pipeline"""
     height, width, _ = frame.shape
     data = frame.tobytes()
 
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV_I420)
 
-    # Create a GStreamer buffer
     buf = Gst.Buffer.new_allocate(None, len(data), None)
     buf.fill(0, data)
 
-#?    buf.pts = buf.dts = Gst.util_uint64_scale(GLib.get_monotonic_time(), 1, 1000000)
     buf.pts = buf.dts = Gst.util_uint64_scale(glfw.get_time(), Gst.SECOND, 1)
     buf.duration = Gst.util_uint64_scale(1, Gst.SECOND, 30)
 
-    # Push buffer to pipeline
     ret = appsrc.emit("push-buffer", buf)
     if ret != Gst.FlowReturn.OK:
         print("error pushing buffer: ", ret)
@@ -162,7 +196,7 @@ def main():
 
         # Capture frame from OpenGL and send to GStreamer
         opengl_frame = capture_frame(width, height)
-        send_to_gstreamer(opengl_frame)
+        send_to_gstreamer(opengl_frame, appsrc)
 
     cap.release()
     pipeline.set_state(Gst.State.NULL)

@@ -193,10 +193,8 @@ def get_dsr(mode="curpos", timeout: float = 1.0) -> str:
 
     if mode == "curpos":
         code = "6"
-        term = "R"
     elif mode == "status":
         code = "5"
-        term = "n"
     else:
         raise ValueError
 
@@ -357,9 +355,6 @@ def _handle_command(token, palette=None, vars=None):
 
     # command name is lowercase
     cmd = token.value.lower()
-    args = token.args
-    kwargs = token.kwargs
-    raw  = token.raw
 
     if _acs:
         _acs = False
@@ -479,7 +474,6 @@ def getstr(prompt: str = "") -> str:
     def draw_line():
         """Redraw the buffer and insert/overwrite indicator with proper cursor positioning."""
         mode = "[INS]" if insert_mode else "[OVR]"
-        total_len = len(buf) + len(mode)  # full string length including indicator
 
         # Move to start of input
         echo("{decrc}", end="", flush=True)

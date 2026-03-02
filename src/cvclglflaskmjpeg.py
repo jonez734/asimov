@@ -2,15 +2,40 @@ import time
 import threading
 
 import cv2
-
 from flask import Flask, Response
-
-
 import glfw
 
-from OpenGL.GL import *
-from OpenGL.GLUT import *
-from OpenGL.GLU import *
+from OpenGL.GL import (
+    GL_COLOR_BUFFER_BIT,
+    GL_DEPTH_BUFFER_BIT,
+    GL_LINEAR,
+    GL_MODELVIEW,
+    GL_PROJECTION,
+    GL_QUADS,
+    GL_RGB,
+    GL_TEXTURE_2D,
+    GL_TEXTURE_MAG_FILTER,
+    GL_TEXTURE_MIN_FILTER,
+    GL_UNSIGNED_BYTE,
+    glBegin,
+    glBindTexture,
+    glClear,
+    glColor3f,
+    glDisable,
+    glEnable,
+    glEnd,
+    glGenTextures,
+    glLoadIdentity,
+    glMatrixMode,
+    glTexCoord2f,
+    glTexImage2D,
+    glTexParameteri,
+    glTranslatef,
+    glVertex2f,
+    glViewport,
+)
+from OpenGL.GLUT import glutInit
+from OpenGL.GLU import gluOrtho2D
 
 from asimov.util import render_text
 
@@ -39,10 +64,14 @@ def render_quad(texture):
     glBindTexture(GL_TEXTURE_2D, texture)
 
     glBegin(GL_QUADS)
-    glTexCoord2f(0, 0); glVertex2f(-1, -1)
-    glTexCoord2f(1, 0); glVertex2f(1, -1)
-    glTexCoord2f(1, 1); glVertex2f(1, 1)
-    glTexCoord2f(0, 1); glVertex2f(-1, 1)
+    glTexCoord2f(0, 0)
+    glVertex2f(-1, -1)
+    glTexCoord2f(1, 0)
+    glVertex2f(1, -1)
+    glTexCoord2f(1, 1)
+    glVertex2f(1, 1)
+    glTexCoord2f(0, 1)
+    glVertex2f(-1, 1)
     glEnd()
 
     glDisable(GL_TEXTURE_2D)

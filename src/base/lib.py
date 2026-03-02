@@ -1,4 +1,3 @@
-import sys
 import copy
 import threading
 
@@ -340,7 +339,6 @@ class handHandler(object):
 			return image
 		
 		for h in hands:
-			lmList = h["lmList"]
 			fingers = self.detector.fingersUp(h)
 			io.echo(f"{fingers=}", level="debug")
 			if fingers == [0, 1, 0, 0, 0] or fingers == [1, 1, 0, 0, 0]:
