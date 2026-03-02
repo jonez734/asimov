@@ -7,7 +7,8 @@ import pyvirtualcam
 
 
 from .util import draw_text, get_device_by_label, camera_ready
-from .base import conf, glitch, fingertip, eyes_next as eyes, playingcard
+from . import conf
+from .base import glitch, fingertip, eyes_next as eyes, playingcard
 from .io import echo
 
 # 1. detect fingertip

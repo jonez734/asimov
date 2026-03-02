@@ -5,7 +5,7 @@ import threading
 import time
 import importlib
 from . import io
-from .base import conf
+from . import conf
 from .common import ThreadSafeContext
 
 

@@ -11,7 +11,8 @@ import pyvirtualcam
 ##import mediapipe as mp
 
 from .util import draw_text, get_device_by_label
-from .base import conf, glitch, indexfingertip, eyes_next as eyes
+from . import conf
+from .base import glitch, indexfingertip, eyes_next as eyes
 from .common import camera_ready
 
 # Constants

@@ -1,35 +1,30 @@
 # asimov/conf.py
 # Central configuration for Asimov
-
-# Re-exported from asimov.base.conf for shared config
-from asimov.base.conf import (  # noqa: F401
-    LOGGER_NAME,
-    WINDOW_NAME,
-    CAPTURE_DEVICE,
-    CAPTURE_WIDTH,
-    CAPTURE_HEIGHT,
-    CAPTURE_FPS,
-)
+#
+# DEPRECATED: asimov.base.conf is deprecated.
+# All base configuration has been merged into this file.
+# asimov.base.conf will be removed in a future version.
 
 # ------------------------------------------------------------
 # Logging
 # ------------------------------------------------------------
 
-# DO NOT REMOVE OR REFACTOR
-# Used by logging, io, and external tooling
-# Now imported from asimov_base
+LOGGER_NAME = "asimov"
 
 # ------------------------------------------------------------
 # Window / UI
 # ------------------------------------------------------------
 
-# Now imported from asimov_base
+WINDOW_NAME = "Asimov Preview"
 
 # ------------------------------------------------------------
 # Capture defaults
 # ------------------------------------------------------------
 
-# Now imported from asimov_base
+CAPTURE_DEVICE = 0
+CAPTURE_WIDTH = 640
+CAPTURE_HEIGHT = 480
+CAPTURE_FPS = 30
 
 # ------------------------------------------------------------
 # Hand / Finger Detection
@@ -201,7 +196,7 @@ OVERLAYS = {
     # Example overlays; adjust enable/order as needed
     "fps_overlay": {
         "module_path": "asimov.modules.fps_overlay",
-        "enabled": True,
+        "enabled": False,
         "order": 5,
         "hotkey": "",
     },

@@ -414,7 +414,7 @@ face.detect(frame, context)
 ### Module Configuration
 
 ```python
-from asimov.base import conf
+from asimov import conf
 
 # Modify hand detection settings
 conf.HAND["DETECTION"]["MAX_HANDS"] = 2

@@ -208,10 +208,10 @@ while True:
 
 ## Configuration
 
-Configuration is managed through `asimov.base.conf`:
+Configuration is managed through `asimov.conf`:
 
 ```python
-from asimov.base import conf
+from asimov import conf
 
 # Capture settings
 conf.CAPTURE_DEVICE = 0
@@ -223,10 +223,10 @@ conf.CAPTURE_FPS = 30
 conf.WINDOW_NAME = "Asimov Preview"
 ```
 
-Module-specific configuration is in `asimov.modules.conf`:
+Module-specific configuration is in `asimov.conf`:
 
 ```python
-from asimov.modules import conf
+from asimov import conf
 
 # Hand detection
 conf.HAND["DETECTION"]["MAX_HANDS"] = 2

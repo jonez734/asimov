@@ -8,7 +8,8 @@ import time
 import numpy as np
 import pyvirtualcam
 from . import io
-from .base import conf, module, common
+from . import conf
+from .base import module, common
 from .common import ThreadSafeContext
 
 # Initialize shared context and global lock

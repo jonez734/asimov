@@ -199,12 +199,12 @@ GLITCH = {
 
 OVERLAYS = {
     # Example overlays; adjust enable/order as needed
-    "fps_overlay": {
-        "module_path": "asimov_modules.fps_overlay",
-        "enabled": True,
-        "order": 5,
-        "hotkey": "",
-    },
+#     "fps_overlay": {
+#         "module_path": "asimov_modules.fps_overlay",
+#         "enabled": True,
+#         "order": 5,
+#         "hotkey": "",
+#     },
     "hand": {
         "module_path": "asimov_modules.hand",
         "enabled": True,
