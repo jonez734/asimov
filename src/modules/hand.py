@@ -118,15 +118,14 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
                 connections = [(0,1),(1,2),(2,3),(3,4), (0,5),(5,6),(6,7),(7,8),
                                (0,9),(9,10),(10,11),(11,12), (0,13),(13,14),(14,15),(15,16),
                                (0,17),(17,18),(18,19),(19,20), (5,9),(9,13),(13,17)]
-                h, w = frame.shape[:2]
                 for start_idx, end_idx in connections:
                     if start_idx < len(lmList) and end_idx < len(lmList):
-                        pt1 = (int(lmList[start_idx][0] * w), int(lmList[start_idx][1] * h))
-                        pt2 = (int(lmList[end_idx][0] * w), int(lmList[end_idx][1] * h))
+                        pt1 = (int(lmList[start_idx][0]), int(lmList[start_idx][1]))
+                        pt2 = (int(lmList[end_idx][0]), int(lmList[end_idx][1]))
                         cv2.line(frame, pt1, pt2, (0, 255, 0), 2)
                 # Draw points
                 for lm in lmList:
-                    pt = (int(lm[0] * w), int(lm[1] * h))
+                    pt = (int(lm[0]), int(lm[1]))
                     cv2.circle(frame, pt, 3, (0, 0, 255), -1)
 
     # ---- Draw bounding box ----
@@ -216,8 +215,7 @@ def ui_schema(args=None, context=None) -> dict | None:
             "SHOW_LANDMARKS": {
                 "type": "bool",
                 "default": True,
-                "label": "Draw Landmarks",
-                "enabled": False
+                "label": "Draw Landmarks"
             },
             "SHOW_BBOX": {
                 "type": "bool",

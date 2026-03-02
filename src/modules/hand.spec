@@ -48,6 +48,9 @@ The module uses `flipType=True` with cvzone's HandDetector. This corrects handed
 ## Landmark Drawing
 
 The module draws skeleton landmarks manually using the 21 MediaPipe landmark coordinates stored in `hand["lmList"]`. This avoids alpha blending issues with cvzone's overlay.
+
+**Important**: cvzone's `lmList` returns pixel coordinates `[x, y, z]`, not normalized 0-1 values. The drawing code must use these values directly without scaling.
+
 - **Landmarks**: Circles at each of the 21 hand landmark points
 - **Skeleton lines**: Connections between landmark points following MediaPipe hand topology:
   - Wrist (0) to all finger bases
