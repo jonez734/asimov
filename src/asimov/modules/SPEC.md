@@ -399,7 +399,7 @@ Floating playing card with detection.
 
 ```python
 from asimov.base.common import ThreadSafeContext
-from asimov_modules import hand, face
+from asimov.modules import hand, face
 
 context = ThreadSafeContext()
 

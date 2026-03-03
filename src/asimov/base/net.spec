@@ -22,7 +22,7 @@ asimov_net/
 Configuration constants for network communication. Some values are imported from `asimov.conf`.
 
 ```python
-from asimov_net import (
+from asimov.net import (
     CHUNK_SIZE,           # Block size for frame chunking (default: 64)
     DEFAULT_PORT,         # Default network port (default: 5000)
     COMPRESSION_ENABLED,  # Enable zlib compression (default: False)
@@ -295,7 +295,7 @@ def configure_capture(
 ### UDP Frame Sender
 
 ```python
-from asimov_net import UDPSender
+from asimov.net import UDPSender
 from asimov import util
 import cv2
 
@@ -326,7 +326,7 @@ cap.release()
 ### UDP Frame Receiver
 
 ```python
-from asimov_net import UDPReceiver
+from asimov.net import UDPReceiver
 import cv2
 
 receiver = UDPReceiver("127.0.0.1", 5000, blocking=False, timeout=1.0)
@@ -353,7 +353,7 @@ cv2.destroyAllWindows()
 ### Ping/Pong Handshake
 
 ```python
-from asimov_net import UDPSender, UDPReceiver, send_ping_and_wait_for_pong
+from asimov.net import UDPSender, UDPReceiver, send_ping_and_wait_for_pong
 
 # Server: respond to pings
 server = UDPReceiver("127.0.0.1", 5000)

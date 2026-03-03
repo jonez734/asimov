@@ -205,7 +205,7 @@ VideoCapture -> TCPSender/UDPSender -> Network -> TCPReceiver/UDPReceiver -> Pro
 ### TCP Frame Transmission
 
 ```python
-from asimov_net import TCPSender, TCPReceiver
+from asimov.net import TCPSender, TCPReceiver
 
 # Sender
 sender = TCPSender("127.0.0.1", 6000)
@@ -220,7 +220,7 @@ packet = receiver.receive()
 ### UDP Frame Transmission
 
 ```python
-from asimov_net import UDPSender, UDPReceiver
+from asimov.net import UDPSender, UDPReceiver
 
 # Sender
 sender = UDPSender("127.0.0.1", 6000)
@@ -237,7 +237,7 @@ receiver.start_listening()
 ### Ping/Pong
 
 ```python
-from asimov_net import UDPSender
+from asimov.net import UDPSender
 
 sender = UDPSender("127.0.0.1", 6000)
 sender.send_ping()

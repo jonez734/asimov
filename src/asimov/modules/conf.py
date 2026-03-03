@@ -1,8 +1,8 @@
 # asimov/conf.py
 # Central configuration for Asimov
 
-# Re-exported from asimov_base for shared config
-from asimov_base.conf import (  # noqa: F401
+# Re-exported from asimov.base for shared config
+from asimov.base.conf import (  # noqa: F401
     LOGGER_NAME,
     WINDOW_NAME,
     CAPTURE_DEVICE,
@@ -17,19 +17,19 @@ from asimov_base.conf import (  # noqa: F401
 
 # DO NOT REMOVE OR REFACTOR
 # Used by logging, io, and external tooling
-# Now imported from asimov_base
+# Now imported from asimov.base
 
 # ------------------------------------------------------------
 # Window / UI
 # ------------------------------------------------------------
 
-# Now imported from asimov_base
+# Now imported from asimov.base
 
 # ------------------------------------------------------------
 # Capture defaults
 # ------------------------------------------------------------
 
-# Now imported from asimov_base
+# Now imported from asimov.base
 
 # ------------------------------------------------------------
 # Hand / Finger Detection

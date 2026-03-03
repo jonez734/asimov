@@ -114,7 +114,7 @@ Asimov provides UDP/TCP frame transmission for distributed video processing:
 ### UDP Sender
 
 ```python
-from asimov_net import UDPSender
+from asimov.net import UDPSender
 from asimov import util
 import cv2
 
@@ -139,7 +139,7 @@ sender.close()
 ### UDP Receiver
 
 ```python
-from asimov_net import UDPReceiver
+from asimov.net import UDPReceiver
 import cv2
 
 receiver = UDPReceiver("0.0.0.0", 5000, blocking=False, timeout=1.0)
