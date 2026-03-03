@@ -1,23 +1,24 @@
-# receive_frame_demo Specification
+# demo_net_receive_frame Specification
 
 ## Overview
 
-`receive_frame_demo` demonstrates receiving cv2 video frames over UDP using asimov's frame transmission system with automatic reassembly and delta reconstruction.
+`demo_net_receive_frame` demonstrates receiving cv2 video frames over UDP/TCP using asimov's frame transmission system with automatic reassembly and delta reconstruction.
 
 ## Usage
 
 ```bash
-python receive_frame_demo.py [options]
+python demo_net_receive_frame.py [options]
 ```
 
 ## Arguments
 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
-| `--host` | str | "0.0.0.0" | Host to bind to |
+| `--protocol` | str | "udp" | Protocol to use (tcp or udp) |
+| `--host` | str | "127.0.0.1" | Host to bind to |
 | `--port` | int | 5000 | Port to listen on |
-| `--blocking` | flag | False | Use blocking mode |
-| `--timeout` | float | 1.0 | Receive timeout (seconds) |
+| `--max-idle` | int | 5 | Max seconds of no data before exiting |
+| `--wait` | flag | False | Wait forever for new data (for sender restarts) |
 
 ## Features
 
@@ -25,27 +26,31 @@ python receive_frame_demo.py [options]
 - Delta frame reconstruction (applies changes to previous frame)
 - Non-square block support (cols x rows grid)
 - Displays received frames with cv2.imshow
+- Two modes: exit after idle timeout or wait forever
 
 ## Behavior
 
-1. Creates UDPReceiver on specified host:port
-2. Receives packets in non-blocking mode
+### Default Mode (no --wait)
+
+1. Creates UDPReceiver/TCPReceiver on specified host:port
+2. Receives packets with blocking socket (1s timeout)
 3. Reassembles complete frames from chunks
 4. For delta frames: applies changes to previous frame
 5. Displays frame when complete
-6. Press 'q' to quit
+6. After 5 seconds of no data, exits with "No data received, exiting..."
+7. Press ESC to quit early
 
-## Frame Reception Flow
+### Wait Mode (--wait)
 
-1. Receive packet with `receiver.receive()`
-2. Packet contains: frame_id, cols, rows, block_w, block_h, is_delta, blocks
-3. Store blocks in buffer
-4. When all blocks received (total_blocks reached):
-   - If is_delta: apply changes to previous frame
-   - Otherwise: assemble new frame from all blocks
-5. Call frame_received_callback if set
+1. Creates receiver with non-blocking socket
+2. Loops continuously checking for data
+3. Uses cv2.waitKey(1) to process window events (1000fps loop)
+4. When sender exits: continues waiting (doesn't exit)
+5. When new sender starts: accepts new connection and receives frames
+6. Press ESC to quit
 
 ## Exit
 
-- Press 'q' to quit
+- Default mode: exits after --max-idle seconds of no data, or ESC
+- Wait mode: ESC to quit
 - Cleanup: closes socket, destroys windows
