@@ -4,7 +4,7 @@ import argparse
 import cv2
 import time
 from asimov.net import UDPSender, TCPSender
-from asimov import util
+from asimov.base import util
 from asimov import io
 
 
