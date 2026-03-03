@@ -96,7 +96,7 @@ class TCPSender:
             )
 
         if is_delta:
-            from ...base import util
+            from asimov.base import util
             get_changed_blocks = util.get_changed_blocks
 
             changed = get_changed_blocks(frame, prev_frame, frame_id, compress)
