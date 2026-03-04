@@ -1,5 +1,5 @@
 import cv2
-import mediapipe as mp
+from cvzone.FaceMeshModule import FaceMeshDetector
 import numpy as np
 
 from . import conf
@@ -10,27 +10,27 @@ __all__ = ["draw", "detect"]
 LEFT_EYE_IDX = [33, 133, 159, 145, 160, 158, 153, 144]
 RIGHT_EYE_IDX = [362, 263, 386, 374, 385, 380, 373, 390]
 
-# Initialize MediaPipe Face Mesh
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.4, min_tracking_confidence=0.5)
+# Initialize cvzone FaceMeshDetector
+face_detector = FaceMeshDetector(maxFaces=1)
 
 def detect(frame, context):
-    context["face_mesh_processed"] = face_mesh.process(frame)
+    frame, faces = face_detector.findFaceMesh(frame, draw=False)
+    context["faces"] = faces
     return
 
 def draw(frame, context):
-    results = context.get("face_mesh_processed")
-    if results is None:
+    faces = context.get("faces")
+    if faces is None:
         return frame
 
-    if results.multi_face_landmarks:
-#        logentry(f"checking eye landmarks")
-        for face_landmarks in results.multi_face_landmarks:
-            ih, iw, _ = frame.shape
+    if faces:
+        for face in faces:
+            # face[0] is bounding box [x, y, w, h], face[1:] are landmarks
+            face_landmarks = face[1:]
 
             # Get eye coordinates
-            left_eye_points = [(int(face_landmarks.landmark[i].x * iw), int(face_landmarks.landmark[i].y * ih)) for i in LEFT_EYE_IDX]
-            right_eye_points = [(int(face_landmarks.landmark[i].x * iw), int(face_landmarks.landmark[i].y * ih)) for i in RIGHT_EYE_IDX]
+            left_eye_points = [(int(face_landmarks[i][0]), int(face_landmarks[i][1])) for i in LEFT_EYE_IDX]
+            right_eye_points = [(int(face_landmarks[i][0]), int(face_landmarks[i][1])) for i in RIGHT_EYE_IDX]
 
             # Combine all eye points
             all_eye_points = left_eye_points + right_eye_points

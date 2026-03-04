@@ -1,7 +1,7 @@
 import argparse
 
 import cv2
-import mediapipe as mp
+from cvzone.HandTrackingModule import HandDetector
 from asimov.playingcard.util import compute_geometry
 from asimov.playingcard import load  as load_card
 from asimov import conf
@@ -15,49 +15,50 @@ CARD_BORDER = 0.25   # minimum border ratio
 CARD_FILE = "ace_of_spades.png"  # example PNG
 
 
-mp_hands = mp.solutions.hands
-mp_drawing = mp.solutions.drawing_utils
+# Landmark indices (cvzone uses 0-20)
+THUMB_TIP = 4
+INDEX_FINGER_TIP = 8
+MIDDLE_FINGER_TIP = 12
+RING_FINGER_TIP = 16
+PINKY_TIP = 20
+THUMB_CMC = 1
+INDEX_FINGER_MCP = 5
+MIDDLE_FINGER_MCP = 9
+RING_FINGER_MCP = 13
+PINKY_MCP = 17
 
-# Initialize once, reuse across frames
-hands_detector = mp_hands.Hands(
-    static_image_mode=False,        # video stream
-    max_num_hands=1,                # track only one hand for demo
-    min_detection_confidence=0.7,
-    min_tracking_confidence=0.5
-)
+# Initialize cvzone HandDetector
+hands_detector = HandDetector(detectionCon=0.7, maxHands=1)
 
 
 def is_fist(hand_landmarks, frame_h):
     """
     Returns True if the hand appears closed (fist). 
-    hand_landmarks: mediapipe.HandLandmark list
+    hand_landmarks: cvzone lmList (list of [x, y, z] coordinates)
     frame_h: frame height (for scaling y coords)
     """
-    # Finger tip landmarks
     tips = [
-        mp.solutions.hands.HandLandmark.THUMB_TIP,
-        mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP,
-        mp.solutions.hands.HandLandmark.MIDDLE_FINGER_TIP,
-        mp.solutions.hands.HandLandmark.RING_FINGER_TIP,
-        mp.solutions.hands.HandLandmark.PINKY_TIP,
+        THUMB_TIP,
+        INDEX_FINGER_TIP,
+        MIDDLE_FINGER_TIP,
+        RING_FINGER_TIP,
+        PINKY_TIP,
     ]
-    # MCP landmarks (base of fingers)
     mcps = [
-        mp.solutions.hands.HandLandmark.THUMB_CMC,
-        mp.solutions.hands.HandLandmark.INDEX_FINGER_MCP,
-        mp.solutions.hands.HandLandmark.MIDDLE_FINGER_MCP,
-        mp.solutions.hands.HandLandmark.RING_FINGER_MCP,
-        mp.solutions.hands.HandLandmark.PINKY_MCP,
+        THUMB_CMC,
+        INDEX_FINGER_MCP,
+        MIDDLE_FINGER_MCP,
+        RING_FINGER_MCP,
+        PINKY_MCP,
     ]
 
     closed_count = 0
     for tip, mcp in zip(tips, mcps):
-        tip_y = hand_landmarks.landmark[tip].y * frame_h
-        mcp_y = hand_landmarks.landmark[mcp].y * frame_h
-        if tip_y > mcp_y:  # tip below base → finger closed
+        tip_y = hand_landmarks[tip][1]
+        mcp_y = hand_landmarks[mcp][1]
+        if tip_y > mcp_y:
             closed_count += 1
 
-    # consider it a fist if all fingers are closed
     return closed_count >= 5
 
 def detect_hand(frame):
@@ -66,22 +67,20 @@ def detect_hand(frame):
       rect.x, rect.y, rect.width, rect.height
     Optimized for real-time performance.
     """
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = hands_detector.process(rgb_frame)
+    hands, frame = hands_detector.findHands(frame, draw=False)
     rects = []
 
-    if results.multi_hand_landmarks:
-        h, w, _ = frame.shape
-        for hand_landmarks in results.multi_hand_landmarks:
-            if is_fist(hand_landmarks, h):
+    if hands:
+        for hand in hands:
+            if is_fist(hand["lmList"], frame.shape[0]):
                 continue
 
-            xs = [lm.x * w for lm in hand_landmarks.landmark]
-            ys = [lm.y * h for lm in hand_landmarks.landmark]
+            lmList = hand["lmList"]
+            xs = [lm[0] for lm in lmList]
+            ys = [lm[1] for lm in lmList]
             x1, x2 = int(min(xs)), int(max(xs))
             y1, y2 = int(min(ys)), int(max(ys))
 
-            # Construct a simple rect-like object
             rect = type("Rect", (), {})()
             rect.x = x1
             rect.y = y1

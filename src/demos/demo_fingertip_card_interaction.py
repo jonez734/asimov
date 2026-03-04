@@ -4,7 +4,7 @@ import time
 import numpy as np
 from collections import deque
 import math
-import mediapipe as mp
+from cvzone.HandTrackingModule import HandDetector
 
 # Import reusable components from util.py
 from asimov.util import OneEuroFilter, get_centroid
@@ -43,15 +43,8 @@ INFO_FONT = cv2.FONT_HERSHEY_SIMPLEX
 INFO_FONT_SCALE = 0.7
 CONTOUR_THICKNESS = 4
 
-# --- MEDIAPIPE SETUP ---
-mp_hands = mp.solutions.hands
-# Initialize MediaPipe Hands solution
-hands = mp_hands.Hands(
-    static_image_mode=False,
-    max_num_hands=1,
-    min_detection_confidence=0.7,
-    min_tracking_confidence=0.5
-)
+# --- CVZONE HAND DETECTOR SETUP ---
+detector = HandDetector(detectionCon=0.7, maxHands=1)
 
 # --- GLOBAL STATE ---
 # Card Queue (similar structure to stabilized demo)
@@ -218,30 +211,23 @@ def match_and_update_queue(detected_rectangles, fps_estimate):
 
 def get_finger_tip_position(frame):
     """
-    Uses MediaPipe Hands to detect the index finger tip and smooth its position.
+    Uses cvzone HandDetector to detect the index finger tip and smooth its position.
     
     Returns: (x, y) coordinates of the smoothed index finger tip, or None.
     """
     global is_finger_tracking_active
     
-    # Process the frame for hand landmarks
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = hands.process(frame_rgb)
+    hands, frame = detector.findHands(frame, draw=False)
     
-    h, w, _ = frame.shape
-    
-    if results.multi_hand_landmarks:
-        # We only track the first detected hand
-        hand_landmarks = results.multi_hand_landmarks[0]
+    if hands:
+        hand = hands[0]
+        lmList = hand["lmList"]
         
-        # Get the index finger tip landmark (ID 8)
-        tip_lm = hand_landmarks.landmark[FINGER_LANDMARK_ID]
+        tip_lm = lmList[FINGER_LANDMARK_ID]
         
-        # Convert normalized coordinates (0-1) to pixel coordinates
-        raw_x = tip_lm.x * w
-        raw_y = tip_lm.y * h
+        raw_x = tip_lm[0]
+        raw_y = tip_lm[1]
         
-        # Apply imported One Euro Filter to the raw position
         smoothed_x = finger_x_filter.update(raw_x)
         smoothed_y = finger_y_filter.update(raw_y)
         
@@ -370,7 +356,6 @@ def main():
 
     # Cleanup
     cap.release()
-    hands.close()
     cv2.destroyAllWindows()
     print("Demo terminated.")
 

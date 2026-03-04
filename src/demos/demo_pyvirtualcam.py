@@ -8,7 +8,8 @@ import cv2
 import pyvirtualcam
 import numpy as np
 
-import mediapipe as mp
+from cvzone.HandTrackingModule import HandDetector
+from cvzone.FaceMeshModule import FaceMeshDetector
 
 from asimov.util import draw_text, get_device_by_label
 from asimov import conf, glitch
@@ -17,35 +18,30 @@ from asimov import conf, glitch
 MARGIN = 20  # pixels
 TITLE = "Project Asimov v202508.0"
 
-# Initialize MediaPipe Hands
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
-
-from cvzone.HandTrackingModule import HandDetector
-
-# Create hand detector instance
+# Initialize cvzone HandDetector
 detector = HandDetector(detectionCon=0.8, maxHands=2)
 
-index_finger_tip = None
-
-# Initialize MediaPipe Face Mesh
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True)
+# Initialize cvzone FaceMeshDetector
+face_detector = FaceMeshDetector(maxFaces=1)
 
 # Eye landmark indices (same as before)
 LEFT_EYE_IDX = [33, 133, 159, 145, 160, 158, 153, 144]
 RIGHT_EYE_IDX = [362, 263, 386, 374, 385, 380, 373, 390]
 
 def overlay_eyes(frame):
-    results = face_mesh.process(frame)
+    frame, faces = face_detector.findFaceMesh(frame, draw=False)
 
-    if results.multi_face_landmarks:
-        for face_landmarks in results.multi_face_landmarks:
+    if faces:
+        for face in faces:
             ih, iw, _ = frame.shape
 
-            # Get eye coordinates
-            left_eye_points = [(int(face_landmarks.landmark[i].x * iw), int(face_landmarks.landmark[i].y * ih)) for i in LEFT_EYE_IDX]
-            right_eye_points = [(int(face_landmarks.landmark[i].x * iw), int(face_landmarks.landmark[i].y * ih)) for i in RIGHT_EYE_IDX]
+            # face[0] is bounding box, face[1:] are the landmark points
+            # Landmark indices are 0-477, but cvzone returns normalized values
+            face_landmarks = face[1:]
+
+            # Get eye coordinates using cvzone's landmark indices
+            left_eye_points = [(int(face_landmarks[i][0]), int(face_landmarks[i][1])) for i in LEFT_EYE_IDX]
+            right_eye_points = [(int(face_landmarks[i][0]), int(face_landmarks[i][1])) for i in RIGHT_EYE_IDX]
 
             # Combine all eye points
             all_eye_points = left_eye_points + right_eye_points

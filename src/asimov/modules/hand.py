@@ -15,6 +15,7 @@ context['HAND'] and must NOT run their own hand detection.
 
 import time
 import cv2
+import mediapipe_compat
 from cvzone.HandTrackingModule import HandDetector
 from asimov import io
 from asimov.base import conf

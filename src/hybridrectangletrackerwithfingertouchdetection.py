@@ -1,13 +1,12 @@
 import cv2
-import mediapipe as mp
+from cvzone.HandTrackingModule import HandDetector
 import numpy as np
 
 MARGIN = 4
 DETECTION_INTERVAL = 60
 
-# MediaPipe setup
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
+# cvzone HandDetector setup
+detector = HandDetector(detectionCon=0.7, maxHands=1)
 
 def create_tracker():
     return cv2.TrackerCSRT_create()
@@ -66,15 +65,14 @@ while True:
         break
     frame_counter += 1
 
-    img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = hands.process(img_rgb)
+    hands, frame = detector.findHands(frame, draw=False)
 
     left_index_tip = None
-    if results.multi_hand_landmarks:
-        for hand_landmarks in results.multi_hand_landmarks:
-            h, w, _ = frame.shape
-            x = int(hand_landmarks.landmark[8].x * w)
-            y = int(hand_landmarks.landmark[8].y * h)
+    if hands:
+        for hand in hands:
+            lmList = hand["lmList"]
+            x = int(lmList[8][0])
+            y = int(lmList[8][1])
             left_index_tip = (x, y)
             cv2.circle(frame, left_index_tip, 8, (0, 255, 255), -1)
 

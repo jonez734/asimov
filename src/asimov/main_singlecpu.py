@@ -1,5 +1,5 @@
 import cv2
-import mediapipe as mp
+from cvzone.HandTrackingModule import HandDetector
 import importlib
 import time
 
@@ -26,14 +26,7 @@ def main(args, **kwargs):
         mod = importlib.import_module(mod_name)
         modules.append(mod)
 
-    mp_hands = mp.solutions.hands
-    mp_drawing = mp.solutions.drawing_utils
-    hands = mp_hands.Hands(
-        static_image_mode=False,
-        max_num_hands=1,
-        min_detection_confidence=0.9,
-        min_tracking_confidence=0.7
-    )
+    detector = HandDetector(detectionCon=0.9, maxHands=1)
 
     cap = cv2.VideoCapture(0)
 
@@ -56,30 +49,20 @@ def main(args, **kwargs):
         frame = cv2.flip(frame, 1)
 
         h, w, _ = frame.shape
-        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = hands.process(image_rgb)
+
+        hands, frame = detector.findHands(frame, draw=False)
 
         # Remove old fingertip position
         context.pop("index_tip", None)
 
-        if results.multi_hand_landmarks and results.multi_handedness:
-            for hand_landmarks, hand_info in zip(results.multi_hand_landmarks, results.multi_handedness):
+        if hands:
+            for hand in hands:
+                lmList = hand["lmList"]
+                index_tip = lmList[8]  # INDEX_FINGER_TIP
+                index_tip_x = int(index_tip[0])
+                index_tip_y = int(index_tip[1])
 
-                index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-                #index_tip_x = int((1 - index_tip.x) * w)
-                #index_tip_y = int(index_tip.y * h)
-                index_tip_x = int(index_tip.x*w)
-                index_tip_y = int(index_tip.y*h)
-
-                label = hand_info.classification[0].label  # 'Left' or 'Right'
-                # Flip label since frame is mirrored
-                # label = "Right" if label == "Left" else "Left"
-                # Track left hand fingertip only
-                #if label == "Left":
                 context["index_tip"] = (index_tip_x, index_tip_y)
-
-                # Draw hand landmarks on the original (unflipped) frame
-                # mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
         # Run all modules
         for mod in modules:
