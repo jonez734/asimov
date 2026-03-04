@@ -425,6 +425,16 @@ SCENE = {
             "conf": {},
         },
         {
+            "name": "face",
+            "module": "asimov.modules.face",
+            "conf": {},
+        },
+        {
+            "name": "eyes_next",
+            "module": "asimov.modules.eyes_next",
+            "conf": {},
+        },
+        {
             "name": "float_playingcard",
             "module": "asimov.modules.float_playingcard",
             "conf": {},

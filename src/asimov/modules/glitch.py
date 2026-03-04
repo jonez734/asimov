@@ -9,7 +9,7 @@ from collections import deque
 from typing import Dict, Any
 
 from asimov import io
-from asimov.base import conf
+from asimov import conf
 from asimov.base.common import ThreadSafeContext
 
 # ---------------------------------------------------------------------

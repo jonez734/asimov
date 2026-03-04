@@ -1,7 +1,7 @@
 import numpy as np
 from collections import deque
 from asimov import io
-from asimov.base import conf
+from asimov import conf
 from asimov.base.common import ThreadSafeContext
 
 # ------------------------------------------------------------

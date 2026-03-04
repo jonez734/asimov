@@ -1,5 +1,5 @@
 import numpy as np
-from asimov.base import conf
+from asimov import conf
 from asimov.base.common import ThreadSafeContext
 from asimov.base.util import draw_text
 

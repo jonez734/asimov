@@ -2,7 +2,7 @@
 # Network configuration for Asimov frame transmission
 
 # Re-exported from base for convenience in demos
-from asimov.base import conf  # noqa: F401
+from asimov import conf  # noqa: F401
 CAPTURE_WIDTH = conf.CAPTURE_WIDTH
 CAPTURE_HEIGHT = conf.CAPTURE_HEIGHT
 CAPTURE_FPS = conf.CAPTURE_FPS

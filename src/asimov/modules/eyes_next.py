@@ -4,7 +4,7 @@ import cv2
 import time
 import numpy as np
 
-from asimov.base import conf as _global_conf
+from asimov import conf as _global_conf
 from asimov.base.common import ThreadSafeContext, OneEuroFilter
 
 # ------------------------------------------------------------

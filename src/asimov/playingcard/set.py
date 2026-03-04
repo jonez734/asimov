@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 from asimov.base.common import get_safe_path
-from asimov.base import conf
+from asimov import conf
 from asimov.io import echo
 
 _loaded_set = None

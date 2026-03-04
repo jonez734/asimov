@@ -15,7 +15,7 @@ import time
 import math
 import hashlib
 
-from asimov.base import conf
+from asimov import conf
 from asimov.base.common import OneEuroFilter
 from asimov.playingcard import cards
 from . import glitch

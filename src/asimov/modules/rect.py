@@ -4,7 +4,7 @@ from typing import Dict, Tuple, List
 import cv2
 import numpy as np
 
-from asimov.base import conf
+from asimov import conf
 from .rect_touch import CTX_TOUCHES
 
 MODULE_NAME = "rect"

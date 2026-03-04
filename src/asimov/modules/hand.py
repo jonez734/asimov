@@ -18,7 +18,7 @@ import cv2
 import mediapipe_compat
 from cvzone.HandTrackingModule import HandDetector
 from asimov import io
-from asimov.base import conf
+from asimov import conf
 from asimov.base.common import ThreadSafeContext
 import numpy as np
 

@@ -3,7 +3,7 @@
 from typing import Dict, Tuple, List
 import numpy as np
 
-from asimov.base import conf
+from asimov import conf
 from asimov.base.common import ThreadSafeContext
 
 CTX_RECTS = "rects"

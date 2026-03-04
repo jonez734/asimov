@@ -10,7 +10,7 @@ import numpy as np
 # These work because asimov/io and asimov modules are accessible
 from asimov.io import echo
 from asimov.base import common
-from asimov.base import conf
+from asimov import conf
 
 ThreadSafeContext = common.ThreadSafeContext
 

@@ -1,7 +1,7 @@
 import time
 import cv2
 from asimov import io
-from asimov.base import conf
+from asimov import conf
 from asimov.base.common import ThreadSafeContext, OneEuroFilter
 import numpy as np
 
