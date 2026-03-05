@@ -3,7 +3,7 @@ from asimov import io
 from asimov import base
 
 libasimov = base.lib
-conf = base.conf
+from . import conf
 
 def buildargs(args=None, **kwargs:dict):
     parser = argparse.ArgumentParser("asimov")

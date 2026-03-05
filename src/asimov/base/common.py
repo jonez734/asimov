@@ -7,7 +7,7 @@ from typing import Optional, Union
 
 import cv2
 
-from . import conf
+from .. import conf
 
 
 def safe_path(

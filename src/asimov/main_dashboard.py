@@ -330,13 +330,13 @@ class DashboardApp:
         self.notebook = ttk.Notebook(self.right_content)
         self.notebook.pack(fill="both", expand=True, padx=10, pady=5)
 
-        self._build_module_tabs()
-
         output_frame = ttk.LabelFrame(self.right_content, text="Status Output")
         output_frame.pack(fill="x", padx=10, pady=5)
 
         self.output_text = tk.Text(output_frame, height=6, state="normal")
         self.output_text.pack(fill="x", padx=5, pady=5)
+
+        self._build_module_tabs()
 
         btn_frame = ttk.Frame(self.right_content)
         btn_frame.pack(fill="x", padx=10, pady=(0, 10))

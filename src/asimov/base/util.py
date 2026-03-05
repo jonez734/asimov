@@ -52,7 +52,7 @@ import time
 import numpy as np
 
 from .. import io
-from . import conf
+from .. import conf
 from .common import safe_path
 from ..io import echo_traceback
 

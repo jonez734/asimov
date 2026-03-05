@@ -13,7 +13,7 @@ warnings.warn(
     stacklevel=2,
 )
 
-from .conf import (  # noqa: F811
+from ..conf import (  # noqa: F811
     CAPTURE_DEVICE,
     CAPTURE_FPS,
     CAPTURE_HEIGHT,
