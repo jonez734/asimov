@@ -20,7 +20,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
             if "OUTPUT" in cfg:
                 cfg["LANDMARKS"] = cfg["OUTPUT"].get("LANDMARKS", True)
                 cfg["GRACE_PERIOD"] = cfg["OUTPUT"].get("GRACE_PERIOD", 0.35)
-            cfg["DRAW_DETECTION"] = cfg.get("DRAW_DETECTION", False)
+            cfg["DRAW_DETECTION"] = cfg.get("DRAW", {}).get("DETECTION", False)
 
             context["FACE"] = {
                 "cfg": cfg,
@@ -47,7 +47,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         if "OUTPUT" in cfg:
             cfg["LANDMARKS"] = cfg["OUTPUT"].get("LANDMARKS", True)
             cfg["GRACE_PERIOD"] = cfg["OUTPUT"].get("GRACE_PERIOD", 0.35)
-        cfg["DRAW_DETECTION"] = cfg.get("DRAW_DETECTION", False)
+        cfg["DRAW_DETECTION"] = cfg.get("DRAW", {}).get("DETECTION", False)
         ns["cfg"] = cfg
 
         detector = ns["detector"]
@@ -125,10 +125,12 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "label": "Grace Period (seconds)"
             }
         },
-        "DRAW_DETECTION": {
-            "type": "bool",
-            "default": False,
-            "label": "Draw Face Mesh"
+        "DRAW": {
+            "DETECTION": {
+                "type": "bool",
+                "default": False,
+                "label": "Draw Face Mesh"
+            }
         }
     }
 
