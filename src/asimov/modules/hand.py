@@ -16,10 +16,9 @@ context['HAND'] and must NOT run their own hand detection.
 import time
 import cv2
 from cvzone.HandTrackingModule import HandDetector
-from asimov import io
-from asimov import conf
-from asimov.base.common import ThreadSafeContext
-from asimov.base.util import draw_text
+from .. import io, conf
+from ..base.common import ThreadSafeContext
+from ..base.util import draw_text
 import numpy as np
 
 # Skeleton drawing is delegated to cvzone when overlays are enabled

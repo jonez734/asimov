@@ -8,13 +8,13 @@ from importlib import import_module
 from collections import deque
 from typing import Dict, Any
 
-from asimov import io
-from asimov import conf
-from asimov.base.common import ThreadSafeContext
+from .. import io, conf
+from ..base.common import ThreadSafeContext
 
 # ---------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------
+
 
 def _get_glitch_func(name: str):
     """
@@ -35,14 +35,15 @@ def _get_glitch_func(name: str):
     func = getattr(mod, f"_glitch_{name}", None)
     return func if callable(func) else None
 
+
 def _init_namespace(context: ThreadSafeContext) -> Dict[str, Any]:
     """
     Ensure GLITCH namespace exists in shared context.
     """
     now = time.time()
     ns = {
-        "active": {},          # name -> metadata
-        "history": {},         # name -> per-glitch history
+        "active": {},  # name -> metadata
+        "history": {},  # name -> per-glitch history
         "last_trigger": now,
         "next_interval": random.uniform(
             conf.GLITCH["MIN_INTERVAL"],
@@ -56,6 +57,7 @@ def _init_namespace(context: ThreadSafeContext) -> Dict[str, Any]:
 # ---------------------------------------------------------------------
 # detect() — scheduler / state mutation only
 # ---------------------------------------------------------------------
+
 
 def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> None:
     """
@@ -81,7 +83,8 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> None:
     # --------------------------------------------------
 
     expired = [
-        name for name, meta in ns["active"].items()
+        name
+        for name, meta in ns["active"].items()
         if now - meta["start_time"] >= meta["duration"]
     ]
 
@@ -105,18 +108,12 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> None:
         return
 
     registry = conf.GLITCH.get("REGISTRY", {})
-    candidates = [
-        name for name, cfg in registry.items()
-        if cfg.get("enabled", True)
-    ]
+    candidates = [name for name, cfg in registry.items() if cfg.get("enabled", True)]
 
     if not candidates:
         return
 
-    weights = [
-        registry[name].get("weight", 1.0)
-        for name in candidates
-    ]
+    weights = [registry[name].get("weight", 1.0) for name in candidates]
 
     choice = random.choices(candidates, weights=weights, k=1)[0]
     cfg = registry.get(choice, {})
@@ -140,6 +137,7 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> None:
 # ---------------------------------------------------------------------
 # draw() — rendering only
 # ---------------------------------------------------------------------
+
 
 def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     ns = context.get("GLITCH")
@@ -166,9 +164,11 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     return output_frame
 
+
 # ---------------------------------------------------------------------
 # Glitch implementations
 # ---------------------------------------------------------------------
+
 
 def _glitch_vhs_warp(frame, t=0, **kwargs):
     intensity_pct = kwargs.get("intensity", conf.GLITCH_DEFAULT_VHS_INTENSITY) / 100.0
@@ -177,9 +177,7 @@ def _glitch_vhs_warp(frame, t=0, **kwargs):
     h, w = frame.shape[:2]
     max_shift = w * intensity_pct  # Proportional to width
     y = np.arange(h)
-    offsets = (
-        max_shift * np.sin(2 * np.pi * freq * (y / h) + t)
-    ).astype(np.int32)
+    offsets = (max_shift * np.sin(2 * np.pi * freq * (y / h) + t)).astype(np.int32)
 
     output = frame.copy()
     for row in range(h):
@@ -210,7 +208,7 @@ def _glitch_datamosh(frame, history=None, key=None, **kwargs):
             y = random.randint(0, h - 1)
             strip_w = max(1, int(w * intensity))
             x = random.randint(0, max(1, w - strip_w))
-            output[y, x:x + strip_w] = prev[y, x:x + strip_w]
+            output[y, x : x + strip_w] = prev[y, x : x + strip_w]
 
     history[key] = frame.copy()
     return output
@@ -224,15 +222,16 @@ def _glitch_ghost(frame, history=None, key=None, **kwargs):
         "alpha",
         conf.GLITCH_DEFAULT_GHOST_ALPHA,
     )
-    shift_pct = kwargs.get(
-        "shift",
-        conf.GLITCH_DEFAULT_GHOST_SHIFT,
-    ) / 100.0  # Convert to percentage
+    shift_pct = (
+        kwargs.get(
+            "shift",
+            conf.GLITCH_DEFAULT_GHOST_SHIFT,
+        )
+        / 100.0
+    )  # Convert to percentage
 
     if key not in history:
-        history[key] = deque(
-            maxlen=conf.GLITCH_DEFAULT_GHOST_MAXLEN
-        )
+        history[key] = deque(maxlen=conf.GLITCH_DEFAULT_GHOST_MAXLEN)
 
     hist = history[key]
     hist.append(frame.copy())
@@ -257,18 +256,14 @@ def _glitch_scanlines(frame, t=0, **kwargs):
 
     output = frame.copy()
     offset = int(t * speed) % step
-    output[offset::step] = (
-        output[offset::step] * opacity
-    ).astype(np.uint8)
+    output[offset::step] = (output[offset::step] * opacity).astype(np.uint8)
 
     return output
 
 
 def _glitch_whitenoise(frame, **kwargs):
     intensity = conf.GLITCH_DEFAULT_WHITE_NOISE_INTENSITY
-    noise = np.random.randint(
-        0, intensity, frame.shape, dtype=np.uint8
-    )
+    noise = np.random.randint(0, intensity, frame.shape, dtype=np.uint8)
     return cv2.add(frame, noise)
 
 
@@ -283,8 +278,8 @@ def _glitch_tearing(frame, **kwargs):
         band = max(1, int(h * band_pct))
         shift_pct = random.uniform(-0.1, 0.1)  # -10% to 10% of width
         shift = int(w * shift_pct)
-        output[y:min(y + band, h)] = np.roll(
-            output[y:min(y + band, h)],
+        output[y : min(y + band, h)] = np.roll(
+            output[y : min(y + band, h)],
             shift,
             axis=1,
         )
@@ -317,6 +312,7 @@ def _glitch_vertical_hold(frame, t=0, **kwargs):
 _max_concurrent = 2
 _registered_glitches = {}
 
+
 def set_max_concurrent(max_count: int):
     """Set maximum concurrent glitches."""
     global _max_concurrent
@@ -334,18 +330,19 @@ def scheduler():
     Called once per frame in draw().
     """
     import random
-    
+
     if random.random() > 0.02:
         return
-    
+
     enabled = [
-        name for name, cfg in conf.GLITCH.get("REGISTRY", {}).items()
+        name
+        for name, cfg in conf.GLITCH.get("REGISTRY", {}).items()
         if cfg.get("enabled", True)
     ]
-    
+
     if not enabled:
         return
-    
+
     name = random.choice(enabled)
     _trigger_glitch(name)
 
@@ -372,14 +369,18 @@ def apply(frame: np.ndarray) -> np.ndarray:
 # Module lifecycle (required)
 # ---------------------------------------------------------------------
 
+
 def init(args, **kwargs):
     return True
+
 
 def buildargs(args, **kwargs):
     return None
 
+
 def access(args, op, **kwargs):
     return True
+
 
 def main(args, **kwargs):
     return True

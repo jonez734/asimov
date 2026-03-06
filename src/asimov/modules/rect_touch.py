@@ -3,8 +3,8 @@
 from typing import Dict, Tuple, List
 import numpy as np
 
-from asimov import conf
-from asimov.base.common import ThreadSafeContext
+from .. import conf
+from ..base.common import ThreadSafeContext
 
 CTX_RECTS = "rects"
 CTX_TOUCHES = "rect_touches"
@@ -26,13 +26,13 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
     if not cfg.get("enabled", True):
         context[CTX_TOUCHES] = []
         return
-    
+
     rects: List[Dict] = context.get(CTX_RECTS, [])
-    
+
     if not rects:
         context[CTX_TOUCHES] = []
         return
-    
+
     fingertip_ns = context.get("INDEXFINGERTIP")
 
     touches: List[str] = []
@@ -62,7 +62,7 @@ def ui_schema(args=None, context=None) -> dict | None:
             "enabled": {
                 "type": "bool",
                 "default": True,
-                "label": "Enable Touch Detection"
+                "label": "Enable Touch Detection",
             }
         }
     }

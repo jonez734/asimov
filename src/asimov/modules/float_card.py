@@ -8,8 +8,8 @@ import os
 import cv2
 import numpy as np
 
-from asimov.base.common import ThreadSafeContext
-from asimov.base.util import safe_path
+from ..base.common import ThreadSafeContext
+from ..base.util import safe_path
 from . import glitch
 
 
@@ -31,6 +31,7 @@ _opacity = 0.8
 # ------------------------------------------------------------
 # UI Schema (Dashboard Integration)
 # ------------------------------------------------------------
+
 
 def ui_schema():
     return {
@@ -62,6 +63,7 @@ def ui_schema():
 # Lifecycle Hooks
 # ------------------------------------------------------------
 
+
 def init(args, context=None, **kwargs):
     """
     Setup glitch framework once.
@@ -90,6 +92,7 @@ def main(args, **kwargs):
 # Internal Helpers
 # ------------------------------------------------------------
 
+
 def _load_card(rank, suit):
     filename = f"{rank}_of_{suit}.png"
     card_path = safe_path(os.path.join("assets/cards", filename))
@@ -107,9 +110,7 @@ def _overlay_image_on_frame(frame, card_img, bbox, opacity):
         return frame
 
     resized_card = cv2.resize(
-        card_img,
-        (target_w, target_h),
-        interpolation=cv2.INTER_AREA
+        card_img, (target_w, target_h), interpolation=cv2.INTER_AREA
     )
 
     center_x = bbox[0] + hand_w // 2
@@ -132,10 +133,7 @@ def _overlay_image_on_frame(frame, card_img, bbox, opacity):
     card_crop_x2 = target_w - (x2 - x2_final)
     card_crop_y2 = target_h - (y2 - y2_final)
 
-    card_to_overlay = resized_card[
-        card_crop_y1:card_crop_y2,
-        card_crop_x1:card_crop_x2
-    ]
+    card_to_overlay = resized_card[card_crop_y1:card_crop_y2, card_crop_x1:card_crop_x2]
 
     alpha_channel = (card_to_overlay[:, :, 3] / 255.0) * opacity
     color_channels = card_to_overlay[:, :, :3]
@@ -144,8 +142,7 @@ def _overlay_image_on_frame(frame, card_img, bbox, opacity):
 
     for c in range(3):
         roi[:, :, c] = (
-            roi[:, :, c] * (1 - alpha_channel)
-            + color_channels[:, :, c] * alpha_channel
+            roi[:, :, c] * (1 - alpha_channel) + color_channels[:, :, c] * alpha_channel
         )
 
     frame[y1_final:y2_final, x1_final:x2_final] = roi
@@ -157,6 +154,7 @@ def _overlay_image_on_frame(frame, card_img, bbox, opacity):
 # Detect (No detection here; consume HAND module output)
 # ------------------------------------------------------------
 
+
 def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
     return
 
@@ -165,7 +163,10 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
 # Draw (Runtime Config Aware)
 # ------------------------------------------------------------
 
-def draw(frame: np.ndarray, context: ThreadSafeContext, config=None, **kwargs) -> np.ndarray:
+
+def draw(
+    frame: np.ndarray, context: ThreadSafeContext, config=None, **kwargs
+) -> np.ndarray:
     global _card_img, _current_rank, _current_suit, _opacity
 
     if not config:

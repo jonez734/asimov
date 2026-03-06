@@ -4,8 +4,8 @@ import cv2
 import time
 import numpy as np
 
-from asimov import conf as _global_conf
-from asimov.base.common import ThreadSafeContext, OneEuroFilter
+from .. import conf as _global_conf
+from ..base.common import ThreadSafeContext, OneEuroFilter
 
 # ------------------------------------------------------------
 # Scene metadata
@@ -17,6 +17,7 @@ PROVIDES = {"EYES"}
 # ------------------------------------------------------------
 # Internal helpers
 # ------------------------------------------------------------
+
 
 def _draw_rotated_bar(img, center, size, angle_deg, color, alpha):
     """
@@ -58,6 +59,7 @@ def _get_conf(scene_conf):
 # ------------------------------------------------------------
 # Core logic (shared by legacy + scene)
 # ------------------------------------------------------------
+
 
 def _update_logic(context: ThreadSafeContext, *, conf):
     face_ns = context.get("FACE")
@@ -123,6 +125,7 @@ def _update_logic(context: ThreadSafeContext, *, conf):
 # Original API
 # ------------------------------------------------------------
 
+
 def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
     """
     Legacy detect hook (BC).
@@ -159,12 +162,14 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 # Scene API
 # ------------------------------------------------------------
 
+
 def update(context: ThreadSafeContext, *, conf=None, **kwargs):
     """
     Scene-compatible update hook.
     """
     cfg = _get_conf(conf)
     _update_logic(context, conf=cfg)
+
 
 def render_layer(context: ThreadSafeContext, shape, *, conf=None, **kwargs):
     """
@@ -197,6 +202,7 @@ def render_layer(context: ThreadSafeContext, shape, *, conf=None, **kwargs):
 # Boilerplate lifecycle hooks
 # ------------------------------------------------------------
 
+
 def main(args, **kwargs):
     return True
 
@@ -222,7 +228,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 1.0,
                 "max": 240.0,
                 "step": 1.0,
-                "label": "Filter Frequency (Hz)"
+                "label": "Filter Frequency (Hz)",
             },
             "MIN_CUTOFF": {
                 "type": "float",
@@ -230,7 +236,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.01,
                 "max": 10.0,
                 "step": 0.1,
-                "label": "Min Cutoff"
+                "label": "Min Cutoff",
             },
             "BETA": {
                 "type": "float",
@@ -238,8 +244,8 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 1.0,
                 "step": 0.01,
-                "label": "Beta (Responsiveness)"
-            }
+                "label": "Beta (Responsiveness)",
+            },
         },
         "BAR": {
             "WIDTH_SCALE": {
@@ -248,7 +254,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.5,
                 "max": 3.0,
                 "step": 0.1,
-                "label": "Bar Width Scale"
+                "label": "Bar Width Scale",
             },
             "HEIGHT_SCALE": {
                 "type": "float",
@@ -256,12 +262,12 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.5,
                 "max": 5.0,
                 "step": 0.1,
-                "label": "Bar Height Scale"
+                "label": "Bar Height Scale",
             },
             "COLOR": {
                 "type": "color",
                 "default": [0, 0, 0],
-                "label": "Bar Color (BGR)"
+                "label": "Bar Color (BGR)",
             },
             "ALPHA": {
                 "type": "float",
@@ -269,7 +275,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 1.0,
                 "step": 0.05,
-                "label": "Bar Opacity"
+                "label": "Bar Opacity",
             },
             "GRACE_PERIOD": {
                 "type": "float",
@@ -277,7 +283,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 2.0,
                 "step": 0.05,
-                "label": "Grace Period (seconds)"
-            }
-        }
+                "label": "Grace Period (seconds)",
+            },
+        },
     }

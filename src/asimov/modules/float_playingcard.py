@@ -15,9 +15,9 @@ import time
 import math
 import hashlib
 
-from asimov import conf
-from asimov.base.common import OneEuroFilter
-from asimov.playingcard import cards
+from .. import conf
+from ..base.common import OneEuroFilter
+from ..playingcard import cards
 from . import glitch
 
 RANKS = cards.RANKS

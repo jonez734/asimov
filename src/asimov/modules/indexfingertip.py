@@ -1,9 +1,8 @@
 import time
 import cv2
-from asimov import io
-from asimov import conf
-from asimov.base.common import ThreadSafeContext, OneEuroFilter
-from asimov.base.util import draw_text
+from .. import io, conf
+from ..base.common import ThreadSafeContext, OneEuroFilter
+from ..base.util import draw_text
 import numpy as np
 
 # MediaPipe landmark index

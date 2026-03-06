@@ -4,8 +4,8 @@ from typing import Dict, Tuple, List
 import cv2
 import numpy as np
 
-from asimov import conf
-from asimov.base.util import draw_text
+from .. import conf
+from ..base.util import draw_text
 from .rect_touch import CTX_TOUCHES
 
 MODULE_NAME = "rect"
@@ -18,6 +18,7 @@ CTX_RECTS = "rects"
 # Rect utilities
 # ------------------------
 
+
 def _point_in_rect(pt: Tuple[int, int], rect: Dict) -> bool:
     x, y = pt
     rx, ry, rw, rh = rect["x"], rect["y"], rect["w"], rect["h"]
@@ -28,13 +29,14 @@ def _point_in_rect(pt: Tuple[int, int], rect: Dict) -> bool:
 # Module API
 # ------------------------
 
+
 def detect(frame: np.ndarray, context):
     """
     Manage rectangles in context.
     Creates default rectangles if none exist.
     """
     rects: List[Dict] = context.get(CTX_RECTS, [])
-    
+
     if not rects:
         init_default_rects(context)
 
@@ -93,6 +95,7 @@ def state(context) -> Dict:
 # Optional helpers
 # ------------------------
 
+
 def add_rect(context, rect_id: str, x: int, y: int, w: int, h: int):
     rects = context.setdefault(CTX_RECTS, [])
     rects.append(
@@ -104,6 +107,7 @@ def add_rect(context, rect_id: str, x: int, y: int, w: int, h: int):
             "h": h,
         }
     )
+
 
 def init(args, **kwargs):
     return True
@@ -119,20 +123,16 @@ def init_default_rects(context):
 def ui_schema(args=None, context=None) -> dict | None:
     return {
         "DRAW": {
-            "enabled": {
-                "type": "bool",
-                "default": True,
-                "label": "Draw Rectangles"
-            },
+            "enabled": {"type": "bool", "default": True, "label": "Draw Rectangles"},
             "COLOR": {
                 "type": "color",
                 "default": [0, 180, 255],
-                "label": "Rectangle Color (BGR)"
+                "label": "Rectangle Color (BGR)",
             },
             "TOUCHED_COLOR": {
                 "type": "color",
                 "default": [0, 0, 255],
-                "label": "Touched Color (BGR)"
+                "label": "Touched Color (BGR)",
             },
             "THICKNESS": {
                 "type": "int",
@@ -140,7 +140,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 1,
                 "max": 10,
                 "step": 1,
-                "label": "Border Thickness"
+                "label": "Border Thickness",
             },
             "TOUCHED_THICKNESS": {
                 "type": "int",
@@ -148,7 +148,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 1,
                 "max": 10,
                 "step": 1,
-                "label": "Touched Border Thickness"
+                "label": "Touched Border Thickness",
             },
             "LABEL_SCALE": {
                 "type": "float",
@@ -156,7 +156,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.1,
                 "max": 2.0,
                 "step": 0.1,
-                "label": "Label Scale"
+                "label": "Label Scale",
             },
             "LABEL_THICKNESS": {
                 "type": "int",
@@ -164,7 +164,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 1,
                 "max": 5,
                 "step": 1,
-                "label": "Label Thickness"
+                "label": "Label Thickness",
             },
         }
     }

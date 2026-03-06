@@ -1,7 +1,7 @@
 import numpy as np
-from asimov import conf
-from asimov.base.common import ThreadSafeContext
-from asimov.base.util import draw_text
+from .. import conf
+from ..base.common import ThreadSafeContext
+from ..base.util import draw_text
 
 ERR_TEXT_ORG = (10, 30)
 ERR_TEXT_SCALE = 0.6
@@ -56,25 +56,17 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 def ui_schema(args=None, context=None) -> dict | None:
     return {
         "DRAW": {
-            "enabled": {
-                "type": "bool",
-                "default": True,
-                "label": "Show FPS Overlay"
-            },
-            "pos": {
-                "type": "string",
-                "default": "10,30",
-                "label": "Position (x,y)"
-            },
+            "enabled": {"type": "bool", "default": True, "label": "Show FPS Overlay"},
+            "pos": {"type": "string", "default": "10,30", "label": "Position (x,y)"},
             "bg_color": {
                 "type": "color",
                 "default": [255, 0, 255],
-                "label": "Background Color (BGR)"
+                "label": "Background Color (BGR)",
             },
             "text_color": {
                 "type": "color",
                 "default": [255, 255, 255],
-                "label": "Text Color (BGR)"
+                "label": "Text Color (BGR)",
             },
             "scale": {
                 "type": "float",
@@ -82,7 +74,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.5,
                 "max": 5.0,
                 "step": 0.1,
-                "label": "Text Scale"
+                "label": "Text Scale",
             },
             "thickness": {
                 "type": "int",
@@ -90,8 +82,8 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 1,
                 "max": 5,
                 "step": 1,
-                "label": "Text Thickness"
-            }
+                "label": "Text Thickness",
+            },
         }
     }
 

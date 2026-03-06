@@ -394,8 +394,8 @@ Floating playing card with detection.
 ### Using a Detection Module
 
 ```python
-from asimov.base.common import ThreadSafeContext
-from asimov.modules import hand, face
+from ..base.common import ThreadSafeContext
+from . import hand, face
 
 context = ThreadSafeContext()
 
@@ -410,7 +410,7 @@ face.detect(frame, context)
 ### Module Configuration
 
 ```python
-from asimov import conf
+from .. import conf
 
 # Modify hand detection settings
 conf.HAND["DETECTION"]["MAX_HANDS"] = 2

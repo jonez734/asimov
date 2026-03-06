@@ -1,8 +1,7 @@
 import numpy as np
 from collections import deque
-from asimov import io
-from asimov import conf
-from asimov.base.common import ThreadSafeContext
+from .. import io, conf
+from ..base.common import ThreadSafeContext
 
 # ------------------------------------------------------------
 # Context key (ABI-STABLE)
@@ -13,6 +12,7 @@ CTX_KEY = "MOTIONBLUR"
 # ------------------------------------------------------------
 # Detect phase (state update only)
 # ------------------------------------------------------------
+
 
 def detect(frame, context: ThreadSafeContext, **kwargs):
     try:
@@ -69,6 +69,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 # Draw phase (frame mutation)
 # ------------------------------------------------------------
 
+
 def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     ns = context.get(CTX_KEY)
     if not ns or ns.get("error_state") or not ns.get("active"):
@@ -112,16 +113,17 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     # ---- Base fingertip mask ---------------------------------------------
     h, w = frame.shape[:2]
-###    radius = conf.MOTIONBLUR["RADIUS"]
+    ###    radius = conf.MOTIONBLUR["RADIUS"]
     radius = int(np.clip(velocity * 0.4, 6, 24))
 
     yy, xx = np.ogrid[:h, :w]
-    base_mask = (xx - x) ** 2 + (yy - y) ** 2 <= radius ** 2
+    base_mask = (xx - x) ** 2 + (yy - y) ** 2 <= radius**2
     base_mask = base_mask.astype(np.float32)[..., None]
 
     # ---- Optional yellow color gate --------------------------------------
     if conf.MOTIONBLUR.get("COLOR_GATE", False):
         import cv2
+
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         lo = np.array(conf.MOTIONBLUR["YELLOW_MIN"], dtype=np.uint8)
         hi = np.array(conf.MOTIONBLUR["YELLOW_MAX"], dtype=np.uint8)
@@ -152,16 +154,17 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         blurred += shifted.astype(np.float32) * wgt
 
     # ---- Composite --------------------------------------------------------
-    frame[:] = (
-        frame.astype(np.float32) * (1.0 - mask) +
-        blurred * mask
-    ).astype(np.uint8)
+    frame[:] = (frame.astype(np.float32) * (1.0 - mask) + blurred * mask).astype(
+        np.uint8
+    )
 
     return frame
+
 
 # ------------------------------------------------------------
 # Required lifecycle hooks
 # ------------------------------------------------------------
+
 
 def init(args, **kwargs):
     return True
