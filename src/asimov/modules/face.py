@@ -1,11 +1,11 @@
 # asimov/modules/face.py
 import time
 import cv2
-from . import mediapipe_compat  # noqa: F401 - needed for mp.solutions patch
-import mediapipe as mp
 from asimov import io
-from asimov import conf
 from asimov.base.common import ThreadSafeContext
+from asimov.base.util import draw_text
+import mediapipe_compat
+import mediapipe as mp
 import numpy as np
 
 
@@ -80,8 +80,8 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         return frame
 
     if ns.get("error_state"):
-        cv2.putText(
-            frame, "FACE ERROR", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2
+        frame = draw_text(
+            frame, 10, 30, "FACE ERROR", color=(0, 0, 255), font_scale=0.6, thickness=2
         )
         return frame
 

@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 
 from asimov import conf
+from asimov.base.util import draw_text
 from .rect_touch import CTX_TOUCHES
 
 MODULE_NAME = "rect"
@@ -66,15 +67,14 @@ def draw(frame: np.ndarray, context):
         )
 
         if rid:
-            cv2.putText(
+            frame = draw_text(
                 frame,
+                x + 4,
+                y - 6,
                 rid,
-                (x + 4, y - 6),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                cfg["LABEL_SCALE"],
-                color,
-                cfg["LABEL_THICKNESS"],
-                cv2.LINE_AA,
+                color=color,
+                font_scale=cfg["LABEL_SCALE"],
+                thickness=cfg["LABEL_THICKNESS"],
             )
 
 

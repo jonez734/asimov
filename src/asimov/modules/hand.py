@@ -19,6 +19,7 @@ from cvzone.HandTrackingModule import HandDetector
 from asimov import io
 from asimov import conf
 from asimov.base.common import ThreadSafeContext
+from asimov.base.util import draw_text
 import numpy as np
 
 # Skeleton drawing is delegated to cvzone when overlays are enabled
@@ -107,8 +108,8 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         return frame
 
     if ns.get("error_state"):
-        cv2.putText(
-            frame, "HAND ERROR", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2
+        frame = draw_text(
+            frame, 10, 30, "HAND ERROR", color=(0, 0, 255), font_scale=0.6, thickness=2
         )
         return frame
 
@@ -168,27 +169,27 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     for hand in hands:
         if cfg.get("DRAW_HANDEDNESS") and "type" in hand:
-            cv2.putText(
+            frame = draw_text(
                 frame,
+                10,
+                y_text,
                 hand["type"],
-                (10, y_text),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                cfg["TEXT_COLOR"],
-                2,
+                color=cfg["TEXT_COLOR"],
+                font_scale=0.6,
+                thickness=2,
             )
             y_text += 20
 
         if cfg.get("DRAW_CONFIDENCE") and "confidence" in hand:
             txt = f"conf: {hand['confidence']:.2f}"
-            cv2.putText(
+            frame = draw_text(
                 frame,
+                10,
+                y_text,
                 txt,
-                (10, y_text),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                cfg["TEXT_COLOR"],
-                2,
+                color=cfg["TEXT_COLOR"],
+                font_scale=0.6,
+                thickness=2,
             )
             y_text += 20
 

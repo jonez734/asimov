@@ -3,6 +3,7 @@ import cv2
 from asimov import io
 from asimov import conf
 from asimov.base.common import ThreadSafeContext, OneEuroFilter
+from asimov.base.util import draw_text
 import numpy as np
 
 # MediaPipe landmark index
@@ -123,14 +124,14 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         return frame
 
     if ns.get("error_state"):
-        cv2.putText(
+        frame = draw_text(
             frame,
+            ERR_TEXT_ORG[0],
+            ERR_TEXT_ORG[1],
             "INDEXFINGERTIP ERROR",
-            ERR_TEXT_ORG,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            ERR_TEXT_SCALE,
-            (0, 0, 255),
-            ERR_TEXT_THICKNESS,
+            color=(0, 0, 255),
+            font_scale=ERR_TEXT_SCALE,
+            thickness=ERR_TEXT_THICKNESS,
         )
         return frame
 
