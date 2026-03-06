@@ -86,7 +86,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
         detector = ns["detector"]
 
-        hands, drawn = detector.findHands(frame, draw=False, flipType=False)
+        hands, drawn = detector.findHands(frame, draw=False, flipType=True)
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
 
