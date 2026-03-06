@@ -1,6 +1,7 @@
 # asimov/modules/face.py
 import time
 import cv2
+from asimov import conf
 from asimov import io
 from asimov.base.common import ThreadSafeContext
 from asimov.base.util import draw_text
