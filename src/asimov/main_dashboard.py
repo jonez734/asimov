@@ -242,6 +242,57 @@ def _on_radio_change(var, section, key, config_obj, on_change):
         on_change(section, key, val)
 
 
+def make_color_field(parent, section, key, meta, config_obj, on_change=None):
+    frame = ttk.Frame(parent)
+
+    label = ttk.Label(frame, text=meta.get("label", key))
+    label.pack(anchor="w")
+
+    current_color = config_obj[section].get(key, [0, 255, 0])
+    if isinstance(current_color, tuple):
+        b, g, r = current_color
+    else:
+        r, g, b = current_color[0], current_color[1], current_color[2]
+
+    color_frame = ttk.Frame(frame)
+    color_frame.pack(anchor="w", padx=10, pady=5)
+
+    var_b = tk.IntVar(value=b)
+    var_g = tk.IntVar(value=g)
+    var_r = tk.IntVar(value=r)
+
+    ttk.Label(color_frame, text="B:").pack(side="left", padx=2)
+    entry_b = ttk.Spinbox(color_frame, from_=0, to=255, textvariable=var_b, width=5)
+    entry_b.pack(side="left", padx=5)
+
+    ttk.Label(color_frame, text="G:").pack(side="left", padx=2)
+    entry_g = ttk.Spinbox(color_frame, from_=0, to=255, textvariable=var_g, width=5)
+    entry_g.pack(side="left", padx=5)
+
+    ttk.Label(color_frame, text="R:").pack(side="left", padx=2)
+    entry_r = ttk.Spinbox(color_frame, from_=0, to=255, textvariable=var_r, width=5)
+    entry_r.pack(side="left", padx=5)
+
+    def on_color_change(*args):
+        try:
+            b = var_b.get()
+            g = var_g.get()
+            r = var_r.get()
+        except (ValueError, tk.TclError):
+            return
+        color = (b, g, r)
+        config_obj[section][key] = color
+        if on_change:
+            on_change(section, key, color)
+
+    var_b.trace_add("write", on_color_change)
+    var_g.trace_add("write", on_color_change)
+    var_r.trace_add("write", on_color_change)
+
+    frame.pack(fill="x", padx=10, pady=5)
+    return frame
+
+
 def build_field(parent, section, key, meta, config_obj, on_change=None):
     field_type = meta.get("type", "float")
 
@@ -255,6 +306,8 @@ def build_field(parent, section, key, meta, config_obj, on_change=None):
         return make_enum_field(parent, section, key, meta, config_obj, on_change)
     elif field_type == "radio":
         return make_radio_field(parent, section, key, meta, config_obj, on_change)
+    elif field_type == "color":
+        return make_color_field(parent, section, key, meta, config_obj, on_change)
     return None
 
 

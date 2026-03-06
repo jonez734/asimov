@@ -73,14 +73,11 @@ HAND = {
 
 INDEXFINGERTIP = {
     # --------------------------------------------------------
-    # MediaPipe landmark index
+    # Detection settings
     # --------------------------------------------------------
-    "LANDMARK_ID": 8,
-    # --------------------------------------------------------
-    # Detection confidence threshold
-    # Used to gate whether fingertip data is considered valid
-    # --------------------------------------------------------
-    "DETECTION_CON": 0.6,
+    "DETECTION": {
+        "DETECTION_CON": 0.6,
+    },
     # --------------------------------------------------------
     # Update / sampling frequency (Hz)
     # Used to throttle detection or smoothing
@@ -414,6 +411,11 @@ SCENE = {
         {
             "name": "hand",
             "module": "asimov.modules.hand",
+            "conf": {},
+        },
+        {
+            "name": "indexfingertip",
+            "module": "asimov.modules.indexfingertip",
             "conf": {},
         },
         {

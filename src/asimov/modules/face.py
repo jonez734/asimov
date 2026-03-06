@@ -1,7 +1,7 @@
 # asimov/modules/face.py
 import time
 import cv2
-import mediapipe_compat
+from . import mediapipe_compat  # noqa: F401 - needed for mp.solutions patch
 import mediapipe as mp
 from asimov import io
 from asimov import conf
@@ -80,8 +80,9 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         return frame
 
     if ns.get("error_state"):
-        cv2.putText(frame, "FACE ERROR", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        cv2.putText(
+            frame, "FACE ERROR", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2
+        )
         return frame
 
     return frame
@@ -96,7 +97,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 1,
                 "max": 4,
                 "step": 1,
-                "label": "Maximum Faces"
+                "label": "Maximum Faces",
             },
             "DETECTION_CON": {
                 "type": "float",
@@ -104,7 +105,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 1.0,
                 "step": 0.05,
-                "label": "Detection Confidence"
+                "label": "Detection Confidence",
             },
             "TRACKING_CON": {
                 "type": "float",
@@ -112,8 +113,8 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 1.0,
                 "step": 0.05,
-                "label": "Tracking Confidence"
-            }
+                "label": "Tracking Confidence",
+            },
         },
         "OUTPUT": {
             "GRACE_PERIOD": {
@@ -122,21 +123,13 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 2.0,
                 "step": 0.05,
-                "label": "Grace Period (seconds)"
+                "label": "Grace Period (seconds)",
             }
         },
         "DRAW": {
-            "DETECTION": {
-                "type": "bool",
-                "default": False,
-                "label": "Draw Face Mesh"
-            }
-        }
+            "DETECTION": {"type": "bool", "default": False, "label": "Draw Face Mesh"}
+        },
     }
-
-
-def initgui(args, root) -> bool:
-    return True
 
 
 def init(args, **kwargs):

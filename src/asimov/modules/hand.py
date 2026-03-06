@@ -15,7 +15,6 @@ context['HAND'] and must NOT run their own hand detection.
 
 import time
 import cv2
-import mediapipe_compat
 from cvzone.HandTrackingModule import HandDetector
 from asimov import io
 from asimov import conf
@@ -26,13 +25,16 @@ import numpy as np
 
 # ---- Detection --------------------------------------------------------------
 
+
 def detect(frame, context: ThreadSafeContext, **kwargs):
     try:
         if "HAND" not in context:
             cfg = conf.HAND.copy()
             if "DETECTION" in cfg:
                 cfg["DETECTION_CON"] = cfg["DETECTION"].get("DETECTION_CON", 0.6)
-                cfg["MIN_DETECTION_CONF"] = cfg["DETECTION"].get("MIN_DETECTION_CONF", 0.7)
+                cfg["MIN_DETECTION_CONF"] = cfg["DETECTION"].get(
+                    "MIN_DETECTION_CONF", 0.7
+                )
                 cfg["MAX_HANDS"] = cfg["DETECTION"].get("MAX_HANDS", 1)
             if "FILTER" in cfg:
                 cfg["FREQ"] = cfg["FILTER"].get("FREQ", 30.0)
@@ -98,14 +100,16 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
 # ---- Drawing ----------------------------------------------------------------
 
+
 def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     ns = context.get("HAND")
     if not ns:
         return frame
 
     if ns.get("error_state"):
-        cv2.putText(frame, "HAND ERROR", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        cv2.putText(
+            frame, "HAND ERROR", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2
+        )
         return frame
 
     cfg = ns["cfg"]
@@ -116,9 +120,31 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
             lmList = hand.get("lmList", [])
             if lmList:
                 # Draw connections
-                connections = [(0,1),(1,2),(2,3),(3,4), (0,5),(5,6),(6,7),(7,8),
-                               (0,9),(9,10),(10,11),(11,12), (0,13),(13,14),(14,15),(15,16),
-                               (0,17),(17,18),(18,19),(19,20), (5,9),(9,13),(13,17)]
+                connections = [
+                    (0, 1),
+                    (1, 2),
+                    (2, 3),
+                    (3, 4),
+                    (0, 5),
+                    (5, 6),
+                    (6, 7),
+                    (7, 8),
+                    (0, 9),
+                    (9, 10),
+                    (10, 11),
+                    (11, 12),
+                    (0, 13),
+                    (13, 14),
+                    (14, 15),
+                    (15, 16),
+                    (0, 17),
+                    (17, 18),
+                    (18, 19),
+                    (19, 20),
+                    (5, 9),
+                    (9, 13),
+                    (13, 17),
+                ]
                 for start_idx, end_idx in connections:
                     if start_idx < len(lmList) and end_idx < len(lmList):
                         pt1 = (int(lmList[start_idx][0]), int(lmList[start_idx][1]))
@@ -142,14 +168,28 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     for hand in hands:
         if cfg.get("DRAW_HANDEDNESS") and "type" in hand:
-            cv2.putText(frame, hand["type"], (10, y_text),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, cfg["TEXT_COLOR"], 2)
+            cv2.putText(
+                frame,
+                hand["type"],
+                (10, y_text),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                cfg["TEXT_COLOR"],
+                2,
+            )
             y_text += 20
 
         if cfg.get("DRAW_CONFIDENCE") and "confidence" in hand:
             txt = f"conf: {hand['confidence']:.2f}"
-            cv2.putText(frame, txt, (10, y_text),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, cfg["TEXT_COLOR"], 2)
+            cv2.putText(
+                frame,
+                txt,
+                (10, y_text),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                cfg["TEXT_COLOR"],
+                2,
+            )
             y_text += 20
 
     return frame
@@ -165,7 +205,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 1.0,
                 "step": 0.05,
-                "label": "Detection Confidence"
+                "label": "Detection Confidence",
             },
             "MIN_DETECTION_CONF": {
                 "type": "float",
@@ -173,7 +213,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 1.0,
                 "step": 0.05,
-                "label": "Min Detection Confidence"
+                "label": "Min Detection Confidence",
             },
             "MAX_HANDS": {
                 "type": "int",
@@ -181,10 +221,9 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 1,
                 "max": 4,
                 "step": 1,
-                "label": "Maximum Hands"
-            }
+                "label": "Maximum Hands",
+            },
         },
-
         "FILTER": {
             "FREQ": {
                 "type": "float",
@@ -192,7 +231,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 1.0,
                 "max": 240.0,
                 "step": 1.0,
-                "label": "Filter Frequency (Hz)"
+                "label": "Filter Frequency (Hz)",
             },
             "MIN_CUTOFF": {
                 "type": "float",
@@ -200,7 +239,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.01,
                 "max": 10.0,
                 "step": 0.1,
-                "label": "Min Cutoff"
+                "label": "Min Cutoff",
             },
             "BETA": {
                 "type": "float",
@@ -208,46 +247,39 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 5.0,
                 "step": 0.05,
-                "label": "Beta (Speed Sensitivity)"
-            }
+                "label": "Beta (Speed Sensitivity)",
+            },
         },
-
         "DRAW": {
             "SHOW_LANDMARKS": {
                 "type": "bool",
                 "default": True,
-                "label": "Draw Landmarks"
+                "label": "Draw Landmarks",
             },
             "SHOW_BBOX": {
                 "type": "bool",
                 "default": False,
-                "label": "Draw Bounding Box"
+                "label": "Draw Bounding Box",
             },
             "DRAW_HANDEDNESS": {
                 "type": "bool",
                 "default": True,
-                "label": "Show Handedness Label"
+                "label": "Show Handedness Label",
             },
             "DRAW_CONFIDENCE": {
                 "type": "bool",
                 "default": False,
-                "label": "Show Detection Confidence"
-            }
+                "label": "Show Detection Confidence",
+            },
         },
-
         "DEBUG": {
-            "SHOW_FPS": {
-                "type": "bool",
-                "default": False,
-                "label": "Show Hand FPS"
-            }
-        }
+            "SHOW_FPS": {"type": "bool", "default": False, "label": "Show Hand FPS"}
+        },
     }
 
-def initgui(args, root) -> bool:
-    return True
 
 # ---- Lifecycle hooks --------------------------------------------------------
+
 
 def init(args, **kwargs):
     return True

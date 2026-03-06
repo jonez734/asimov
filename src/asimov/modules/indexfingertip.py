@@ -15,6 +15,7 @@ ERR_TEXT_ORG = (10, 30)
 ERR_TEXT_SCALE = 0.6
 ERR_TEXT_THICKNESS = 2
 
+
 def detect(frame, context: ThreadSafeContext, **kwargs):
     try:
         # ---- Init -----------------------------------------------------------
@@ -58,7 +59,9 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
         # Check detection confidence
         detection_con = hand.get("detectionCon", 0)
-        if detection_con < conf.INDEXFINGERTIP.get("DETECTION_CON", 0.6):
+        if detection_con < conf.INDEXFINGERTIP.get("DETECTION", {}).get(
+            "DETECTION_CON", 0.6
+        ):
             return
 
         # cvzone finger state (geometry-only, no detection)
@@ -148,30 +151,28 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     return frame
 
+
 def ui_schema(args=None, context=None) -> dict | None:
     return {
-        "DETECTION_CON": {
-            "type": "float",
-            "default": 0.6,
-            "min": 0.1,
-            "max": 1.0,
-            "step": 0.05,
-            "label": "Detection Confidence"
-        },
-
-        "FILTER": {
-            "enabled": {
-                "type": "bool",
-                "default": True,
-                "label": "Enable Filter"
+        "DETECTION": {
+            "DETECTION_CON": {
+                "type": "float",
+                "default": 0.6,
+                "min": 0.1,
+                "max": 1.0,
+                "step": 0.05,
+                "label": "Detection Confidence",
             },
+        },
+        "FILTER": {
+            "enabled": {"type": "bool", "default": True, "label": "Enable Filter"},
             "alpha": {
                 "type": "float",
                 "default": 0.4,
                 "min": 0.0,
                 "max": 1.0,
                 "step": 0.05,
-                "label": "Smoothing Factor"
+                "label": "Smoothing Factor",
             },
             "deadzone": {
                 "type": "int",
@@ -179,7 +180,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0,
                 "max": 20,
                 "step": 1,
-                "label": "Deadzone (pixels)"
+                "label": "Deadzone (pixels)",
             },
             "FREQ": {
                 "type": "float",
@@ -187,7 +188,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 1.0,
                 "max": 240.0,
                 "step": 1.0,
-                "label": "Filter Frequency (Hz)"
+                "label": "Filter Frequency (Hz)",
             },
             "MIN_CUTOFF": {
                 "type": "float",
@@ -195,7 +196,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.01,
                 "max": 10.0,
                 "step": 0.1,
-                "label": "Min Cutoff"
+                "label": "Min Cutoff",
             },
             "BETA": {
                 "type": "float",
@@ -203,28 +204,23 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": 0.0,
                 "max": 5.0,
                 "step": 0.05,
-                "label": "Beta"
-            }
-        },
-
-        "DRAW": {
-            "enabled": {
-                "type": "bool",
-                "default": True,
-                "label": "Draw Pointer"
+                "label": "Beta",
             },
+        },
+        "DRAW": {
+            "enabled": {"type": "bool", "default": True, "label": "Draw Pointer"},
             "radius": {
                 "type": "int",
                 "default": 6,
                 "min": 1,
                 "max": 50,
                 "step": 1,
-                "label": "Pointer Radius"
+                "label": "Pointer Radius",
             },
             "color": {
                 "type": "color",
                 "default": [0, 255, 0],
-                "label": "Pointer Color (BGR)"
+                "label": "Pointer Color (BGR)",
             },
             "thickness": {
                 "type": "int",
@@ -232,18 +228,18 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "min": -1,
                 "max": 10,
                 "step": 1,
-                "label": "Thickness (-1=filled)"
-            }
+                "label": "Thickness (-1=filled)",
+            },
         },
-
         "DEBUG": {
             "SHOW_TRAIL": {
                 "type": "bool",
                 "default": False,
-                "label": "Show Motion Trail"
+                "label": "Show Motion Trail",
             }
-        }
+        },
     }
+
 
 def init(args, **kwargs):
     return True

@@ -63,10 +63,6 @@ Optional:
 def ui_schema(args=None, context=None) -> dict | None:
     """Return UI schema for configuration."""
     pass
-
-def initgui(args, root) -> bool:
-    """Initialize GUI elements."""
-    pass
 ```
 
 ## Configuration (conf.py)
