@@ -61,6 +61,14 @@ from typing import Callable, Any, Tuple, List, Optional, Sequence, Dict, Union
 
 MAX_BLOCK_SIZE = 128
 
+
+def capture_device_type(arg: str) -> Union[int, str]:
+    """Convert CLI argument to capture device (int for device index, str for filepath)."""
+    try:
+        return int(arg)
+    except ValueError:
+        return arg
+
 LOGGER_NAME = "asimov"
 
 FRAME_BLOCK_FORMAT = "!HBBH"

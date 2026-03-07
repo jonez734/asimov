@@ -4,8 +4,7 @@
 import struct
 import time
 import socket
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, field
+from typing import Optional, Dict, Any
 
 PACKET_TYPE_PING = 1
 PACKET_TYPE_PONG = 2
