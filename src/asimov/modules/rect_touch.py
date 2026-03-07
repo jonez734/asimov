@@ -22,7 +22,7 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs):
     Reads rectangles from context, checks if fingertip is inside.
     """
 
-    cfg = conf.RECT_TOUCH.get("DETECTION", {})
+    cfg = conf.get("RECT_TOUCH").get("DETECTION", {})
     if not cfg.get("enabled", True):
         context[CTX_TOUCHES] = []
         return

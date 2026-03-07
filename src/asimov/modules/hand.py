@@ -29,7 +29,7 @@ import numpy as np
 def detect(frame, context: ThreadSafeContext, **kwargs):
     try:
         if "HAND" not in context:
-            cfg = conf.HAND.copy()
+            cfg = conf.get("HAND")
             if "DETECTION" in cfg:
                 cfg["DETECTION_CON"] = cfg["DETECTION"].get("DETECTION_CON", 0.6)
                 cfg["MIN_DETECTION_CONF"] = cfg["DETECTION"].get(
@@ -64,8 +64,8 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         ns = context["HAND"]
         ns["error_state"] = False
 
-        # Sync config from conf.HAND to pick up UI changes
-        cfg = conf.HAND.copy()
+        # Sync config from conf to pick up UI changes
+        cfg = conf.get("HAND")
         if "DETECTION" in cfg:
             cfg["DETECTION_CON"] = cfg["DETECTION"].get("DETECTION_CON", 0.6)
             cfg["MIN_DETECTION_CONF"] = cfg["DETECTION"].get("MIN_DETECTION_CONF", 0.7)

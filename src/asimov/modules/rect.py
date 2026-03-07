@@ -49,7 +49,7 @@ def draw(frame: np.ndarray, context):
     rects: List[Dict] = context.get(CTX_RECTS, [])
     touches = set(context.get(CTX_TOUCHES, []))
 
-    cfg = conf.RECT
+    cfg = conf.get("RECT")
 
     for rect in rects:
         x, y, w, h = rect["x"], rect["y"], rect["w"], rect["h"]

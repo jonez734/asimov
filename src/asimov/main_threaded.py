@@ -8,12 +8,13 @@ from . import io
 from . import conf
 from .common import ThreadSafeContext
 
+_config_lock = threading.Lock()
+
 
 def get_active_modules():
     """Dynamically loads modules defined in the OVERLAYS table."""
     active = []
-    # Sort by 'order' so pixel-mashing (glitch) happens before UI drawing
-    items = sorted(conf.OVERLAYS.items(), key=lambda x: x[1].get("order", 99))
+    items = conf.get_overlays_items()
 
     for name, cfg in items:
         try:
@@ -26,16 +27,21 @@ def get_active_modules():
 
 def processing_thread(context: ThreadSafeContext, modules):
     """The unified background worker for all detections."""
+    if conf.get_overlays_changed_event().is_set():
+        conf.clear_overlays_changed()
+
     cap = cv2.VideoCapture(0)
 
     while True:
+        if conf.get_overlays_changed_event().is_set():
+            conf.clear_overlays_changed()
+
         success, frame = cap.read()
         if not success:
             break
 
         with context:
             for item in modules:
-                # Only run detection if the module is enabled in the table
                 if item["config"].get("enabled", True):
                     mod = item["module"]
                     if hasattr(mod, "detect"):
@@ -72,7 +78,8 @@ def main():
             # Match character to hotkeys in the table
             for item in modules:
                 if item["config"].get("hotkey") == char:
-                    item["config"]["enabled"] = not item["config"]["enabled"]
+                    with _config_lock:
+                        item["config"]["enabled"] = not item["config"]["enabled"]
                     status = "ON" if item["config"]["enabled"] else "OFF"
                     io.echo(f"TOGGLE: {item['name']} is now {status}")
 

@@ -539,27 +539,22 @@ class DashboardApp:
     def _get_module_config(self, name):
         name_lower = name.lower()
 
-        if name_lower == "hand":
-            return conf.HAND
-        elif name_lower == "indexfingertip":
-            return conf.INDEXFINGERTIP
-        elif name_lower == "face":
-            return conf.FACE
-        elif name_lower == "eyes_next":
-            return conf.EYES
-        elif name_lower == "glitch":
-            return conf.GLITCH
-        elif name_lower == "motionblur":
-            return conf.MOTIONBLUR
-        elif name_lower == "float_playingcard":
-            return conf.FLOAT_PLAYINGCARD
-        elif name_lower == "fps_overlay":
-            return conf.FPS_OVERLAY
-        elif name_lower == "rect":
-            return conf.RECT
-        elif name_lower == "rect_touch":
-            return conf.RECT_TOUCH
+        key_map = {
+            "hand": "HAND",
+            "indexfingertip": "INDEXFINGERTIP",
+            "face": "FACE",
+            "eyes_next": "EYES",
+            "glitch": "GLITCH",
+            "motionblur": "MOTIONBLUR",
+            "float_playingcard": "FLOAT_PLAYINGCARD",
+            "fps_overlay": "FPS_OVERLAY",
+            "rect": "RECT",
+            "rect_touch": "RECT_TOUCH",
+        }
 
+        key = key_map.get(name_lower)
+        if key and key in conf.CONF:
+            return conf.CONF[key]
         return None
 
     def _refresh_schema(self):

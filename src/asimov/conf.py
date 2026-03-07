@@ -1,9 +1,15 @@
 # asimov/conf.py
 # Central configuration for Asimov
-#
-# DEPRECATED: asimov.base.conf is deprecated.
-# All base configuration has been merged into this file.
-# asimov.base.conf will be removed in a future version.
+
+import copy
+import threading
+
+# ------------------------------------------------------------
+# Thread Safety
+# ------------------------------------------------------------
+
+_conf_lock = threading.RLock()
+_conf_changed = threading.Event()
 
 # ------------------------------------------------------------
 # Logging
@@ -472,3 +478,60 @@ PLAYINGCARD = {
     "SET_NAME": "bicycle",
     "DETECTION_THRESHOLD": 0.8,
 }
+
+# ------------------------------------------------------------
+# Thread-Safe Unified CONF
+# ------------------------------------------------------------
+
+CONF = {
+    "HAND": HAND,
+    "EYES": EYES,
+    "FACE": FACE,
+    "RECT": RECT,
+    "RECT_TOUCH": RECT_TOUCH,
+    "OVERLAYS": OVERLAYS,
+    "INDEXFINGERTIP": INDEXFINGERTIP,
+    "FLOAT_PLAYINGCARD": FLOAT_PLAYINGCARD,
+}
+
+
+def get(key):
+    """Atomic deep copy read from CONF."""
+    with _conf_lock:
+        return copy.deepcopy(CONF[key])
+
+
+def set(key, value):
+    """Atomic write to CONF, triggers change event."""
+    with _conf_lock:
+        CONF[key] = value
+        _conf_changed.set()
+
+
+def update(key, section, key_name, value):
+    """Update a nested config value and trigger change event."""
+    with _conf_lock:
+        CONF[key][section][key_name] = value
+        _conf_changed.set()
+
+
+def notify_change():
+    """Manually trigger the change event (for external config modifications)."""
+    with _conf_lock:
+        _conf_changed.set()
+
+
+def get_overlays_items():
+    """Returns sorted overlays items list for iteration."""
+    with _conf_lock:
+        return sorted(CONF["OVERLAYS"].items(), key=lambda x: x[1].get("order", 99))
+
+
+def get_overlays_changed_event():
+    """Returns Event for detection thread to poll."""
+    return _conf_changed
+
+
+def clear_overlays_changed():
+    """Clear the change flag after refresh."""
+    _conf_changed.clear()

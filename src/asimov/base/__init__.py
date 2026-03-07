@@ -1,17 +1,5 @@
-# asimov_base/__init__.py
+# asimov/base/__init__.py
 # Base package for Asimov - shared configuration and utilities
-#
-# DEPRECATED: This package is deprecated.
-# All configuration has been merged into asimov.conf.
-# Import from asimov.conf instead.
-
-import warnings
-
-warnings.warn(
-    "asimov.base is deprecated. Import from asimov instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 from ..conf import (  # noqa: F811
     CAPTURE_DEVICE,

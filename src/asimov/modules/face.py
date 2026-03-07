@@ -12,7 +12,7 @@ import numpy as np
 def detect(frame, context: ThreadSafeContext, **kwargs):
     try:
         if "FACE" not in context:
-            cfg = conf.FACE.copy()
+            cfg = conf.get("FACE")
             if "MESH" in cfg:
                 cfg["MAX_FACES"] = cfg["MESH"].get("MAX_FACES", 1)
                 cfg["DETECTION_CON"] = cfg["MESH"].get("DETECTION_CON", 0.5)
@@ -39,7 +39,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         ns = context["FACE"]
         ns["error_state"] = False
 
-        cfg = conf.FACE.copy()
+        cfg = conf.get("FACE")
         if "MESH" in cfg:
             cfg["MAX_FACES"] = cfg["MESH"].get("MAX_FACES", 1)
             cfg["DETECTION_CON"] = cfg["MESH"].get("DETECTION_CON", 0.5)

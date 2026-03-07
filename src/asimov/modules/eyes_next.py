@@ -45,7 +45,8 @@ def _expire_bar(ns, cfg):
     if not bar:
         return
 
-    if time.time() - bar["timestamp"] > cfg.EYES["BAR"]["GRACE_PERIOD"]:
+    eyes_conf = cfg.get("EYES") if cfg else _global_conf.get("EYES")
+    if time.time() - bar["timestamp"] > eyes_conf["BAR"]["GRACE_PERIOD"]:
         ns["data"] = None
 
 
@@ -73,7 +74,8 @@ def _update_logic(context: ThreadSafeContext, *, conf):
 
     # Lazy init
     if "EYES" not in context:
-        f = _global_conf.EYES["FILTER"]
+        eyes_conf = _global_conf.get("EYES")
+        f = eyes_conf["FILTER"]
         context["EYES"] = {
             "ema": {
                 k: OneEuroFilter(
@@ -88,7 +90,8 @@ def _update_logic(context: ThreadSafeContext, *, conf):
 
     ns = context["EYES"]
 
-    lm = _global_conf.EYES["FACEMESH"]["LANDMARKS"]
+    eyes_conf = _global_conf.get("EYES")
+    lm = eyes_conf["FACEMESH"]["LANDMARKS"]
 
     left_pts = np.array([face[i] for i in lm["LEFT_EYE"]], dtype=np.float32)
     right_pts = np.array([face[i] for i in lm["RIGHT_EYE"]], dtype=np.float32)
@@ -114,8 +117,8 @@ def _update_logic(context: ThreadSafeContext, *, conf):
     ns["data"] = {
         "cx": ema["cx"].update(cx),
         "cy": ema["cy"].update(cy),
-        "w": ema["w"].update(raw_w * _global_conf.EYES["BAR"]["WIDTH_SCALE"]),
-        "h": ema["h"].update(raw_h * _global_conf.EYES["BAR"]["HEIGHT_SCALE"]),
+        "w": ema["w"].update(raw_w * eyes_conf["BAR"]["WIDTH_SCALE"]),
+        "h": ema["h"].update(raw_h * eyes_conf["BAR"]["HEIGHT_SCALE"]),
         "angle": ema["angle"].update(angle),
         "timestamp": time.time(),
     }
