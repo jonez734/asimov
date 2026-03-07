@@ -4,7 +4,7 @@ import cv2
 from .. import conf, io
 from ..base.common import ThreadSafeContext
 from ..base.util import draw_text
-import mediapipe_compat
+from . import mediapipe_compat  # noqa: F401  # REQUIRED - do not remove; provides mp.solutions API for MediaPipe 0.10+
 import mediapipe as mp
 import numpy as np
 
