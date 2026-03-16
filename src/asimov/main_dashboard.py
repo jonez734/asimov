@@ -227,7 +227,9 @@ def make_radio_field(parent, section, key, meta, config_obj, on_change=None):
             text=opt,
             variable=var,
             value=opt,
-            command=lambda v=var: _on_radio_change(v, section, key, config_obj, on_change),
+            command=lambda v=var: _on_radio_change(
+                v, section, key, config_obj, on_change
+            ),
         )
         rb.pack(side="left", padx=5)
 
@@ -792,5 +794,14 @@ def main(args, **kwargs):
     render_thread.start()
 
     root.mainloop()
+
+    # Shutdown modules that have close() methods
+    for item in modules:
+        m = item.get("module_ref")
+        if m and hasattr(m, "close"):
+            try:
+                m.close(args, context=context)
+            except Exception:
+                io.echo_traceback(f"Error closing module '{item['name']}'")
 
     return True

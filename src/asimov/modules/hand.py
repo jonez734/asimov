@@ -295,3 +295,11 @@ def access(args, op, /, **kwargs):
 
 def main(args, **kwargs):
     return True
+
+
+def close(args, **kwargs):
+    context = kwargs.get("context")
+    if context and "HAND" in context:
+        detector = context["HAND"].get("detector")
+        if detector and hasattr(detector, "hands"):
+            detector.hands.close()
