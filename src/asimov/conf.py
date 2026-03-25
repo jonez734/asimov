@@ -354,6 +354,13 @@ FACE = {
     # --------------------------------------------------------
     "DRAW": {
         "DETECTION": False,
+        "MODE": "key",
+        "DRAW_IRIS": False,
+        "MIRROR": False,
+        "ALPHA": 1.0,
+        "COLOR": (0, 255, 0),
+        "LINE_THICKNESS": 1,
+        "POINT_RADIUS": 1,
     },
 }
 
