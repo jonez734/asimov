@@ -133,6 +133,3 @@ class Packet:
         if payload is None:
             return None
         return Packet(ptype, payload, timestamp)
-
-
-

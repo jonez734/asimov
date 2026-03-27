@@ -5,7 +5,8 @@ from itertools import cycle, product
 from OpenGL.GL import *
 import pyrr
 import sys
-sys.path.insert(0, '/home/jam/projects/asimov/src')
+
+sys.path.insert(0, "/home/jam/projects/asimov/src")
 from asimov import render
 from asimov.playingcard.cards import RANKS, SUITS, get_card_path
 from PIL import Image
@@ -30,7 +31,9 @@ def main(image_paths, side_image, n_cubes=15, spacing=1.2, width=800, height=600
     glEnable(GL_DEPTH_TEST)
 
     shader = render.create_shader(render.VERTEX_SHADER, render.FRAGMENT_SHADER)
-    projection = pyrr.matrix44.create_orthogonal_projection_matrix(-2, 2, -2, 2, 0.1, 10)
+    projection = pyrr.matrix44.create_orthogonal_projection_matrix(
+        -2, 2, -2, 2, 0.1, 10
+    )
     glUseProgram(shader)
     proj_loc = glGetUniformLocation(shader, "projection")
     model_loc = glGetUniformLocation(shader, "model")
@@ -44,9 +47,9 @@ def main(image_paths, side_image, n_cubes=15, spacing=1.2, width=800, height=600
 
     cols = 3
     for i in range(n_cubes):
-            row, col = divmod(i, cols)
-            vao, count = render.create_cube(aspect_ratio=aspect_ratio)
-            cubes.append((vao, count, render.load_texture(next(image_cycle))))
+        row, col = divmod(i, cols)
+        vao, count = render.create_cube(aspect_ratio=aspect_ratio)
+        cubes.append((vao, count, render.load_texture(next(image_cycle))))
 
     side_texture = render.load_texture(side_image)
 
@@ -92,8 +95,8 @@ if __name__ == "__main__":
         nargs="*",
         default=None,
         help="Path to card image(s). Can be a single file or multiple files. "
-             "If fewer than --cubes, cycles through the list. "
-             "Default: 15 unique cards from a standard deck.",
+        "If fewer than --cubes, cycles through the list. "
+        "Default: 15 unique cards from a standard deck.",
     )
     parser.add_argument(
         "--side",
@@ -133,5 +136,11 @@ if __name__ == "__main__":
         carddir = os.path.expanduser(args.carddir)
         image_paths = get_default_card_paths(args.cubes, basedir=carddir)
 
-    main(image_paths, args.side, n_cubes=args.cubes, spacing=args.spacing,
-         width=args.width, height=args.height)
+    main(
+        image_paths,
+        args.side,
+        n_cubes=args.cubes,
+        spacing=args.spacing,
+        width=args.width,
+        height=args.height,
+    )

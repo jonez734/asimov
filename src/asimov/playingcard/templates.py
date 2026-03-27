@@ -16,13 +16,14 @@ from asimov.io import echo
 # Globals
 # ------------------------------------------------------------
 
-_loaded_templates = {}     # {set_name: [(name, img, scale, angle)]}
+_loaded_templates = {}  # {set_name: [(name, img, scale, angle)]}
 _corner_size = None
 _loaded_set = None
 
 # ------------------------------------------------------------
 # Load all precomputed templates
 # ------------------------------------------------------------
+
 
 def load_templates(basedir=None, set_name=None):
     """
@@ -62,10 +63,10 @@ def load_templates(basedir=None, set_name=None):
         if len(parts) != 3:
             raise ValueError(f"Unexpected template filename format: {filename}")
 
-        name_part = parts[0]      # "10_of_clubs"
-        scale_part = parts[1]     # "0.80"
-        angle_part = parts[2]     # "0"
-        
+        name_part = parts[0]  # "10_of_clubs"
+        scale_part = parts[1]  # "0.80"
+        angle_part = parts[2]  # "0"
+
         echo(f"{name_part=} {scale_part=} {angle_part=}", end="\n")
 
         path = get_safe_path(scaled_dir, filename)
@@ -73,21 +74,25 @@ def load_templates(basedir=None, set_name=None):
         if img is None:
             continue
 
-##        if scale != 1.0:
-##            tmpl = cv2.resize(tmpl, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        ##        if scale != 1.0:
+        ##            tmpl = cv2.resize(tmpl, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 
         templates.append((name_part, img, float(scale_part), int(angle_part)))
 
     _loaded_templates[set_name] = templates
     _loaded_set = set_name
 
-    print(f"[playingcard] Loaded {len(templates)} precomputed templates from '{set_name}'")
+    print(
+        f"[playingcard] Loaded {len(templates)} precomputed templates from '{set_name}'"
+    )
 
     return templates
+
 
 # ------------------------------------------------------------
 # Fast detection using precomputed templates
 # ------------------------------------------------------------
+
 
 def detect_card(frame, threshold=0.8):
     """
@@ -97,15 +102,15 @@ def detect_card(frame, threshold=0.8):
     if _loaded_set is None:
         raise RuntimeError("No templates loaded. Call load_templates() first.")
 
-#    if frame.ndim == 3:
-#        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-#    else:
-#        frame_gray = frame
+    #    if frame.ndim == 3:
+    #        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    #    else:
+    #        frame_gray = frame
     frame_gray = frame
 
     best_match = (None, 0.0, 0, 0)  # (name, score, scale, angle)
 
-    for (name, tmpl, scale, angle) in _loaded_templates[_loaded_set]:
+    for name, tmpl, scale, angle in _loaded_templates[_loaded_set]:
         if frame_gray.shape[0] < tmpl.shape[0] or frame_gray.shape[1] < tmpl.shape[1]:
             continue
 

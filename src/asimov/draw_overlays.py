@@ -1,7 +1,9 @@
 import cv2
 
+
 def should_run(context):
     return "rectangles" in context
+
 
 def process(frame, context):
     rectangles = context.get("rectangles", [])

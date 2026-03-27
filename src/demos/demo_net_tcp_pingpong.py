@@ -26,7 +26,7 @@ def handle_pong(packet: Packet):
     """Handle a received PONG packet."""
     (orig_ts,) = struct.unpack("!d", packet.payload)
     rtt = time.time() - orig_ts
-    io.echo(f"[Client] RTT: {rtt*1000:.1f}ms")
+    io.echo(f"[Client] RTT: {rtt * 1000:.1f}ms")
 
 
 def server_thread(host: str, port: int):
@@ -76,7 +76,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="TCP PING/PONG Demo")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Server host")
     parser.add_argument("--port", type=int, default=9999, help="Server port")
-    parser.add_argument("--interval", type=float, default=2.0, help="PING interval (seconds)")
+    parser.add_argument(
+        "--interval", type=float, default=2.0, help="PING interval (seconds)"
+    )
     args = parser.parse_args()
 
     io.echo(f"TCP PING/PONG Demo - {args.host}:{args.port}")

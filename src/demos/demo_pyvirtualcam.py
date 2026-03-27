@@ -1,4 +1,5 @@
 import time
+
 # import locale
 import argparse
 
@@ -28,6 +29,7 @@ face_detector = FaceMeshDetector(maxFaces=1)
 LEFT_EYE_IDX = [33, 133, 159, 145, 160, 158, 153, 144]
 RIGHT_EYE_IDX = [362, 263, 386, 374, 385, 380, 373, 390]
 
+
 def overlay_eyes(frame):
     frame, faces = face_detector.findFaceMesh(frame, draw=False)
 
@@ -40,8 +42,14 @@ def overlay_eyes(frame):
             face_landmarks = face[1:]
 
             # Get eye coordinates using cvzone's landmark indices
-            left_eye_points = [(int(face_landmarks[i][0]), int(face_landmarks[i][1])) for i in LEFT_EYE_IDX]
-            right_eye_points = [(int(face_landmarks[i][0]), int(face_landmarks[i][1])) for i in RIGHT_EYE_IDX]
+            left_eye_points = [
+                (int(face_landmarks[i][0]), int(face_landmarks[i][1]))
+                for i in LEFT_EYE_IDX
+            ]
+            right_eye_points = [
+                (int(face_landmarks[i][0]), int(face_landmarks[i][1]))
+                for i in RIGHT_EYE_IDX
+            ]
 
             # Combine all eye points
             all_eye_points = left_eye_points + right_eye_points
@@ -58,6 +66,7 @@ def overlay_eyes(frame):
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), thickness=-1)
     return frame
 
+
 def overlay_fingertip(frame):
     global index_finger_tip, detector
 
@@ -70,10 +79,11 @@ def overlay_fingertip(frame):
             fingers = detector.fingersUp(hand)
             if fingers == [0, 1, 0, 0, 0]:  # Only index finger is up
                 # Get index finger tip position (landmark 8)
-                index_finger_tip = tuple(hand['lmList'][8][:2])  # x, y
+                index_finger_tip = tuple(hand["lmList"][8][:2])  # x, y
                 cv2.circle(frame, index_finger_tip, 8, (0, 255, 255), -1)
 
     return frame
+
 
 def detect_rectangles(frame):
     detected = []
@@ -92,6 +102,7 @@ def detect_rectangles(frame):
                 detected.append(polygon)
     return detected
 
+
 def draw_rectangles(frame, rectangles):
     global index_finger_tip
     for polygon in rectangles:
@@ -106,16 +117,30 @@ def draw_rectangles(frame, rectangles):
         cv2.polylines(frame, [poly_np], True, color, 2)
     return frame
 
+
 def overlay_rectangles(frame):
     rectangles = detect_rectangles(frame)
     return draw_rectangles(frame, rectangles)
 
+
 def overlay_watermark(frame):
-    return draw_text(frame, 10, 15, TITLE, color=(255, 255, 255), font_scale=0.50, alpha=0.75, shadow_alpha=0.75, shadow_offset=2)
+    return draw_text(
+        frame,
+        10,
+        15,
+        TITLE,
+        color=(255, 255, 255),
+        font_scale=0.50,
+        alpha=0.75,
+        shadow_alpha=0.75,
+        shadow_offset=2,
+    )
+
 
 def overlay_glitches(frame):
     glitch.scheduler()
     return glitch.apply(frame)
+
 
 def camera_ready(cap, timeout=5):
     start_time = time.time()
@@ -129,14 +154,45 @@ def camera_ready(cap, timeout=5):
             return False  # Timeout reached, return failure
         time.sleep(0.1)  # Avoid busy waiting
 
-OVERLAYS = [
-            { "key": "f", "enabled":True, "running":True,  "label": "fingertip", "func": overlay_fingertip},
-            { "key": "r", "enabled":True, "running":True,  "label": "rects",     "func": overlay_rectangles},
-            { "key": "g", "enabled":True, "running":False, "label": "glitches",  "func": overlay_glitches},
-            { "key": "w", "enabled":True, "running":True,  "label": "watermark", "func": overlay_watermark},
-            { "key": "e", "enabled":True, "running":True,  "label": "eyes",      "func": overlay_eyes},
 
-        ]
+OVERLAYS = [
+    {
+        "key": "f",
+        "enabled": True,
+        "running": True,
+        "label": "fingertip",
+        "func": overlay_fingertip,
+    },
+    {
+        "key": "r",
+        "enabled": True,
+        "running": True,
+        "label": "rects",
+        "func": overlay_rectangles,
+    },
+    {
+        "key": "g",
+        "enabled": True,
+        "running": False,
+        "label": "glitches",
+        "func": overlay_glitches,
+    },
+    {
+        "key": "w",
+        "enabled": True,
+        "running": True,
+        "label": "watermark",
+        "func": overlay_watermark,
+    },
+    {
+        "key": "e",
+        "enabled": True,
+        "running": True,
+        "label": "eyes",
+        "func": overlay_eyes,
+    },
+]
+
 
 def apply_overlays(frame):
     global OVERLAYS
@@ -147,9 +203,9 @@ def apply_overlays(frame):
         if not o["running"]:
             continue
         f = o.get("func", None)
-#        io.echo(f"checking {f=}", level="debug")
+        #        io.echo(f"checking {f=}", level="debug")
         if callable(f):
-#            io.echo(f"calling {f=}", level="debug")
+            #            io.echo(f"calling {f=}", level="debug")
             frame = o["func"](frame)
     return frame
 
@@ -161,7 +217,6 @@ def main(args, **kwargs):
     cap = cv2.VideoCapture(conf.CAP_DEVICE)
 
     try:
-
         # Make sure the webcam opens correctly
         if not cap.isOpened():
             raise RuntimeError("Could not open webcam. check group membership.")
@@ -185,10 +240,18 @@ def main(args, **kwargs):
 
         # get virtual camera device by label
         device = get_device_by_label(conf.CAM_LABEL)
-##        io.echo(f"{{labelcolor}}virtualcam label {{valuecolor}}{conf.CAM_LABEL} {{labelcolor}}, device {{valuecolor}}{device}{{/all}}")
+        ##        io.echo(f"{{labelcolor}}virtualcam label {{valuecolor}}{conf.CAM_LABEL} {{labelcolor}}, device {{valuecolor}}{device}{{/all}}")
         # Start the virtual camera
-        with pyvirtualcam.Camera(width=actual_width, height=actual_height, fps=actual_fps, print_fps=False, device=device) as cam:
-            io.echo(f"{{labelcolor}}Capture: {{valuecolor}}{conf.CAP_DEVICE}, virtcam: ({cam.device}) {actual_width}{{labelcolor}}x{{valuecolor}}{actual_height} {{labelcolor}}@ {{valuecolor}}{actual_fps} {{labelcolor}}fps{{/all}}")
+        with pyvirtualcam.Camera(
+            width=actual_width,
+            height=actual_height,
+            fps=actual_fps,
+            print_fps=False,
+            device=device,
+        ) as cam:
+            io.echo(
+                f"{{labelcolor}}Capture: {{valuecolor}}{conf.CAP_DEVICE}, virtcam: ({cam.device}) {actual_width}{{labelcolor}}x{{valuecolor}}{actual_height} {{labelcolor}}@ {{valuecolor}}{actual_fps} {{labelcolor}}fps{{/all}}"
+            )
             while True:
                 ret, frame = cap.read()
                 if frame is None:
@@ -203,7 +266,7 @@ def main(args, **kwargs):
 
                 frame = apply_overlays(frame)
 
-                cv2.imshow(TITLE, frame) # BGR
+                cv2.imshow(TITLE, frame)  # BGR
 
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
@@ -225,18 +288,20 @@ def main(args, **kwargs):
     finally:
         cap.release()
 
-def buildargs(args=None, **kw:dict):
+
+def buildargs(args=None, **kw: dict):
     parser = argparse.ArgumentParser("asimov")
     parser.add_argument("--verbose", action="store_true", dest="verbose")
     parser.add_argument("--debug", action="store_true", dest="debug")
 
-#    defaults = {"databasename": "zoid6", "databasehost":"localhost", "databaseuser": None, "databaseport":5432, "databasepassword":None}
-#    database.buildargs(parser, defaults, suppress=True)
+    #    defaults = {"databasename": "zoid6", "databasehost":"localhost", "databaseuser": None, "databaseport":5432, "databasepassword":None}
+    #    database.buildargs(parser, defaults, suppress=True)
 
     return parser
 
+
 if __name__ == "__main__":
-#    locale.setlocale(locale.LC_ALL, "")
+    #    locale.setlocale(locale.LC_ALL, "")
     time.tzset()
     args = buildargs()
 
@@ -247,4 +312,6 @@ if __name__ == "__main__":
     except EOFError:
         io.echo("{/all}*EOF*")
     finally:
-        io.echo("{decsc}{curpos:%d,0}{el}{decrc}{reset}{/all}" % (io.getterminalheight()))
+        io.echo(
+            "{decsc}{curpos:%d,0}{el}{decrc}{reset}{/all}" % (io.getterminalheight())
+        )

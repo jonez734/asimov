@@ -8,8 +8,10 @@ DETECTION_INTERVAL = 60
 # cvzone HandDetector setup
 detector = HandDetector(detectionCon=0.7, maxHands=1)
 
+
 def create_tracker():
     return cv2.TrackerCSRT_create()
+
 
 def detect_rectangles(frame):
     rectangles = []
@@ -29,15 +31,16 @@ def detect_rectangles(frame):
                 rectangles.append(((x, y, w, h), polygon))
     return rectangles
 
+
 def get_rotated_polygon(frame, bbox):
     x, y, w, h = [int(v) for v in bbox]
-    roi = frame[y:y+h, x:x+w]
+    roi = frame[y : y + h, x : x + w]
     if roi.size == 0:
         # ROI empty, fallback
-        return np.array([[x,y],[x+w,y],[x+w,y+h],[x,y+h]])
+        return np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]])
 
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5,5), 1)
+    blur = cv2.GaussianBlur(gray, (5, 5), 1)
     edges = cv2.Canny(blur, 50, 150)
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -52,7 +55,8 @@ def get_rotated_polygon(frame, bbox):
             return box
 
     # fallback to bbox corners if no contour
-    return np.array([[x,y],[x+w,y],[x+w,y+h],[x,y+h]])
+    return np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]])
+
 
 # --- Main loop ---
 cap = cv2.VideoCapture(0)
@@ -93,7 +97,7 @@ while True:
         if new_rectangles:
             trackers = []
             updated_polygons = []
-            for (bbox, polygon) in new_rectangles:
+            for bbox, polygon in new_rectangles:
                 tracker = create_tracker()
                 tracker.init(frame, bbox)
                 trackers.append((tracker, bbox))
@@ -112,7 +116,7 @@ while True:
         cv2.polylines(frame, [poly], True, color, 2, lineType=cv2.LINE_AA)
 
     cv2.imshow("Hybrid Tracker with Rotated Rectangles", frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
 cap.release()

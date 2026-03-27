@@ -69,6 +69,7 @@ def capture_device_type(arg: str) -> Union[int, str]:
     except ValueError:
         return arg
 
+
 LOGGER_NAME = "asimov"
 
 FRAME_BLOCK_FORMAT = "!HBBH"

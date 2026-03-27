@@ -1,9 +1,14 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, List, Optional
+import random
+import time
+
 from .io import echo, getch, terminal
 
-def fill(text: str, truncate_len: int, pad_len: int, char: str = ' ') -> str:
+
+def fill(text: str, truncate_len: int, pad_len: int, char: str = " ") -> str:
     return text[:truncate_len].ljust(pad_len, char)
+
 
 @dataclass
 class MenuItem:
@@ -65,7 +70,7 @@ class Menu:
         return self.pages[self.current_page]
 
     def truncate(self, text: str, maxlen: int) -> str:
-        return text if len(text) <= maxlen else text[:maxlen-3] + "..."
+        return text if len(text) <= maxlen else text[: maxlen - 3] + "..."
 
     @property
     def is_selected(self):
@@ -76,19 +81,24 @@ class Menu:
         visible = self.visible_items()
         inner_width = self.width - 4
 
-##        echo(f"{inner_width=} {self.width=}")
+        ##        echo(f"{inner_width=} {self.width=}")
 
         # Top border
-        echo(f"{{ulcorner}}{{hline:{self.width-2}}}{{urcorner}}")
-##        echo(f"asimov.io.menu.draw.100: {_cursor_col=}")
+        echo(f"{{ulcorner}}{{hline:{self.width - 2}}}{{urcorner}}")
+        ##        echo(f"asimov.io.menu.draw.100: {_cursor_col=}")
         # Title line
         if self.title:
-            title_line = f" {self.title} (Page {self.current_page+1}/{self.total_pages}) "
-            echo(f"{{vline}} {fill(title_line, inner_width, inner_width)} {{vline}}", wordwrap=False)
-            echo(f"{{rtee}}{{hline:{self.width-2}}}{{ltee}}", wordwrap=False)
+            title_line = (
+                f" {self.title} (Page {self.current_page + 1}/{self.total_pages}) "
+            )
+            echo(
+                f"{{vline}} {fill(title_line, inner_width, inner_width)} {{vline}}",
+                wordwrap=False,
+            )
+            echo(f"{{rtee}}{{hline:{self.width - 2}}}{{ltee}}", wordwrap=False)
 
         # Draw items
-##        self.abs_index = 0 # sum(len(p) for p in self.pages[:self.current_page]) # 0
+        ##        self.abs_index = 0 # sum(len(p) for p in self.pages[:self.current_page]) # 0
         for item in visible:
             for j, line in enumerate(item.lines()):
                 prefix = "  " if j == 0 else "   "
@@ -96,10 +106,14 @@ class Menu:
 
                 is_selected = self.abs_index == self.current_index
                 if is_selected:
-                    echo(f"{{vline}} {{inverse}}{fill(display_line, inner_width, inner_width, ' ')}{{reset}} {{vline}}")
+                    echo(
+                        f"{{vline}} {{inverse}}{fill(display_line, inner_width, inner_width, ' ')}{{reset}} {{vline}}"
+                    )
                     # display_line.ljust(inner_width)}{{reset}} {{vline}}", wordwrap=False)
                 else:
-                    echo(f"{{vline}} {fill(display_line, inner_width, inner_width, ' ')} {{vline}}")
+                    echo(
+                        f"{{vline}} {fill(display_line, inner_width, inner_width, ' ')} {{vline}}"
+                    )
                     # {display_line.ljust(inner_width,'-')} {{vline}}", wordwrap=False)
             self.abs_index += 1
 
@@ -109,13 +123,13 @@ class Menu:
             echo(f"{{vline}} {' ' * inner_width} {{vline}}")
 
         # Bottom border
-        echo(f"{{llcorner}}{{hline:{self.width-2}}}{{lrcorner}}")
+        echo(f"{{llcorner}}{{hline:{self.width - 2}}}{{lrcorner}}")
 
     def move_down(self):
         """Move down; if on last item of page go to first item of next page."""
         if self.current_index < len(self.items) - 1:
             self.current_index += 1
-            self.abs_count = sum(len(p) for p in self.pages[:self.current_page])
+            self.abs_count = sum(len(p) for p in self.pages[: self.current_page])
             page_len = len(self.pages[self.current_page])
             if self.current_index >= self.abs_count + page_len:
                 self.current_page += 1
@@ -124,10 +138,9 @@ class Menu:
         if self.current_index > 0:
             self.current_index -= 1
             # move to previous page if current_index is before visible page
-            self.abs_count = sum(len(p) for p in self.pages[:self.current_page])
+            self.abs_count = sum(len(p) for p in self.pages[: self.current_page])
             if self.current_index < self.abs_count:
                 self.current_page -= 1
-                last_on_page = first_on_page + len(self.pages[self.current_page]) - 1
                 return True
         return False
 
@@ -144,12 +157,12 @@ class Menu:
     def next_page(self):
         if self.current_page < self.total_pages - 1:
             self.current_page += 1
-            self.current_index = sum(len(p) for p in self.pages[:self.current_page])
+            self.current_index = sum(len(p) for p in self.pages[: self.current_page])
 
     def prev_page(self):
         if self.current_page > 0:
             self.current_page -= 1
-            self.current_index = sum(len(p) for p in self.pages[:self.current_page])
+            self.current_index = sum(len(p) for p in self.pages[: self.current_page])
 
     def refresh_from_db(self):
         if self.data_source:
@@ -184,8 +197,10 @@ class Menu:
             else:
                 _changed = False
 
+
 #            if _changed:
 #                self.adjust_page_for_current()
+
 
 def menu(items=None, title=None, query=None, **kwargs):
     if items is None:
@@ -195,15 +210,35 @@ def menu(items=None, title=None, query=None, **kwargs):
     return m.run()
 
 
-# --- Randomized demo ---
-import time
-import random
-
 def generate_random_items(n=20):
-    base = ["Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel",
-            "India", "Juliet", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa",
-            "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "Whiskey",
-            "X-ray", "Yankee", "Zulu"]
+    base = [
+        "Alfa",
+        "Bravo",
+        "Charlie",
+        "Delta",
+        "Echo",
+        "Foxtrot",
+        "Golf",
+        "Hotel",
+        "India",
+        "Juliet",
+        "Kilo",
+        "Lima",
+        "Mike",
+        "November",
+        "Oscar",
+        "Papa",
+        "Quebec",
+        "Romeo",
+        "Sierra",
+        "Tango",
+        "Uniform",
+        "Victor",
+        "Whiskey",
+        "X-ray",
+        "Yankee",
+        "Zulu",
+    ]
     items = []
     for _ in range(n):
         word = random.choice(base)
@@ -218,7 +253,9 @@ def generate_random_items(n=20):
 if __name__ == "__main__":
     random.seed(time.time())
     demo_items = generate_random_items(25)
-    selected = menu(items=demo_items, title="Random Menu Demo", inner_height=10, width=100)
+    selected = menu(
+        items=demo_items, title="Random Menu Demo", inner_height=10, width=100
+    )
     echo("{reset}")
     if selected:
         echo(f"You selected: {selected.text}")

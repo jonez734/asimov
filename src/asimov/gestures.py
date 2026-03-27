@@ -9,6 +9,7 @@ DEFAULT_DEBOUNCE_TIME = 0.4  # seconds
 
 # --- Gesture state management ---
 
+
 class GestureState:
     """Tracks time-based gesture events like pinch, spread, etc.
     Provides debounce protection so gestures don’t repeat too quickly.

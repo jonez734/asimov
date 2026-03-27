@@ -6,12 +6,12 @@ import numpy as np
 from asimov import rect  # expects asimov/rect.py from above
 
 # Detection/selection parameters (tweak as needed)
-TARGET_ASPECT = 1.4    # desired width/height
-EPS_ASPECT = 0.25      # allowed aspect deviation
-TARGET_AREA = 1000     # desired area in pixels
-EPS_AREA = 800         # allowed area deviation
-MERGE_EPSILON = 0.05   # normalized coords closeness for merge
-DETECT_TIMEOUT = 3.0   # stickiness in seconds when newly detected
+TARGET_ASPECT = 1.4  # desired width/height
+EPS_ASPECT = 0.25  # allowed aspect deviation
+TARGET_AREA = 1000  # desired area in pixels
+EPS_AREA = 800  # allowed area deviation
+MERGE_EPSILON = 0.05  # normalized coords closeness for merge
+DETECT_TIMEOUT = 3.0  # stickiness in seconds when newly detected
 MIN_DRAW_AREA_PX = 50  # minimum pixel area to draw (avoid tiny artifacts)
 
 # Default canvas size (used only when no webcam)
@@ -37,11 +37,13 @@ def order_points(pts):
 # ---------------------------
 # Detection (OpenCV) - demo side
 # ---------------------------
-def detect_from_frame(frame,
-                      target_aspect=TARGET_ASPECT,
-                      eps_aspect=EPS_ASPECT,
-                      target_area=TARGET_AREA,
-                      eps_area=EPS_AREA):
+def detect_from_frame(
+    frame,
+    target_aspect=TARGET_ASPECT,
+    eps_aspect=EPS_ASPECT,
+    target_area=TARGET_AREA,
+    eps_area=EPS_AREA,
+):
     """
     Detect quadrilateral contours that match aspect / area constraints.
     Returns list of polygons with normalized coordinates [(x,y), ...].
@@ -81,7 +83,7 @@ def detect_from_frame(frame,
         pts = np.array([p[0] for p in approx], dtype=np.float32)
         ordered = order_points(pts)
         # Normalize coordinates (0..1)
-        poly_norm = [ (float(px) / w, float(py) / h) for (px, py) in ordered ]
+        poly_norm = [(float(px) / w, float(py) / h) for (px, py) in ordered]
         out.append(poly_norm)
 
     return out
@@ -103,7 +105,7 @@ def draw_rectangles(img, context):
         if not poly_norm or len(poly_norm) < 4:
             continue
 
-        poly_px = [ (int(x * w), int(y * h)) for (x, y) in poly_norm ]
+        poly_px = [(int(x * w), int(y * h)) for (x, y) in poly_norm]
 
         # skip if the polygon has effectively zero area
         contour_np = np.array(poly_px, dtype=np.int32)
@@ -111,13 +113,21 @@ def draw_rectangles(img, context):
             continue
 
         color = (0, 255, 0) if r.get("touched") else (0, 0, 255)
-        cv2.polylines(img, [contour_np.reshape((-1, 1, 2))], isClosed=True, color=color, thickness=thickness)
+        cv2.polylines(
+            img,
+            [contour_np.reshape((-1, 1, 2))],
+            isClosed=True,
+            color=color,
+            thickness=thickness,
+        )
 
         # draw label if present
         label = r.get("label")
         if label:
             tx, ty = poly_px[0]
-            cv2.putText(img, str(label), (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+            cv2.putText(
+                img, str(label), (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2
+            )
 
 
 # ---------------------------
@@ -125,9 +135,15 @@ def draw_rectangles(img, context):
 # ---------------------------
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--webcam", type=int, default=1,
-                        help="Webcam device index (default=1). Use --webcam -1 to disable camera.")
-    parser.add_argument("--live", action="store_true", help="Enable live detection from webcam")
+    parser.add_argument(
+        "--webcam",
+        type=int,
+        default=1,
+        help="Webcam device index (default=1). Use --webcam -1 to disable camera.",
+    )
+    parser.add_argument(
+        "--live", action="store_true", help="Enable live detection from webcam"
+    )
     args = parser.parse_args()
 
     # initialize context
@@ -136,9 +152,24 @@ def main():
 
     # add demo rectangles if not in live mode
     if not args.live:
-        rect.add(context, [(0.1, 0.1), (0.3, 0.1), (0.3, 0.3), (0.1, 0.3)], timeout=5.0, label="A")
-        rect.add(context, [(0.35, 0.2), (0.5, 0.2), (0.5, 0.4), (0.35, 0.4)], timeout=8.0, label="B")
-        rect.add(context, [(0.7, 0.1), (0.85, 0.1), (0.85, 0.3), (0.7, 0.3)], timeout=3.0, label="C")
+        rect.add(
+            context,
+            [(0.1, 0.1), (0.3, 0.1), (0.3, 0.3), (0.1, 0.3)],
+            timeout=5.0,
+            label="A",
+        )
+        rect.add(
+            context,
+            [(0.35, 0.2), (0.5, 0.2), (0.5, 0.4), (0.35, 0.4)],
+            timeout=8.0,
+            label="B",
+        )
+        rect.add(
+            context,
+            [(0.7, 0.1), (0.85, 0.1), (0.85, 0.3), (0.7, 0.3)],
+            timeout=3.0,
+            label="C",
+        )
 
     # open camera if requested (device < 0 disables)
     cap = None
@@ -173,7 +204,13 @@ def main():
             for i, poly in enumerate(detected):
                 # merge_or_add handles refreshing timestamp of existing rects
                 label = f"L{int(time.time() * 1000) % 10000}"  # short unique-ish label
-                rect.merge_or_add(context, poly, timeout=DETECT_TIMEOUT, label=label, epsilon=MERGE_EPSILON)
+                rect.merge_or_add(
+                    context,
+                    poly,
+                    timeout=DETECT_TIMEOUT,
+                    label=label,
+                    epsilon=MERGE_EPSILON,
+                )
 
         # 3) Draw rectangles (skips degenerate ones)
         draw_rectangles(frame, context)
@@ -183,9 +220,9 @@ def main():
 
         # 5) keys: q or ESC quit; t touches first rectangle
         key = cv2.waitKey(50) & 0xFF
-        if key == ord('q') or key == 27:
+        if key == ord("q") or key == 27:
             break
-        if key == ord('t') and context.get("rectangles"):
+        if key == ord("t") and context.get("rectangles"):
             rect.mark_touched(context, 0)
 
     if cap:

@@ -4,7 +4,6 @@ Playing card-specific utilities.
 """
 
 
-
 def compute_geometry(frame_w, frame_h, png_w, png_h, border_ratio=0.25):
     """
     Returns x, y, render_w, render_h for drawing the PNG so the border

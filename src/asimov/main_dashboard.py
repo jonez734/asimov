@@ -65,9 +65,8 @@ def make_scale_field(parent, section, key, meta, config_obj):
         to=meta["max"],
         orient="horizontal",
         variable=var,
-        length=200,
     )
-    scale.pack(fill="x", pady=(0, 5))
+    scale.pack(fill="x", expand=True, pady=(0, 5))
 
     value_label = ttk.Label(frame, text=f"Value: {var.get():.2f}")
     value_label.pack(anchor="w")
@@ -143,9 +142,8 @@ def make_int_field(parent, section, key, meta, config_obj):
         to=meta["max"],
         orient="horizontal",
         variable=var,
-        length=200,
     )
-    scale.pack(fill="x", pady=(0, 5))
+    scale.pack(fill="x", expand=True, pady=(0, 5))
 
     value_label = ttk.Label(frame, text=f"Value: {var.get()}")
     value_label.pack(anchor="w")
@@ -408,6 +406,35 @@ class DashboardApp:
 
         self.right_content.update_idletasks()
         self.right_canvas.config(scrollregion=self.right_canvas.bbox("all"))
+
+        # Update scale lengths on canvas resize
+        def update_all_scales(event=None):
+            try:
+                canvas_width = self.right_canvas.winfo_width()
+                if canvas_width > 100:
+                    for child in self.right_content.winfo_children():
+                        _update_scales_in_frame(child, canvas_width - 40)
+            except Exception:
+                pass
+
+        def _update_scales_in_frame(frame, width):
+            try:
+                for child in frame.winfo_children():
+                    if hasattr(child, "winfo_class"):
+                        if child.winfo_class() == "TScale":
+                            try:
+                                child.config(length=width)
+                            except Exception:
+                                pass
+                    try:
+                        _update_scales_in_frame(child, width)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        self.right_canvas.bind("<Configure>", update_all_scales)
+        self.root.after_idle(update_all_scales)
 
         # Bind mouse wheel to scroll the control panel
         def on_mousewheel(event):

@@ -1,28 +1,37 @@
 import tkinter as tk
 
+
 class ColorCheckBox(tk.Canvas):
     def __init__(self, master, label_text="", variable=None, **kwargs):
-        self.width = kwargs.pop('width', 150)
-        self.height = kwargs.pop('height', 40)
-        super().__init__(master, width=self.width, height=self.height, 
-                         highlightthickness=0, bd=0, **kwargs)
-        
+        self.width = kwargs.pop("width", 150)
+        self.height = kwargs.pop("height", 40)
+        super().__init__(
+            master,
+            width=self.width,
+            height=self.height,
+            highlightthickness=0,
+            bd=0,
+            **kwargs,
+        )
+
         self.variable = variable if variable else tk.BooleanVar(value=False)
-        
+
         # Colors: (Box Color, Background Color)
-        self.off_colors = ("#e74c3c", "#fdedec") # Red palette
-        self.on_colors  = ("#2ecc71", "#e8f8f0") # Green palette
+        self.off_colors = ("#e74c3c", "#fdedec")  # Red palette
+        self.on_colors = ("#2ecc71", "#e8f8f0")  # Green palette
 
         # UI Elements
         self.rect = self.create_rectangle(10, 10, 30, 30, outline="#333333", width=1)
-        self.text = self.create_text(40, 20, text=label_text, anchor="w", font=("Arial", 10, "bold"))
-        
+        self.text = self.create_text(
+            40, 20, text=label_text, anchor="w", font=("Arial", 10, "bold")
+        )
+
         # Animation state
         self._animation_job = None
-        
+
         self.variable.trace_add("write", lambda *a: self.animate_transition())
         self._set_initial_state()
-        
+
         self.bind("<Button-1>", lambda e: self.variable.set(not self.variable.get()))
         self.bind("<Enter>", lambda e: self.itemconfig(self.rect, width=2))
         self.bind("<Leave>", lambda e: self.itemconfig(self.rect, width=1))
@@ -44,7 +53,7 @@ class ColorCheckBox(tk.Canvas):
         else:
             start_box, start_bg = self.on_colors
             end_box, end_bg = self.off_colors
-            
+
         self._step_transition(start_box, end_box, start_bg, end_bg, 0)
 
     def _step_transition(self, s_box, e_box, s_bg, e_bg, step):
@@ -60,7 +69,9 @@ class ColorCheckBox(tk.Canvas):
         self.config(bg=current_bg)
 
         if step < total_steps:
-            self._animation_job = self.after(20, self._step_transition, s_box, e_box, s_bg, e_bg, step + 1)
+            self._animation_job = self.after(
+                20, self._step_transition, s_box, e_box, s_bg, e_bg, step + 1
+            )
 
     def _interpolate_color(self, c1, c2, ratio):
         """Mathematical blend between two hex colors."""
@@ -72,7 +83,8 @@ class ColorCheckBox(tk.Canvas):
         g = int(g1 + (g2 - g1) * ratio) >> 8
         b = int(b1 + (b2 - b1) * ratio) >> 8
 
-        return f'#{r:02x}{g:02x}{b:02x}'
+        return f"#{r:02x}{g:02x}{b:02x}"
+
 
 # --- Usage ---
 root = tk.Tk()

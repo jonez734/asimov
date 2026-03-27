@@ -1,6 +1,12 @@
 import threading
 
-from asimov.net import UDPReceiver, UDPSender, send_ping_and_wait_for_pong, PACKET_TYPE_PING
+from asimov.net import (
+    UDPReceiver,
+    UDPSender,
+    send_ping_and_wait_for_pong,
+    PACKET_TYPE_PING,
+)
+
 
 def receive_and_respond(receiver: UDPReceiver):
     """
@@ -12,6 +18,7 @@ def receive_and_respond(receiver: UDPReceiver):
         if packet_type == PACKET_TYPE_PING:
             print("Receiver: handled PING")
             break
+
 
 def test_ping_and_pong():
     # Set up receiver using your UDPReceiver class
@@ -33,6 +40,7 @@ def test_ping_and_pong():
     sender.close()
     receiver.close()
     responder.join()
+
 
 if __name__ == "__main__":
     test_ping_and_pong()

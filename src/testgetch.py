@@ -2,7 +2,7 @@ import sys
 import termios
 import tty
 
-ESC = '\x1B'
+ESC = "\x1b"
 
 fd = sys.stdin.fileno()
 old = termios.tcgetattr(fd)
@@ -11,9 +11,9 @@ try:
     while True:
         b = sys.stdin.read(1)
         print(repr(b))
-        if b == '\x03':
+        if b == "\x03":
             raise KeyboardInterrupt
-        elif b == '\x04':
+        elif b == "\x04":
             raise EOFError
 finally:
     termios.tcsetattr(fd, termios.TCSADRAIN, old)

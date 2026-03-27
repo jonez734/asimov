@@ -10,7 +10,12 @@ from asimov.base.render import create_texture, update_texture
 from asimov.anim import rotate_vertex, bounce_animation_update, create_bounce_state
 
 parser = argparse.ArgumentParser(description="OpenGL Video Player with Smooth Twist")
-parser.add_argument("--capture-dev", type=str, default="1", help="Capture device index or video file path (default: 1)")
+parser.add_argument(
+    "--capture-dev",
+    type=str,
+    default="1",
+    help="Capture device index or video file path (default: 1)",
+)
 args = parser.parse_args()
 
 capture_dev = int(args.capture_dev) if args.capture_dev.isdigit() else args.capture_dev
@@ -59,7 +64,7 @@ void main() {
 
 shader = shaders.compileProgram(
     shaders.compileShader(vertex_shader, gl.GL_VERTEX_SHADER),
-    shaders.compileShader(fragment_shader, gl.GL_FRAGMENT_SHADER)
+    shaders.compileShader(fragment_shader, gl.GL_FRAGMENT_SHADER),
 )
 
 # Create VAO and VBO
@@ -80,7 +85,9 @@ gl.glEnableVertexAttribArray(0)
 gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 5 * 4, gl.ctypes.c_void_p(0))
 
 gl.glEnableVertexAttribArray(1)
-gl.glVertexAttribPointer(1, 2, gl.GL_FLOAT, gl.GL_FALSE, 5 * 4, gl.ctypes.c_void_p(3 * 4))
+gl.glVertexAttribPointer(
+    1, 2, gl.GL_FLOAT, gl.GL_FALSE, 5 * 4, gl.ctypes.c_void_p(3 * 4)
+)
 
 gl.glBindVertexArray(0)
 
@@ -114,17 +121,36 @@ while not glfw.window_should_close(window):
     anim_vals = bounce_animation_update(anim_state)
 
     # Rotated quad vertices using asimov.util
-    v0 = rotate_vertex(-0.5, -0.5, anim_vals['angle'])
-    v1 = rotate_vertex( 0.5, -0.5, anim_vals['angle'])
-    v2 = rotate_vertex( 0.5,  0.5, anim_vals['angle'])
-    v3 = rotate_vertex(-0.5,  0.5, anim_vals['angle'])
+    v0 = rotate_vertex(-0.5, -0.5, anim_vals["angle"])
+    v1 = rotate_vertex(0.5, -0.5, anim_vals["angle"])
+    v2 = rotate_vertex(0.5, 0.5, anim_vals["angle"])
+    v3 = rotate_vertex(-0.5, 0.5, anim_vals["angle"])
 
-    vertices = np.array([
-        v0[0] + anim_vals['x'], v0[1] + anim_vals['y'], anim_vals['z'],  0.0, 0.0,
-        v1[0] + anim_vals['x'], v1[1] + anim_vals['y'], anim_vals['z'],  1.0, 0.0,
-        v2[0] + anim_vals['x'], v2[1] + anim_vals['y'], anim_vals['z'],  1.0, 1.0,
-        v3[0] + anim_vals['x'], v3[1] + anim_vals['y'], anim_vals['z'],  0.0, 1.0
-    ], dtype=np.float32)
+    vertices = np.array(
+        [
+            v0[0] + anim_vals["x"],
+            v0[1] + anim_vals["y"],
+            anim_vals["z"],
+            0.0,
+            0.0,
+            v1[0] + anim_vals["x"],
+            v1[1] + anim_vals["y"],
+            anim_vals["z"],
+            1.0,
+            0.0,
+            v2[0] + anim_vals["x"],
+            v2[1] + anim_vals["y"],
+            anim_vals["z"],
+            1.0,
+            1.0,
+            v3[0] + anim_vals["x"],
+            v3[1] + anim_vals["y"],
+            anim_vals["z"],
+            0.0,
+            1.0,
+        ],
+        dtype=np.float32,
+    )
 
     # Update VBO with new vertex data
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, VBO)
@@ -133,7 +159,7 @@ while not glfw.window_should_close(window):
     # Clear screen and render quad
     gl.glClear(gl.GL_COLOR_BUFFER_BIT)
     gl.glUseProgram(shader)
-    
+
     # Bind texture for shader
     gl.glEnable(gl.GL_TEXTURE_2D)
     gl.glActiveTexture(gl.GL_TEXTURE0)
@@ -141,7 +167,7 @@ while not glfw.window_should_close(window):
     loc = gl.glGetUniformLocation(shader, "videoTexture")
     if loc >= 0:
         gl.glUniform1i(loc, 0)
-    
+
     gl.glBindVertexArray(VAO)
     gl.glDrawElements(gl.GL_TRIANGLES, 6, gl.GL_UNSIGNED_INT, None)
 

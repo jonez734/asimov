@@ -24,30 +24,41 @@ RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
 SUITS = ["hearts", "diamonds", "clubs", "spades"]
 
 RANK_DISPLAY = {
-    "A": "Ace", "2": "Two", "3": "Three", "4": "Four", "5": "Five",
-    "6": "Six", "7": "Seven", "8": "Eight", "9": "Nine", "10": "Ten",
-    "J": "Jack", "Q": "Queen", "K": "King"
+    "A": "Ace",
+    "2": "Two",
+    "3": "Three",
+    "4": "Four",
+    "5": "Five",
+    "6": "Six",
+    "7": "Seven",
+    "8": "Eight",
+    "9": "Nine",
+    "10": "Ten",
+    "J": "Jack",
+    "Q": "Queen",
+    "K": "King",
 }
 
-RANK_FILENAME = {
-    "A": "ace", "J": "jack", "Q": "queen", "K": "king"
-}
+RANK_FILENAME = {"A": "ace", "J": "jack", "Q": "queen", "K": "king"}
 
 SUIT_DISPLAY = {
-    "hearts": "Hearts", "diamonds": "Diamonds",
-    "clubs": "Clubs", "spades": "Spades"
+    "hearts": "Hearts",
+    "diamonds": "Diamonds",
+    "clubs": "Clubs",
+    "spades": "Spades",
 }
 
-SUIT_SYMBOLS = {
-    "hearts": "♥", "diamonds": "♦", "clubs": "♣", "spades": "♠"
-}
+SUIT_SYMBOLS = {"hearts": "♥", "diamonds": "♦", "clubs": "♣", "spades": "♠"}
 
 
 # ------------------------------------------------------------
 # Path construction
 # ------------------------------------------------------------
 
-def get_card_path(rank: str, suit: str, basedir: Optional[str] = None, set_name: Optional[str] = None) -> str:
+
+def get_card_path(
+    rank: str, suit: str, basedir: Optional[str] = None, set_name: Optional[str] = None
+) -> str:
     """
     Get the full path to a card image file.
 
@@ -87,7 +98,9 @@ def get_card_url(rank: str, suit: str) -> str:
 _card_cache = {}  # path -> RGBA image
 
 
-def load_card_image(rank: str, suit: str, basedir: Optional[str] = None, set_name: Optional[str] = None) -> Optional[np.ndarray]:
+def load_card_image(
+    rank: str, suit: str, basedir: Optional[str] = None, set_name: Optional[str] = None
+) -> Optional[np.ndarray]:
     """
     Load a card image as RGBA numpy array.
 
@@ -132,6 +145,7 @@ def get_cache_size() -> int:
 # ------------------------------------------------------------
 # Validation
 # ------------------------------------------------------------
+
 
 def is_valid_rank(rank: str) -> bool:
     """Check if rank is valid."""

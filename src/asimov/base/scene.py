@@ -39,6 +39,7 @@ from asimov import io
 # Load
 # ----------------------------------------------------------------------
 
+
 def load(args: Any, scene_def: dict) -> dict:
     """
     Load and validate a scene definition.
@@ -81,11 +82,13 @@ def load(args: Any, scene_def: dict) -> dict:
         if module.check(args, mod, op="run", silent=False) is False:
             raise RuntimeError(f"scene.load: module rejected: {mod_name}")
 
-        loaded_modules.append({
-            "name": mod_name,
-            "module": mod,
-            "config": mod_conf,
-        })
+        loaded_modules.append(
+            {
+                "name": mod_name,
+                "module": mod,
+                "config": mod_conf,
+            }
+        )
 
     scene = {
         "name": name,
@@ -99,6 +102,7 @@ def load(args: Any, scene_def: dict) -> dict:
 # ----------------------------------------------------------------------
 # Init
 # ----------------------------------------------------------------------
+
 
 def init(args: Any, scene: dict, **kwargs) -> bool:
     """
@@ -119,6 +123,7 @@ def init(args: Any, scene: dict, **kwargs) -> bool:
 # ----------------------------------------------------------------------
 # Main (one-shot lifecycle entry)
 # ----------------------------------------------------------------------
+
 
 def main(args: Any, scene: dict, **kwargs) -> bool:
     """
@@ -146,6 +151,7 @@ def main(args: Any, scene: dict, **kwargs) -> bool:
 # Access
 # ----------------------------------------------------------------------
 
+
 def access(args: Any, op: str = "run", **kwargs) -> bool:
     """
     Scene-level access gate.
@@ -157,6 +163,7 @@ def access(args: Any, op: str = "run", **kwargs) -> bool:
 # ----------------------------------------------------------------------
 # Utility
 # ----------------------------------------------------------------------
+
 
 def list_modules(scene: dict) -> list[str]:
     """Return module names in load order."""

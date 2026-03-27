@@ -23,24 +23,26 @@ def handle_complete_frame(frame: np.ndarray, frame_id: int):
 
 def idle_callback():
     ch = cv2.pollKey() & 0xFF
-    if ch == 27 or ch == ord('q'):
+    if ch == 27 or ch == ord("q"):
         return False
     return True
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="UDP Frame Receiver")
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to listen on")
+    parser.add_argument(
+        "--host", type=str, default="127.0.0.1", help="Host to listen on"
+    )
     parser.add_argument("--port", type=int, default=5000, help="Port to listen on")
     args = parser.parse_args()
 
     io.echo(f"Listening on {args.host}:{args.port}...")
 
     receiver = UDPReceiver(
-        args.host, 
-        args.port, 
-        frame_received_callback=handle_complete_frame, 
-        idle_callback=idle_callback
+        args.host,
+        args.port,
+        frame_received_callback=handle_complete_frame,
+        idle_callback=idle_callback,
     )
     try:
         receiver.start_listening()

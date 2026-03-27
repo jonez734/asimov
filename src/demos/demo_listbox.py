@@ -5,11 +5,36 @@ import argparse
 from asimov.io import echo
 from asimov.listbox import ListboxItem, Listbox
 
+
 def generate_random_items(n=20):
-    base = ["Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel",
-            "India", "Juliet", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa",
-            "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "Whiskey",
-            "X-ray", "Yankee", "Zulu"]
+    base = [
+        "Alfa",
+        "Bravo",
+        "Charlie",
+        "Delta",
+        "Echo",
+        "Foxtrot",
+        "Golf",
+        "Hotel",
+        "India",
+        "Juliet",
+        "Kilo",
+        "Lima",
+        "Mike",
+        "November",
+        "Oscar",
+        "Papa",
+        "Quebec",
+        "Romeo",
+        "Sierra",
+        "Tango",
+        "Uniform",
+        "Victor",
+        "Whiskey",
+        "X-ray",
+        "Yankee",
+        "Zulu",
+    ]
 
     items = []
     for _ in range(n):

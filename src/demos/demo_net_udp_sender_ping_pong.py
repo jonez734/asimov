@@ -13,7 +13,9 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=5000, help="Target port")
     parser.add_argument("--bind-port", type=int, default=0, help="Local bind port")
     parser.add_argument("--count", type=int, default=3, help="Number of PING packets")
-    parser.add_argument("--interval", type=float, default=1.0, help="Interval between PINGs")
+    parser.add_argument(
+        "--interval", type=float, default=1.0, help="Interval between PINGs"
+    )
     args = parser.parse_args()
 
     io.echo(f"Sending to {args.host}:{args.port}")

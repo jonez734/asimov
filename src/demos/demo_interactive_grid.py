@@ -17,6 +17,7 @@ FRAME_HEIGHT = 768
 mouse_pos = [None, None]
 mouse_clicked = False
 
+
 def mouse_callback(event, x, y, flags, param):
     """Update mouse hover and detect clicks."""
     global mouse_pos, mouse_clicked
@@ -25,6 +26,7 @@ def mouse_callback(event, x, y, flags, param):
         mouse_pos[1] = y
     elif event == cv2.EVENT_LBUTTONDOWN:
         mouse_clicked = True
+
 
 def main():
     global mouse_clicked
@@ -53,7 +55,7 @@ def main():
         cols=args.cols,
         singleton_selection=args.singleton,
         frame_width=args.width,
-        frame_height=args.height
+        frame_height=args.height,
     )
 
     # -----------------------------

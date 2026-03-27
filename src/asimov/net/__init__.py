@@ -73,7 +73,7 @@ from .ping import (
 __all__ = [
     # conf
     "CHUNK_SIZE",
-    "DEFAULT_PORT", 
+    "DEFAULT_PORT",
     "COMPRESSION_ENABLED",
     "BUFFER_SIZE",
     "VIDEOCAPTURE_HOST",
@@ -92,7 +92,7 @@ __all__ = [
     "CAPTURE_DEVICE",
     # socket
     "recv_all",
-    "recv_udp", 
+    "recv_udp",
     "send_with_length",
     "recv_with_length",
     "retry_until_connected",

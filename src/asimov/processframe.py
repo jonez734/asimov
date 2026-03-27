@@ -1,5 +1,26 @@
+import cv2
+import numpy as np
+
+
 def processframe(img):
-    global detector
+    left_index_tip = None
+    MARGIN = 10
+
+    # Hand detection - do this first to get fingertip position
+    try:
+        global detector
+        hands, img = detector.findHands(img, draw=False)
+    except NameError:
+        hands = None
+
+    if hands:
+        for hand in hands:
+            if hand["type"] == "Left":
+                lmList = hand["lmList"]
+                left_index_tip = (
+                    lmList[8][0],
+                    lmList[8][1],
+                )
 
     # Rectangle detection
     imgGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -36,22 +57,14 @@ def processframe(img):
     # Draw rectangles first
     for polygon, touching in rectangles:
         # Set color based on whether fingertip is touching
-        color = (0, 255, 0) if not touching else (0, 0, 255)  # Green if not touching, Red if touching
+        color = (
+            (0, 255, 0) if not touching else (0, 0, 255)
+        )  # Green if not touching, Red if touching
         cv2.polylines(img, [polygon], True, color, 2)
-
-    # Hand detection
-    hands, img = detector.findHands(img, draw=False)
-
-    left_index_tip = None
-    if hands:
-        for hand in hands:
-            if hand['type'] == "Left":
-                lmList = hand['lmList']
-                left_index_tip = (lmList[8][0], lmList[8][1])  # Index fingertip (landmark 8)
 
     # Draw fingertip marker on top!
     if left_index_tip is not None:
         cv2.circle(img, left_index_tip, 8, (0, 255, 255), cv2.FILLED)
         cv2.circle(img, left_index_tip, 12, (0, 255, 255), 2)
-    
+
     return img

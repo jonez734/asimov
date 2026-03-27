@@ -24,18 +24,17 @@ import threading
 import collections
 
 import tty
-import termios # get_cursor_position()
-
+import termios  # get_cursor_position()
 
 
 ##from bbsengine6 import screen
 
 DEFAULT_PALETTE_NAME = "c64"
 
-ESC   = "\x1B"
-#CSI   = "\x9B"
-CSI   = f"{ESC}["
-BEL  = "\007"
+ESC = "\x1b"
+# CSI   = "\x9B"
+CSI = f"{ESC}["
+BEL = "\007"
 
 _current_input_stream = sys.stdin
 
@@ -43,57 +42,65 @@ _current_output_stream = sys.stdout
 
 _current_stream_lock = threading.Lock()
 
+
 def set_output_stream(stream):
     global _current_output_stream
     _current_output_stream = stream
+
 
 def set_input_stream(stream):
     global _current_input_stream
     _current_input_stream = stream
 
-def _write_current_output_stream(s:str, flush=False):
+
+def _write_current_output_stream(s: str, flush=False):
     _current_output_stream.write(s)
     if flush:
         _current_output_stream.flush()
 
-def write_current_output_stream(s:str, flush=False):
+
+def write_current_output_stream(s: str, flush=False):
     with _current_stream_lock:
         return _write_current_output_stream(s, flush=flush)
 
+
 _input_queue = collections.deque()
 
-def _read_current_input_stream(size:int=1) -> str:
+
+def _read_current_input_stream(size: int = 1) -> str:
     if _input_queue:
         return _input_queue.popleft()
     return _current_input_stream.read(size)
 
-def read_current_input_stream(size:int=1) -> str:
+
+def read_current_input_stream(size: int = 1) -> str:
     with _current_stream_lock:
         return _read_current_input_stream(size)
 
+
 _unicode = {
-    "ulcorner":    "\u250C", # ┌
-    "urcorner":    "\u2510", # ┐
-    "llcorner":    "\u2514", # └
-    "lrcorner":    "\u2518", # ┘
-    "hline":       "\u2500", # ─
-    "vline":       "\u2502", # │
-    "ttee":        "\u252C", # ┬
-    "btee":        "\u2534", # ┴
-    "ltee":        "\u251C", # ├
-    "rtee":        "\u2524", # ┤
-    "cross":       "\u253C", # ┼
-    "dblhline":    "\u2550", # ═
-    "dblvline":    "\u2551", # ║
-    "dblul":       "\u2554", # ╔
-    "dblur":       "\u2557", # ╗
-    "dblll":       "\u255A", # ╚
-    "dbllr":       "\u255D", # ╝
-    "arrow":       "\u2192", # →
-    "arrow_left":  "\u2190", # ←
-    "arrow_up":    "\u2191", # ↑
-    "arrow_right": "\u2192", # →
-    "arrow_down":  "\u2193", # ↓
+    "ulcorner": "\u250c",  # ┌
+    "urcorner": "\u2510",  # ┐
+    "llcorner": "\u2514",  # └
+    "lrcorner": "\u2518",  # ┘
+    "hline": "\u2500",  # ─
+    "vline": "\u2502",  # │
+    "ttee": "\u252c",  # ┬
+    "btee": "\u2534",  # ┴
+    "ltee": "\u251c",  # ├
+    "rtee": "\u2524",  # ┤
+    "cross": "\u253c",  # ┼
+    "dblhline": "\u2550",  # ═
+    "dblvline": "\u2551",  # ║
+    "dblul": "\u2554",  # ╔
+    "dblur": "\u2557",  # ╗
+    "dblll": "\u255a",  # ╚
+    "dbllr": "\u255d",  # ╝
+    "arrow": "\u2192",  # →
+    "arrow_left": "\u2190",  # ←
+    "arrow_up": "\u2191",  # ↑
+    "arrow_right": "\u2192",  # →
+    "arrow_down": "\u2193",  # ↓
 }
 
 
@@ -107,6 +114,7 @@ def get_terminal_size():
     except OSError:
         return 100, 30
 
+
 def get_terminal_width():
     try:
         sz = get_terminal_size()
@@ -114,12 +122,14 @@ def get_terminal_width():
     except OSError:
         return 100
 
+
 # --------------------------
 # DSR (Device Status Report)
 # --------------------------
 
 # Assuming _current_input_stream and _current_input_stream are defined globally/passed
 # Using sys.stdin for example, but your usage of _current_input_stream is correct.
+
 
 def _read_terminal_response(terminator: str, timeout: float = 1.0) -> str | None:
     """
@@ -132,7 +142,7 @@ def _read_terminal_response(terminator: str, timeout: float = 1.0) -> str | None
     old_settings = termios.tcgetattr(fd)
     try:
         # Set to cbreak mode (raw-like, but includes signal processing)
-        tty.setcbreak(fd) 
+        tty.setcbreak(fd)
 
         response = ""
         for _ in range(10):
@@ -143,6 +153,7 @@ def _read_terminal_response(terminator: str, timeout: float = 1.0) -> str | None
     finally:
         # 3. Restore terminal settings
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
 
 def drain_stream_to_queue(stream, queue):
     """
@@ -171,22 +182,24 @@ def drain_stream_to_queue(stream, queue):
         # Restore original flags
         fcntl.fcntl(fd, fcntl.F_SETFL, fl)
 
+
 # Regex for DSR reply: ESC [ <row> ; <col> R
-DSR_CURPOS_RE = re.compile(r'\x1b\[(\d+);(\d+)R')
+DSR_CURPOS_RE = re.compile(r"\x1b\[(\d+);(\d+)R")
+
 
 def get_dsr(mode="curpos", timeout: float = 1.0) -> str:
     """
     Query the terminal for cursor position (DSR) and return the response string.
-    
+
     Sends ESC[6n and reads raw bytes until the terminating 'R' is received.
     Uses the global _current_stream_lock to prevent interleaved output.
-    
+
     Args:
         timeout: Optional timeout in seconds for the DSR response.
-    
+
     Returns:
         Decoded response string, e.g., '\x1b[12;40R'.
-    
+
     Raises:
         TimeoutError if no complete response is received in time.
     """
@@ -201,7 +214,7 @@ def get_dsr(mode="curpos", timeout: float = 1.0) -> str:
     with _current_stream_lock:
         # drain input and output into queues
         drain_stream_to_queue(_current_input_stream, _input_queue)
-##        drain_stream_to_queue(_current_output_stream, _output_queue)
+        ##        drain_stream_to_queue(_current_output_stream, _output_queue)
 
         # store original settings
         fd = _current_input_stream.fileno()
@@ -209,7 +222,7 @@ def get_dsr(mode="curpos", timeout: float = 1.0) -> str:
 
         try:
             # Step 0: set raw mode
-            tty.setraw(fd) # _current_input_stream
+            tty.setraw(fd)  # _current_input_stream
             # Step 1: send the DSR request
             _write_current_output_stream(f"{ESC}[{code}n", flush=True)
 
@@ -235,16 +248,20 @@ def get_dsr(mode="curpos", timeout: float = 1.0) -> str:
 
                 # Step 2c: check for timeout
                 if (time.time() - start_time) > timeout:
-                    raise TimeoutError(f"DSR response not received in {timeout}s: {buffer!r}")
+                    raise TimeoutError(
+                        f"DSR response not received in {timeout}s: {buffer!r}"
+                    )
                     break
 
-            return buffer # .decode(errors="ignore")
+            return buffer  # .decode(errors="ignore")
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)  # restore
+
 
 ##    write_current_output_stream(f"{CSI}{code}n", flush=True)
 ##    _current_output_stream.flush()
 ##    return _read_terminal_response(terminator)
+
 
 def get_cursor_position(timeout: float = 1.0):
     """
@@ -262,6 +279,7 @@ def get_cursor_position(timeout: float = 1.0):
     """
     return get_dsr("curpos", timeout=timeout)
 
+
 ##    # Expect something like: ESC [ row ; col R
 ##    if not resp.startswith(CSI) or not resp.endswith("R"):
 ##        raise ValueError(f"Unexpected DSR response: {resp!r}")
@@ -273,13 +291,14 @@ def get_cursor_position(timeout: float = 1.0):
 ##    except Exception as e:
 ##        raise ValueError(f"Failed to parse DSR response: {resp!r}") from e
 
+
 def get_terminal_status():
     """Device Status (DECTST / terminal readiness)
 
     Query: ESC [ 5 n
 
     Response: ESC [ 0 n → OK, ESC [ 3 n → error
-"""
+    """
 
     with _current_stream_lock:
         response = get_dsr("status")
@@ -291,10 +310,13 @@ def get_terminal_status():
                 return False
             else:
                 return None
-    
+
+
 PARAM_SPLIT_RE = re.compile(r"[:,]")
+
+
 def parse_command_params(name, params):
-    args = [] # [name,]
+    args = []  # [name,]
     kwargs = {}
     if not params:
         return args, kwargs
@@ -308,9 +330,11 @@ def parse_command_params(name, params):
             args.append(part)
     return args, kwargs
 
+
 def _handle_unknown(token):
     token.text = f"{token.kind=}: no registered handler"
     yield token
+
 
 def handler_dispatch(token):
     """Yield from the appropriate handler given a token."""
@@ -334,22 +358,24 @@ def handler_dispatch(token):
     yield token
     return False
 
+
 def _handle_bel(token):
     token.text = BEL
     yield token
 
+
 def _handle_command(token, palette=None, vars=None):
     """
     Processes a single command token and yields one or more Tokens.
-    
+
     Args:
         token: Token of kind COMMAND from tokenize()
         _runtime_vars: optional dict of runtime variables
     Yields:
         Token instances (WORD, WHITESPACE, F6, etc.)
     """
-##    if _runtime_vars is None:
-##        _runtime_vars = {}
+    ##    if _runtime_vars is None:
+    ##        _runtime_vars = {}
 
     global _acs
 
@@ -362,8 +388,8 @@ def _handle_command(token, palette=None, vars=None):
         yield token
 
     # Palette color
-    if cmd.lstrip('/') in get_current_palette():
-##        token.kind = "COLOR"
+    if cmd.lstrip("/") in get_current_palette():
+        ##        token.kind = "COLOR"
         token.text = get_palette_entry(cmd)
         yield token
         return
@@ -372,7 +398,7 @@ def _handle_command(token, palette=None, vars=None):
         yield from _handle_var(token)
         return
 
-    if cmd.lstrip('/') in ANSI_ATTRS:
+    if cmd.lstrip("/") in ANSI_ATTRS:
         yield from _handle_attr(token)
         return
 
@@ -380,7 +406,7 @@ def _handle_command(token, palette=None, vars=None):
         yield from _handle_acs(token)
         return
 
-##    print(f"_handle_command.100: calling handler_dispatch {token=}")
+    ##    print(f"_handle_command.100: calling handler_dispatch {token=}")
     yield from handler_dispatch(token)
     return
 
@@ -415,6 +441,8 @@ def _handle_command(token, palette=None, vars=None):
         return
 
     # unknown commands
+
+
 ##    yield Token("UKNOWN", value=token.raw, args=(), kwargs={}, text=token.raw)
 
 # ----------------------------
@@ -448,11 +476,12 @@ _input_escape_sequences = {
 
 _input_simple_keys = {
     "\x7f": "KEY_BACKSPACE",  # typical terminal backspace
-    "\b": "KEY_BACKSPACE",    # alternate backspace representation
-    "\r": "KEY_ENTER",            # carriage return
-    "\n": "KEY_ENTER",            # newline (for some terminals)
-    "\t": "KEY_TAB",              # tab
+    "\b": "KEY_BACKSPACE",  # alternate backspace representation
+    "\r": "KEY_ENTER",  # carriage return
+    "\n": "KEY_ENTER",  # newline (for some terminals)
+    "\t": "KEY_TAB",  # tab
 }
+
 
 def getstr(prompt: str = "") -> str:
     """Read a string from the user with full line editing support and insert/overwrite indicator."""
@@ -469,7 +498,8 @@ def getstr(prompt: str = "") -> str:
 
     def update_bottombar():
         nonlocal insert_mode
-#        setbottombar("io_demo_getstr", "[INS]" if insert_mode else "[OVR]")
+
+    #        setbottombar("io_demo_getstr", "[INS]" if insert_mode else "[OVR]")
 
     def draw_line():
         """Redraw the buffer and insert/overwrite indicator with proper cursor positioning."""
@@ -508,10 +538,10 @@ def getstr(prompt: str = "") -> str:
                 echo("{cursorleft}", end="", flush=True)
                 draw_line()
 
-#        elif key == "KEY_DC":
-#            if cursor < len(buf):
-#                del buf[cursor]
-#                draw_line()
+        #        elif key == "KEY_DC":
+        #            if cursor < len(buf):
+        #                del buf[cursor]
+        #                draw_line()
 
         elif key == "KEY_LEFT":
             if cursor > 0:
@@ -545,6 +575,8 @@ def getstr(prompt: str = "") -> str:
                 buf[cursor] = key
             echo(key, end="", flush=True)
             cursor += 1
+
+
 #            draw_line()
 
 # ----------------------------

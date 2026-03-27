@@ -21,7 +21,9 @@ def recv_all(sock: socket.socket, length: int) -> Optional[bytes]:
     return bytes(data)
 
 
-def recv_udp(sock: socket.socket, bufsize: int = 4096) -> Tuple[Optional[bytes], Optional[Tuple[str, int]]]:
+def recv_udp(
+    sock: socket.socket, bufsize: int = 4096
+) -> Tuple[Optional[bytes], Optional[Tuple[str, int]]]:
     """Receive a single datagram from a UDP socket."""
     try:
         data, addr = sock.recvfrom(bufsize)
@@ -46,6 +48,7 @@ def recv_with_length(conn: socket.socket) -> bytes:
     Receive a length-prefixed payload.
     First reads 4 bytes for the length, then reads exactly that many bytes.
     """
+
     def recv_exactly(n: int) -> bytes:
         buf = b""
         while len(buf) < n:
@@ -60,12 +63,15 @@ def recv_with_length(conn: socket.socket) -> bytes:
     return recv_exactly(length)
 
 
-def retry_until_connected(host: str, port: int, retries: int = 5, delay: float = 0.2) -> socket.socket:
+def retry_until_connected(
+    host: str, port: int, retries: int = 5, delay: float = 0.2
+) -> socket.socket:
     """
     Attempt to connect to a TCP host:port, retrying `retries` times with `delay` seconds between attempts.
     Returns a connected socket, or raises the last exception if all retries fail.
     """
     import time
+
     last_exc: Optional[Exception] = None
     for attempt in range(1, retries + 1):
         try:
@@ -74,6 +80,8 @@ def retry_until_connected(host: str, port: int, retries: int = 5, delay: float =
             return sock
         except Exception as e:
             last_exc = e
-            print(f"[tcp_connect_retry] Attempt {attempt} failed, retrying in {delay}s...")
+            print(
+                f"[tcp_connect_retry] Attempt {attempt} failed, retrying in {delay}s..."
+            )
             time.sleep(delay)
     raise last_exc

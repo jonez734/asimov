@@ -10,10 +10,15 @@ PACKET_TYPE_LOOK = b"LOOK"
 
 # Some long Lorem Ipsum text (>4096 bytes)
 IPSUM_TEXT = (
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " * 50 + "\n\n" +
-    "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; " * 50 + "\n\n" +
-    "Curabitur non nulla sit amet nisl tempus convallis quis ac lectus. " * 50 + "\n\n" +
-    "Proin eget tortor risus. Cras ultricies ligula sed magna dictum porta. " * 50 + "\n\n"
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " * 50
+    + "\n\n"
+    + "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; "
+    * 50
+    + "\n\n"
+    + "Curabitur non nulla sit amet nisl tempus convallis quis ac lectus. " * 50
+    + "\n\n"
+    + "Proin eget tortor risus. Cras ultricies ligula sed magna dictum porta. " * 50
+    + "\n\n"
 ).encode("utf-8")
 
 
@@ -43,7 +48,10 @@ def server_thread(host="127.0.0.1", port=9009):
         print(f"[SERVER] Listening on {host}:{port}")
         while True:
             conn, addr = s.accept()
-            threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
+            threading.Thread(
+                target=handle_client, args=(conn, addr), daemon=True
+            ).start()
+
 
 def client_thread(host="127.0.0.1", port=9009):
     time.sleep(1)  # give server time
@@ -59,6 +67,7 @@ def client_thread(host="127.0.0.1", port=9009):
         response = recv_with_length(s)
         print(f"[CLIENT] Got response of {len(response)} bytes")
         print(response[:500].decode("utf-8") + "\n... [truncated] ...")
+
 
 if __name__ == "__main__":
     # Start server in background

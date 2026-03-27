@@ -3,7 +3,7 @@ import argparse
 import cv2
 from cvzone.HandTrackingModule import HandDetector
 from asimov.playingcard.util import compute_geometry
-from asimov.playingcard import load  as load_card
+from asimov.playingcard import load as load_card
 from asimov import conf
 
 # from asimov.rect import detect_from_frame  # example rect detection function
@@ -11,7 +11,7 @@ from asimov import conf
 # -------------------------
 # CONFIGURATION
 # -------------------------
-CARD_BORDER = 0.25   # minimum border ratio
+CARD_BORDER = 0.25  # minimum border ratio
 CARD_FILE = "ace_of_spades.png"  # example PNG
 
 
@@ -33,7 +33,7 @@ hands_detector = HandDetector(detectionCon=0.7, maxHands=1)
 
 def is_fist(hand_landmarks, frame_h):
     """
-    Returns True if the hand appears closed (fist). 
+    Returns True if the hand appears closed (fist).
     hand_landmarks: cvzone lmList (list of [x, y, z] coordinates)
     frame_h: frame height (for scaling y coords)
     """
@@ -60,6 +60,7 @@ def is_fist(hand_landmarks, frame_h):
             closed_count += 1
 
     return closed_count >= 5
+
 
 def detect_hand(frame):
     """
@@ -90,6 +91,7 @@ def detect_hand(frame):
 
     return rects
 
+
 # -------------------------
 # UTILS
 # -------------------------
@@ -100,19 +102,26 @@ def overlay_png(frame, png, x, y, w, h):
         resized = cv2.resize(png, (w, h), interpolation=cv2.INTER_AREA)
         alpha = resized[:, :, 3:4].astype(float) / 255.0
         rgb = resized[:, :, :3].astype(float)
-        dest = frame[y:y+h, x:x+w].astype(float)
+        dest = frame[y : y + h, x : x + w].astype(float)
         blended = alpha * rgb + (1.0 - alpha) * dest
-        frame[y:y+h, x:x+w] = blended.astype(frame.dtype)
+        frame[y : y + h, x : x + w] = blended.astype(frame.dtype)
     else:
-        frame[y:y+h, x:x+w] = cv2.resize(png, (w, h), interpolation=cv2.INTER_AREA)
+        frame[y : y + h, x : x + w] = cv2.resize(
+            png, (w, h), interpolation=cv2.INTER_AREA
+        )
+
 
 # -------------------------
 # MAIN
 # -------------------------
 def main():
     parser = argparse.ArgumentParser(description="Floating playing card demo")
-    parser.add_argument("--device", type=int, default=conf.CAP_DEVICE, help="Camera device index")
-    parser.add_argument("--card", type=str, required=True, help="Card PNG filename to load")
+    parser.add_argument(
+        "--device", type=int, default=conf.CAP_DEVICE, help="Camera device index"
+    )
+    parser.add_argument(
+        "--card", type=str, required=True, help="Card PNG filename to load"
+    )
     args = parser.parse_args()
 
     cap = cv2.VideoCapture(args.device)

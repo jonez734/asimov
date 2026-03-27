@@ -49,11 +49,10 @@ gi.require_version("Gst", "1.0")
 # Initialize GStreamer
 Gst.init(None)
 
-#gst_pipeline = ("appsrc name=src format=time ! videoconvert ! video/x-raw,format=I420, width=640, height=480, framerate=30/1 ! "
+# gst_pipeline = ("appsrc name=src format=time ! videoconvert ! video/x-raw,format=I420, width=640, height=480, framerate=30/1 ! "
 #    "openh264enc bitrate=500000 ! rtph264pay ! "
 #    "udpsink host=127.0.0.1 port=5000")
-gst_pipeline = ("appsrc name=src format=time is-live=true ! videoconvert ! autovideosink")
-
+gst_pipeline = "appsrc name=src format=time is-live=true ! videoconvert ! autovideosink"
 
 
 def create_texture():
@@ -64,12 +63,23 @@ def create_texture():
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
     return texture
 
+
 def update_texture(texture, frame):
     """Update OpenGL texture with a new frame"""
     glBindTexture(GL_TEXTURE_2D, texture)
     frame = cv2.flip(frame, 0)  # OpenGL and OpenCV have inverted y-axes
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, frame.shape[1], frame.shape[0], 0, GL_RGB, GL_UNSIGNED_BYTE, frame)
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGB,
+        frame.shape[1],
+        frame.shape[0],
+        0,
+        GL_RGB,
+        GL_UNSIGNED_BYTE,
+        frame,
+    )
 
 
 def render_quad(texture):

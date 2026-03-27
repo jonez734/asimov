@@ -38,9 +38,13 @@ def main():
     args = parser.parse_args()
 
     if args.protocol == "tcp":
-        receiver = TCPReceiver(args.host, args.port, blocking=not args.wait, timeout=1.0)
+        receiver = TCPReceiver(
+            args.host, args.port, blocking=not args.wait, timeout=1.0
+        )
     else:
-        receiver = UDPReceiver(args.host, args.port, blocking=not args.wait, timeout=1.0)
+        receiver = UDPReceiver(
+            args.host, args.port, blocking=not args.wait, timeout=1.0
+        )
 
     io.echo(f"Listening on {args.host}:{args.port} via {args.protocol.upper()}...")
 

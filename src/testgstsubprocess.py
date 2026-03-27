@@ -21,12 +21,26 @@ height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 # Start the GStreamer pipeline using subprocess
 gst_process = subprocess.Popen(
-    ['gst-launch-1.0', '-v', 'appsrc', '!',
-     'videoconvert', '!',
-     'x264enc', 'tune=zerolatency', 'bitrate=500', 'speed-preset=superfast', '!',
-     'rtph264pay', 'config-interval=1', '!',
-     'udpsink', 'host=localhost', 'port=5000'],
-    stdin=subprocess.PIPE
+    [
+        "gst-launch-1.0",
+        "-v",
+        "appsrc",
+        "!",
+        "videoconvert",
+        "!",
+        "x264enc",
+        "tune=zerolatency",
+        "bitrate=500",
+        "speed-preset=superfast",
+        "!",
+        "rtph264pay",
+        "config-interval=1",
+        "!",
+        "udpsink",
+        "host=localhost",
+        "port=5000",
+    ],
+    stdin=subprocess.PIPE,
 )
 
 while True:
@@ -45,7 +59,7 @@ while True:
     cv2.imshow("Frame", frame)
 
     # Press 'q' to quit
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
 # Release the video capture

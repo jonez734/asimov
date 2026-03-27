@@ -97,7 +97,9 @@ class InteractiveGrid:
         if frame_height is None:
             frame_height = self.frame_height
 
-        left_px, top_px, col_widths, row_heights = self._compute_grid_layout(frame_width, frame_height)
+        left_px, top_px, col_widths, row_heights = self._compute_grid_layout(
+            frame_width, frame_height
+        )
         x = left_px + sum(col_widths[:col])
         y = top_px + sum(row_heights[:row])
         w = col_widths[col]
@@ -118,7 +120,9 @@ class InteractiveGrid:
         if frame_height is None:
             frame_height = self.frame_height
 
-        left_px, top_px, col_widths, row_heights = self._compute_grid_layout(frame_width, frame_height)
+        left_px, top_px, col_widths, row_heights = self._compute_grid_layout(
+            frame_width, frame_height
+        )
         grid_left = left_px
         grid_top = top_px
         grid_right = left_px + sum(col_widths)
@@ -176,7 +180,9 @@ class InteractiveGrid:
                     self.selected[r][c] = False
         self.selected[row][col] = not self.selected[row][col]
 
-    def update_pinch_by_position(self, px, py, pinch_active, frame_width=None, frame_height=None):
+    def update_pinch_by_position(
+        self, px, py, pinch_active, frame_width=None, frame_height=None
+    ):
         result = self.get_cell_from_position(px, py, frame_width, frame_height)
         if result is None:
             return
@@ -188,7 +194,9 @@ class InteractiveGrid:
     # Unified update for demo
     # =========================
 
-    def update(self, frame, cursor_pos=None, click=False, pinch_pos=None, pinch_active=False):
+    def update(
+        self, frame, cursor_pos=None, click=False, pinch_pos=None, pinch_active=False
+    ):
         """Update hover and selection for mouse and hand input."""
         h, w = frame.shape[:2]
 

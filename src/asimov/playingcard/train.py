@@ -19,9 +19,12 @@ from asimov.io import echo
 # ------------------------------------------------------
 
 ANGLES = [n for n in range(0, 360, 45)]
-SCALES = [1.0,] # 0.5, 0.7, 0.9, 1.0, 1.1, 1.2]            # Optional scaling
-PROPORTIONAL_CORNER = 0.25           # Fraction of card size
+SCALES = [
+    1.0,
+]  # 0.5, 0.7, 0.9, 1.0, 1.1, 1.2]            # Optional scaling
+PROPORTIONAL_CORNER = 0.25  # Fraction of card size
 MIN_CORNER_SIZE = 60
+
 
 def extract_templates(basedir=None, set_name=None, corner_size=None):
     if basedir is None:
@@ -33,7 +36,7 @@ def extract_templates(basedir=None, set_name=None, corner_size=None):
 
     # iterate files (whatever your code already does)
     for fname in sorted(os.listdir(set_dir)):
-        if not fname.lower().endswith(('.png', '.jpg', '.jpeg')):
+        if not fname.lower().endswith((".png", ".jpg", ".jpeg")):
             continue
         full = os.path.join(set_dir, fname)
         img = cv2.imread(full, cv2.IMREAD_COLOR)
@@ -46,8 +49,8 @@ def extract_templates(basedir=None, set_name=None, corner_size=None):
         if corner_size is None:
             # PROPORTIONAL_CORNER should be defined globally (e.g. 0.12)
             prop = PROPORTIONAL_CORNER
-            cw = max(1, int(round(img_w * prop)))   # width
-            ch = max(1, int(round(img_h * prop)))   # height
+            cw = max(1, int(round(img_w * prop)))  # width
+            ch = max(1, int(round(img_h * prop)))  # height
             corner_size = (cw, ch)  # (w, h)
         else:
             # normalize to ints and clamp to image size
@@ -70,9 +73,11 @@ def extract_templates(basedir=None, set_name=None, corner_size=None):
 
     return templates, set_dir, corner_size
 
+
 # ------------------------------------------------------
 # Train function
 # ------------------------------------------------------
+
 
 def train(basedir=None, set_name=None):
     if basedir is None:
@@ -91,7 +96,9 @@ def train(basedir=None, set_name=None):
     # Precompute all scaled and rotated templates
     for card_name, img in templates.items():
         for scale in SCALES:
-            scaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
+            scaled = cv2.resize(
+                img, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR
+            )
 
             for angle in ANGLES:
                 rotated = rotate_image(scaled, angle)
@@ -99,7 +106,9 @@ def train(basedir=None, set_name=None):
                 if rotated.ndim == 3:
                     rotated = cv2.cvtColor(rotated, cv2.COLOR_BGR2GRAY)
 
-                filename = get_safe_path(scaled_dir, f"{card_name}_{scale:.2f}_{angle}.png")
+                filename = get_safe_path(
+                    scaled_dir, f"{card_name}_{scale:.2f}_{angle}.png"
+                )
                 cv2.imwrite(filename, rotated)
 
     # Save metadata (not raw templates) for reference
@@ -112,11 +121,16 @@ def train(basedir=None, set_name=None):
     np.savez_compressed(get_safe_path(set_dir, "templates.npz"), **meta)
 
     echo(f"[train] Precomputed templates saved in '{scaled_dir}'", end="\n")
-    echo(f"[train] Metadata saved in '{get_safe_path(set_dir, 'templates_meta.npz')}'", end="\n")
+    echo(
+        f"[train] Metadata saved in '{get_safe_path(set_dir, 'templates_meta.npz')}'",
+        end="\n",
+    )
+
 
 # ------------------------------------------------------
 # Utility for rotation
 # ------------------------------------------------------
+
 
 def rotate_image(img, angle):
     (h, w) = img.shape[:2]
@@ -129,6 +143,7 @@ def rotate_image(img, angle):
     M[1, 2] += (new_h / 2) - center[1]
     return cv2.warpAffine(img, M, (new_w, new_h), flags=cv2.INTER_LINEAR)
 
+
 # ------------------------------------------------------
 # CLI
 # ------------------------------------------------------
@@ -137,8 +152,12 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--basedir", default=None, help="Base directory of playingcards")
-    parser.add_argument("--set", dest="set_name", default=None, help="Card set name (folder)")
+    parser.add_argument(
+        "--basedir", default=None, help="Base directory of playingcards"
+    )
+    parser.add_argument(
+        "--set", dest="set_name", default=None, help="Card set name (folder)"
+    )
     args = parser.parse_args()
 
     train(args.basedir, args.set_name)

@@ -7,6 +7,7 @@ from asimov import rect  # adjust if your module path differs
 # Canvas size if not using webcam
 WIDTH, HEIGHT = 640, 480
 
+
 def draw_rectangles(img, context):
     """Draw rectangles on the image. Converts normalized coords to pixel coords."""
     h, w = img.shape[:2]
@@ -24,27 +25,30 @@ def draw_rectangles(img, context):
 
         if r.get("label"):
             cv2.putText(
-                img,
-                str(r["label"]),
-                poly[0],
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                color,
-                2
+                img, str(r["label"]), poly[0], cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2
             )
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--webcam", action="store_true", help="Use webcam instead of blank canvas")
+    parser.add_argument(
+        "--webcam", action="store_true", help="Use webcam instead of blank canvas"
+    )
     args = parser.parse_args()
 
     context = {}
     rect.init_context(context)
 
     # Example rectangles (coordinates are canvas pixels)
-    rect.add(context, [(50,50),(150,50),(150,150),(50,150)], timeout=5, label="A")
-    rect.add(context, [(200,100),(300,100),(300,200),(200,200)], timeout=8, label="B")
-    rect.add(context, [(400,50),(500,50),(500,150),(400,150)], timeout=3, label="C")
+    rect.add(
+        context, [(50, 50), (150, 50), (150, 150), (50, 150)], timeout=5, label="A"
+    )
+    rect.add(
+        context, [(200, 100), (300, 100), (300, 200), (200, 200)], timeout=8, label="B"
+    )
+    rect.add(
+        context, [(400, 50), (500, 50), (500, 150), (400, 150)], timeout=3, label="C"
+    )
 
     if args.webcam:
         cap = cv2.VideoCapture(1)
@@ -78,14 +82,15 @@ def main():
         cv2.imshow("Rect Demo", img)
         key = cv2.waitKey(50) & 0xFF
 
-        if key == ord('q'):
+        if key == ord("q"):
             break
-        if key == ord('t') and context["rectangles"]:
+        if key == ord("t") and context["rectangles"]:
             rect.mark_touched(context, 0)
 
     if cap:
         cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()

@@ -18,6 +18,7 @@ width, height = 640, 480
 rect_buffer = []
 DISPLAY_TIME = 2.0
 
+
 def detect_cards(frame):
     """Detect playing cards and store rectangles with timestamps"""
     global rect_buffer
@@ -39,23 +40,33 @@ def detect_cards(frame):
     rect_buffer.extend(new_rectangles)
 
     # Remove old rectangles
-    rect_buffer = [(x, y, w, h, t) for (x, y, w, h, t) in rect_buffer if current_time - t < DISPLAY_TIME]
+    rect_buffer = [
+        (x, y, w, h, t)
+        for (x, y, w, h, t) in rect_buffer
+        if current_time - t < DISPLAY_TIME
+    ]
 
     return rect_buffer  # Return the updated list
+
 
 def draw_texture(texture_id):
     """Render the video frame as a textured quad."""
     gl.glEnable(gl.GL_TEXTURE_2D)
     gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
-    
+
     gl.glBegin(gl.GL_QUADS)
-    gl.glTexCoord2f(0, 1); gl.glVertex2f(0, 0)
-    gl.glTexCoord2f(1, 1); gl.glVertex2f(width, 0)
-    gl.glTexCoord2f(1, 0); gl.glVertex2f(width, height)
-    gl.glTexCoord2f(0, 0); gl.glVertex2f(0, height)
+    gl.glTexCoord2f(0, 1)
+    gl.glVertex2f(0, 0)
+    gl.glTexCoord2f(1, 1)
+    gl.glVertex2f(width, 0)
+    gl.glTexCoord2f(1, 0)
+    gl.glVertex2f(width, height)
+    gl.glTexCoord2f(0, 0)
+    gl.glVertex2f(0, height)
     gl.glEnd()
-    
+
     gl.glDisable(gl.GL_TEXTURE_2D)
+
 
 def draw_rectangle(x, y, w, h):
     """Draw an outlined rectangle using OpenGL."""
@@ -66,17 +77,19 @@ def draw_rectangle(x, y, w, h):
     gl.glVertex2f(x, height - (y + h))
     gl.glEnd()
 
+
 def draw_text(x, y, text):
     """Render text using GLUT."""
     gl.glRasterPos2f(x, height - y)
     for ch in text:
         glut.glutBitmapCharacter(glut.GLUT_BITMAP_HELVETICA_18, ord(ch))
 
+
 def render_scene(frame, rectangles, texture_id):
     """Render the video frame and detected rectangles using OpenGL."""
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
     gl.glLoadIdentity()
-    
+
     # Fix OpenGL Projection
     gl.glViewport(0, 0, width, height)
     gl.glMatrixMode(gl.GL_PROJECTION)
@@ -95,24 +108,33 @@ def render_scene(frame, rectangles, texture_id):
     gl.glColor4f(0, 1, 0, 1)  # Green for rectangles
     for x, y, w, h, _ in rectangles:
         draw_rectangle(x, y, w, h)
-        draw_text(x + 5, y - 15, f"Area: {w*h}")
+        draw_text(x + 5, y - 15, f"Area: {w * h}")
     gl.glColor4f(1.0, 1.0, 1.0, 1.0)
 
     glfw.swap_buffers(window)  # Swap front and back buffers
+
 
 def key_callback(window, key, scancode, action, mods):
     """Handle key events."""
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.set_window_should_close(window, True)
 
+
 def main():
     global window
 
     parser = argparse.ArgumentParser(description="OpenGL Card Detection")
-    parser.add_argument("--capture-dev", type=str, default="1", help="Capture device index or video file path (default: 1)")
+    parser.add_argument(
+        "--capture-dev",
+        type=str,
+        default="1",
+        help="Capture device index or video file path (default: 1)",
+    )
     args = parser.parse_args()
 
-    capture_dev = int(args.capture_dev) if args.capture_dev.isdigit() else args.capture_dev
+    capture_dev = (
+        int(args.capture_dev) if args.capture_dev.isdigit() else args.capture_dev
+    )
 
     # Initialize GLFW
     if not glfw.init():
@@ -152,6 +174,7 @@ def main():
     cap.release()
     glfw.destroy_window(window)
     glfw.terminate()
+
 
 if __name__ == "__main__":
     main()

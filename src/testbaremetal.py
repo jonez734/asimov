@@ -8,6 +8,7 @@ frame = None
 fps = 0
 running = True  # Still useful for controlling the loop
 
+
 def main():
     global cap, ret, frame, fps, running
 
@@ -49,7 +50,16 @@ def main():
             prev_frame_time = new_frame_time
             fps = int(fps_calc)
 
-            cv2.putText(frame, str(fps), (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 3, (100, 255, 0), 3, cv2.LINE_AA)
+            cv2.putText(
+                frame,
+                str(fps),
+                (7, 70),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                3,
+                (100, 255, 0),
+                3,
+                cv2.LINE_AA,
+            )
             cv2.imshow("Camera Feed", frame)
 
         key = cv2.waitKey(1)
@@ -59,6 +69,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,13 @@ import socket
 import time
 from typing import Optional
 
-from .packet import encode_packet, decode_packet, PACKET_TYPE_PING, PACKET_TYPE_PONG, PONG
+from .packet import (
+    encode_packet,
+    decode_packet,
+    PACKET_TYPE_PING,
+    PACKET_TYPE_PONG,
+    PONG,
+)
 
 
 def respond_to_ping(sock: socket.socket, addr: tuple):
@@ -29,7 +35,7 @@ def send_ping_and_wait_for_pong(sock: socket.socket, timeout: float = 1.0) -> bo
             data, addr = sock.recvfrom(4096)
             if data:
                 result = decode_packet(data)
-                if result.get('packet_type') == PONG:
+                if result.get("packet_type") == PONG:
                     return True
         except socket.timeout:
             break

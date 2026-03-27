@@ -3,12 +3,13 @@ import time
 import threading
 
 import gi
-#gi.require_version('Gtk', '3.0')
+
+# gi.require_version('Gtk', '3.0')
 gi.require_version("Gst", "1.0")
 gi.require_version("GstApp", "1.0")
-gi.require_version('GObject', '2.0')
+gi.require_version("GObject", "2.0")
 
-#from gi.repository import Gtk, Gdk, GLib, GdkPixbuf
+# from gi.repository import Gtk, Gdk, GLib, GdkPixbuf
 from gi.repository import Gst, GLib
 
 from bbsengine6 import io
@@ -16,6 +17,7 @@ from bbsengine6 import io
 from asimov import lib as libasimov
 
 import cv2
+
 
 class Asimov(object):
     def __init__(self):
@@ -33,12 +35,12 @@ class Asimov(object):
         # gst_str = "appsrc name=source ! rtpjpegpay ! udpsink host=localhost port=5000"
         # gst_str = "appsrc name=source ! decodebin ! videoconvert ! jpegenc ! rtpjpegpay ! udpsink host=localhost port=5000"
         # gst_str = "appsrc name=source ! videoconvert ! x264enc speed-preset=ultrafast tune=zerolatency byte-stream=true ! mpegtsmux ! udpsink name=sink host=localhost port=5000"
-        
+
         self.pipeline = Gst.parse_launch(gst_str)
         if self.pipeline is None:
             io.echo("failed to create pipline", level="error")
             return
-        #self.appsrc = self.pipeline.query("uri")
+        # self.appsrc = self.pipeline.query("uri")
         self.appsrc = self.pipeline.get_child_by_name("source")
         # io.echo(f"{self.appsrc=}")
         # self.appsrc.connect("need-data", self.on_need_data) # moved to .start()
@@ -73,7 +75,7 @@ class Asimov(object):
             io.echo(f"ERROR: {message.src.get_name()}: {error.message}", level="error")
         elif message.type == Gst.MessageType.EOS:
             io.echo("end of stream", level="info")
-  
+
     def on_need_data(self, src, length):
         # Convert frame to bytes (assuming BGR format)
         io.echo("on_need_data entered", level="debug")
@@ -82,11 +84,17 @@ class Asimov(object):
 
         self.push_buffer(self.frame)
 
-    def on_debug(self, category, level, dfile, dfctn, dline, source, message, user_data):
+    def on_debug(
+        self, category, level, dfile, dfctn, dline, source, message, user_data
+    ):
         if source:
-	        print('Debug {} {}: {}'.format(Gst.DebugLevel.get_name(level), source.name, message.get()))
+            print(
+                "Debug {} {}: {}".format(
+                    Gst.DebugLevel.get_name(level), source.name, message.get()
+                )
+            )
         else:
-            print('Debug {}: {}'.format(Gst.DebugLevel.get_name(level), message.get()))
+            print("Debug {}: {}".format(Gst.DebugLevel.get_name(level), message.get()))
 
     def start(self):
         io.echo("start() called", level="debug")
@@ -97,16 +105,16 @@ class Asimov(object):
         elif ret == Gst.StateChangeReturn.ASYNC:
             io.echo("Pipeline state change is asynchronous.")
             # Wait for state change notification on the bus
-            message = self.bus.timed_pop(3 * Gst.SECOND) # Gst.CLOCK_TIME_NONE)
+            message = self.bus.timed_pop(3 * Gst.SECOND)  # Gst.CLOCK_TIME_NONE)
             if message:
                 io.echo(f"{message=}", level="debug")
-                #if message.type == Gst.State.STATE_CHANGED:
+                # if message.type == Gst.State.STATE_CHANGED:
                 #    old_state, new_state, _ = message.parse_state_changed()
                 #    if new_state == Gst.State.PLAYING:
                 #        io.echo("Pipeline is now PLAYING.")
                 #    else:
                 #        io.echo(f"Unexpected state change: {Gst.StateNames.get_name(new_state)}")
-                #else:
+                # else:
                 #    io.echo("Received unexpected message type on the bus.")
             else:
                 io.echo("Timeout waiting for message on the bus.")
@@ -120,7 +128,7 @@ class Asimov(object):
         Gst.debug_set_default_threshold(Gst.DebugLevel.INFO)
         Gst.debug_set_active(True)
         self.running = True
-        
+
     def _get_frame(self):
         # start = time.time()
         while self.running is True:
@@ -154,11 +162,11 @@ class Asimov(object):
             self._capthread = threading.Thread(target=self._get_frame)
             self._capthread.start()
             io.echo("capture thread started", level="debug")
-        #if not self._showthread:
+        # if not self._showthread:
         #    self._showthread = threading.Thread(target=self._show_frame)
         #    self._showthread.start()
         #    io.echo("show thread started", level="debug")
-        #if not self._glibmainloopthread:
+        # if not self._glibmainloopthread:
         #    self._glibmainloopthread = threading.Thread(target=self._glib_mainloop)
         #    self._glibmainloopthread.start()
 
@@ -168,19 +176,19 @@ class Asimov(object):
                 io.echo("sleep")
                 continue
 
-            #self.push_buffer(self.frame)
+            # self.push_buffer(self.frame)
             cv2.imshow("frame", self.frame)
             ch = cv2.waitKey(1) & 0xFF
             if ch == "q" or ch == 27:
                 self.running = False
 
-        #self.loop.run()
-        #while self.running is True:
+        # self.loop.run()
+        # while self.running is True:
         #    # io.echo("loop")
         #    time.sleep(0.125)
 
-        #while self.running is True:
-        #    # help(self.pipeline.get_state) 
+        # while self.running is True:
+        #    # help(self.pipeline.get_state)
         #    # io.echo(f"{self.pipeline.get_state()=}", level="debug")
         #    start = time.time()
         #    if self.cap.isOpened() is True:
@@ -224,7 +232,7 @@ class Asimov(object):
         else:
             self.pipeline.send_event(eos)
             io.echo("waiting for EOS...", level="debug", end="")
-            message = self.bus.timed_pop_filtered(3*Gst.SECOND, Gst.MessageType.EOS)
+            message = self.bus.timed_pop_filtered(3 * Gst.SECOND, Gst.MessageType.EOS)
             if message is None:
                 io.echo("timeout", level="debug")
             else:
@@ -232,14 +240,14 @@ class Asimov(object):
                 if structure is not None:
                     io.echo(f"{structure.get('name')=}")
 
-        #io.echo("setting stream state to null", level="debug")
-        #self.pipeline.set_state(Gst.State.NULL)
+        # io.echo("setting stream state to null", level="debug")
+        # self.pipeline.set_state(Gst.State.NULL)
         self.cap.release()
         # self.out.release()
         # Gst.event_unref(eos)
         # self.bus.remove_watch(self.busid)
-        #self._capthread.stop()
-        #self._showthread.stop()
+        # self._capthread.stop()
+        # self._showthread.stop()
 
         if self.loop is not None:
             self.loop.quit()
@@ -260,5 +268,7 @@ def main():
     finally:
         asimov.stop()
     # io.inputboolean("prompt: ")
+
+
 if __name__ == "__main__":
     main()

@@ -6,34 +6,59 @@ import cv2
 
 from asimov import io
 
+try:
+    from cvzone.FPS import FPS as cvzoneFPS
+except ImportError:
+    cvzoneFPS = None
 
-# from cvzone.FPS import FPS as cvzoneFPS
-# from cvzone.HandTrackingModule import HandDetector
+try:
+    from cvzone.HandTrackingModule import HandDetector
+except ImportError:
+    HandDetector = None
+
+try:
+    import gi
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Gst', '1.0')
+    gi.require_version('GstApp', '1.0')
+    gi.require_version('GObject', '2.0')
+    gi.require_version('GdkPixbuf', '2.0')
+    from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, GObject
+    from gi.repository import Gst, GstApp
+except ImportError:
+    Gtk = None
+    Gdk = None
+    GLib = None
+    GdkPixbuf = None
+    GObject = None
+    Gst = None
+    GstApp = None
 
 RESOLUTION = (640, 480)
-#RESOLUTION = (1280, 720)
+# RESOLUTION = (1280, 720)
 SRC = 1
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 FPS = 30
 
-LABELCOLOR = (187, 187, 187) # lightgray
-VALUECOLOR = (0, 204, 85) # green
+LABELCOLOR = (187, 187, 187)  # lightgray
+VALUECOLOR = (0, 204, 85)  # green
 DARKGRAY = (51, 51, 51)
 BGCOLOR = DARKGRAY
 GREEN = (0, 204, 85)
 CONTOURCOLOR = GREEN
 VIDEODEVICE = 1
 
-#import gi
+# import gi
 #
-#gi.require_version('Gtk', '3.0')
-#gi.require_version('Gst', '1.0')
-#gi.require_version('GstApp', '1.0')
-#gi.require_version('GObject', '2.0')
-#gi.require_version('GdkPixbuf', '2.0')
+# gi.require_version('Gtk', '3.0')
+# gi.require_version('Gst', '1.0')
+# gi.require_version('GstApp', '1.0')
+# gi.require_version('GObject', '2.0')
+# gi.require_version('GdkPixbuf', '2.0')
 #
-#from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, GObject
-#from gi.repository import Gst, GstApp
+# from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, GObject
+# from gi.repository import Gst, GstApp
+
 
 class VideoCaptureThread(threading.Thread):
     def __init__(self, src=0, width=800, height=600):
@@ -63,6 +88,7 @@ class VideoCaptureThread(threading.Thread):
         self.thread.join()
         self.cap.release()
 
+
 class Asimov(object):
     def __init__(self):
         self.cap = None
@@ -83,7 +109,7 @@ class Asimov(object):
         self.fpsReader = cvzoneFPS(avgCount=FPS)
 
         self.handHandler = handHandler()
-        
+
         self.number_frames = 0
 
         # self.gst_str = f"appsrc name=source emit-signals=true format=buffers caps=video/x-raw,format=BGR,width={RESOLUTION[0]},height={RESOLUTION[1]},framerate={FPS}/1 ! queue max-size-buffers=4 ! videoconvert ! udpsink host=localhost port=5000" # autovideosink sync=1"
@@ -109,9 +135,9 @@ class Asimov(object):
         Gst.debug_set_active(True)
 
     def capframe(self):
-        #io.echo(f"{self.running=}", level="debug")
-        #while self.running is True:
-            # io.echo(f"capframe.100: trace {self.cap.isOpened()=}", level="debug")
+        # io.echo(f"{self.running=}", level="debug")
+        # while self.running is True:
+        # io.echo(f"capframe.100: trace {self.cap.isOpened()=}", level="debug")
         if self.cap.isOpened() is True:
             with self.lock:
                 # io.echo("reading frame")
@@ -138,11 +164,11 @@ class Asimov(object):
         self.running = True
 
         self.appsrc.connect("need-data", self.on_need_data)
-        
-        #capframetimerid = GLib.timeout_add(30, self.capframe)
+
+        # capframetimerid = GLib.timeout_add(30, self.capframe)
         GLib.idle_add(self.show)
         GLib.timeout_add(100, self.update)
-        #GLib.timeout_add(350, self.show)
+        # GLib.timeout_add(350, self.show)
 
         # self.capthread.start()
 
@@ -160,8 +186,10 @@ class Asimov(object):
         f = self.frame
         f = cv2.cvtColor(f, cv2.COLOR_BGR2RGB)
         # io.echo(f"{f=}", level="debug")
-        fps, f = self.fpsReader.update(f, bgColor=BGCOLOR, textColor=VALUECOLOR, scale=3, thickness=3)
-    
+        fps, f = self.fpsReader.update(
+            f, bgColor=BGCOLOR, textColor=VALUECOLOR, scale=3, thickness=3
+        )
+
         if self.greyscale is True:
             f = cv2.cvtColor(f, cv2.COLOR_RGB2GRAY)
             f = cv2.cvtColor(f, cv2.COLOR_GRAY2RGB)
@@ -171,16 +199,16 @@ class Asimov(object):
         if self.handlehands is True:
             f = self.handHandler.handle(f, draw=True)
 
-        ret, f = cv2.imencode('.png', f)  # Adjust encoding format as needed
-        #io.echo(f"{ret=}", level="debug")
+        ret, f = cv2.imencode(".png", f)  # Adjust encoding format as needed
+        # io.echo(f"{ret=}", level="debug")
         # data = encoded_img.tobytes()
 
         loader = GdkPixbuf.PixbufLoader()
         loader.write(f)
         pixbuf = loader.get_pixbuf()
         loader.close()
-        #io.echo(f"{pixbuf.get_width()=} {pixbuf.get_height()=}", level="debug")
-        #pixbuf = GdkPixbuf.Pixbuf.new_from_data(f.tobytes(),
+        # io.echo(f"{pixbuf.get_width()=} {pixbuf.get_height()=}", level="debug")
+        # pixbuf = GdkPixbuf.Pixbuf.new_from_data(f.tobytes(),
         #                                    GdkPixbuf.Colorspace.RGB,
         #                                    False,
         #                                    8,
@@ -194,32 +222,33 @@ class Asimov(object):
         image = self.builder.get_object("image")
         image.set_from_pixbuf(pixbuf.copy())
         return True
-        
+
     def onDeleteWindow(self, *args):
         Gtk.main_quit(*args)
- 
+
     def toggleGreyscale(self, *args):
         self.greyscale = not self.greyscale
-        
+
     def toggleHands(self, *args):
         self.handlehands = not self.handlehands
 
     class eventHandler:
         greyscale = False
         hands = False
+
         def onDeleteWindow(self, *args):
             Gtk.main_quit(*args)
- 
+
         def toggleGreyscale(self, *args):
             self.greyscale = not self.greyscale
-        
+
         def toggleHands(self, *args):
             self.hands = not self.hands
 
     def main(self):
         window = self.builder.get_object("asimov")
         window.connect("key-release-event", self.on_key_release_event)
-        window.set_default_size(RESOLUTION[0]*1.05, RESOLUTION[1]*1.05)
+        window.set_default_size(RESOLUTION[0] * 1.05, RESOLUTION[1] * 1.05)
 
         window.show_all()
 
@@ -249,14 +278,14 @@ class Asimov(object):
             io.echo(f"ERROR: {message.src.get_name()}: {error.message}", level="error")
         elif message.type == Gst.MessageType.EOS:
             io.echo("end of stream", level="info")
-  
+
     # Function to push a frame to appsrc as a buffer
     def push(self, frame=None):
         if frame is None:
             frame = self.frame
         f = copy.copy(frame)
         ret, f = cv2.imencode(".jpg", f)
-        
+
         # data = f.tobytes() # frame.tobytes()
         # Create GStreamer buffer
         buffer = Gst.Buffer.new_allocate(None, len(f), None)
@@ -282,11 +311,17 @@ class Asimov(object):
 
         self.push(self.frame)
 
-    def on_debug(self, category, level, dfile, dfctn, dline, source, message, user_data):
+    def on_debug(
+        self, category, level, dfile, dfctn, dline, source, message, user_data
+    ):
         if source:
-	        print('Debug {} {}: {}'.format(Gst.DebugLevel.get_name(level), source.name, message.get()))
+            print(
+                "Debug {} {}: {}".format(
+                    Gst.DebugLevel.get_name(level), source.name, message.get()
+                )
+            )
         else:
-            print('Debug {}: {}'.format(Gst.DebugLevel.get_name(level), message.get()))
+            print("Debug {}: {}".format(Gst.DebugLevel.get_name(level), message.get()))
 
     def stop(self):
         io.echo("stopping...", level="debug")
@@ -296,15 +331,14 @@ class Asimov(object):
             io.echo("stop.100: unable to create end-of-stream event", level="error")
         else:
             self.pipeline.send_event(eos)
-            #io.echo("waiting for EOS...", level="debug", end="")
-            #message = self.bus.timed_pop_filtered(3*Gst.SECOND, Gst.MessageType.EOS)
-            #if message is None:
+            # io.echo("waiting for EOS...", level="debug", end="")
+            # message = self.bus.timed_pop_filtered(3*Gst.SECOND, Gst.MessageType.EOS)
+            # if message is None:
             #    io.echo("timeout", level="debug")
-            #else:
+            # else:
             #    structure = message.get_structure()
             #    if structure is not None:
             #        io.echo(f"{structure.get('name')=}")
-
 
         self.running = False
         # self.capthread.join()
@@ -313,44 +347,66 @@ class Asimov(object):
 
         # self.bus.remove_watch(self.busid)
 
+
 class CardHandler(object):
-	def handle(self, image):
-		_image = image.copy()
-		# io.echo(f"{img=}", level="debug")
-		# Convert the image to grayscale
-		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-		ret, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-		if ret is None:
-			io.echo("asimov.lib.handle_cards.100: threshold returned None", level="error")
-			return image
-		contours, hierarchy = cv2.findContours(image=thresh, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
-		cv2.drawContours(image=_image, contours=contours, contourIdx=-1, color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
+    def handle(self, image):
+        _image = image.copy()
+        # io.echo(f"{img=}", level="debug")
+        # Convert the image to grayscale
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        ret, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+        if ret is None:
+            io.echo(
+                "asimov.lib.handle_cards.100: threshold returned None", level="error"
+            )
+            return image
+        contours, hierarchy = cv2.findContours(
+            image=thresh, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE
+        )
+        cv2.drawContours(
+            image=_image,
+            contours=contours,
+            contourIdx=-1,
+            color=(0, 255, 0),
+            thickness=2,
+            lineType=cv2.LINE_AA,
+        )
 
-		return _image
+        return _image
 
-		# return cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB) # thresh
+        # return cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB) # thresh
+
 
 class handHandler(object):
-	def __init__(self):
-		self.detector = HandDetector(staticMode=False, maxHands=1, modelComplexity=1, detectionCon=0.5, minTrackCon=0.5)
-	def handle(self, image, draw=True):
-		hands, image = self.detector.findHands(image, draw=draw, flipType=True)
-		if hands == [] or hands is None:
-			return image
-		
-		for h in hands:
-			fingers = self.detector.fingersUp(h)
-			io.echo(f"{fingers=}", level="debug")
-			if fingers == [0, 1, 0, 0, 0] or fingers == [1, 1, 0, 0, 0]:
-				io.echo("index finger up")
-		return image
+    def __init__(self):
+        self.detector = HandDetector(
+            staticMode=False,
+            maxHands=1,
+            modelComplexity=1,
+            detectionCon=0.5,
+            minTrackCon=0.5,
+        )
+
+    def handle(self, image, draw=True):
+        hands, image = self.detector.findHands(image, draw=draw, flipType=True)
+        if hands == [] or hands is None:
+            return image
+
+        for h in hands:
+            fingers = self.detector.fingersUp(h)
+            io.echo(f"{fingers=}", level="debug")
+            if fingers == [0, 1, 0, 0, 0] or fingers == [1, 1, 0, 0, 0]:
+                io.echo("index finger up")
+        return image
+
 
 def runmodule(args, modulepath, **kwargs):
     from . import module
 
     return module.run(args, f"asimov.{modulepath}", **kwargs)
 
+
 def loadmodule(args, modulepath, **kwargs):
     from base import module
-    return module.load(args, f"asimov.{modulepath}", **kwargs)
 
+    return module.load(args, f"asimov.{modulepath}", **kwargs)

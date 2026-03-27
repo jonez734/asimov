@@ -1,4 +1,3 @@
-
 import inspect
 
 FRUITS = ["apple", "banana", "cherry", "date", "elderberry"]

@@ -3,7 +3,16 @@ from tkinter import ttk
 
 
 class ModernSwitch(tk.Canvas):
-    def __init__(self, parent, height=40, width=None, variable=None, command=None, enabled=True, **kwargs):
+    def __init__(
+        self,
+        parent,
+        height=40,
+        width=None,
+        variable=None,
+        command=None,
+        enabled=True,
+        **kwargs,
+    ):
         self.height = height
         self.width = width if width else height * 2.2
         self.radius = height / 2
@@ -11,7 +20,9 @@ class ModernSwitch(tk.Canvas):
         self.thumb_radius = self.thumb_diameter / 2
         self.margin = (height - self.thumb_diameter) / 2
 
-        super().__init__(parent, width=self.width, height=height, highlightthickness=0, **kwargs)
+        super().__init__(
+            parent, width=self.width, height=height, highlightthickness=0, **kwargs
+        )
 
         self.variable = variable
         self.command = command
@@ -30,14 +41,20 @@ class ModernSwitch(tk.Canvas):
         self._animating = False
 
         self._track = self.create_oval(
-            self.radius, self.margin,
-            self.width - self.radius, self.height - self.margin,
-            fill=self._off_color, outline=""
+            self.radius,
+            self.margin,
+            self.width - self.radius,
+            self.height - self.margin,
+            fill=self._off_color,
+            outline="",
         )
         self._thumb = self.create_oval(
-            self._off_x - self.thumb_radius, self.margin,
-            self._off_x + self.thumb_radius, self.height - self.margin,
-            fill=self._thumb_color, outline=""
+            self._off_x - self.thumb_radius,
+            self.margin,
+            self._off_x + self.thumb_radius,
+            self.height - self.margin,
+            fill=self._thumb_color,
+            outline="",
         )
 
         self.enabled = enabled
@@ -61,7 +78,13 @@ class ModernSwitch(tk.Canvas):
             self.itemconfig(self._thumb, fill=self._thumb_color)
 
         thumb_x = self._on_x if self._value else self._off_x
-        self.coords(self._thumb, thumb_x - self.thumb_radius, self.margin, thumb_x + self.thumb_radius, self.height - self.margin)
+        self.coords(
+            self._thumb,
+            thumb_x - self.thumb_radius,
+            self.margin,
+            thumb_x + self.thumb_radius,
+            self.height - self.margin,
+        )
 
     def _on_click(self, event):
         if not self.enabled:
@@ -104,7 +127,13 @@ class ModernSwitch(tk.Canvas):
 
         def step(i):
             if i >= steps:
-                self.coords(self._thumb, end_x - self.thumb_radius, self.margin, end_x + self.thumb_radius, self.height - self.margin)
+                self.coords(
+                    self._thumb,
+                    end_x - self.thumb_radius,
+                    self.margin,
+                    end_x + self.thumb_radius,
+                    self.height - self.margin,
+                )
                 self.itemconfig(self._track, fill=end_color)
                 self._animation_job = None
                 return
@@ -117,7 +146,13 @@ class ModernSwitch(tk.Canvas):
             b = int(start_rgb[2] + (end_rgb[2] - start_rgb[2]) * progress)
             current_color = self._rgb_to_hex(r, g, b)
 
-            self.coords(self._thumb, current_x - self.thumb_radius, self.margin, current_x + self.thumb_radius, self.height - self.margin)
+            self.coords(
+                self._thumb,
+                current_x - self.thumb_radius,
+                self.margin,
+                current_x + self.thumb_radius,
+                self.height - self.margin,
+            )
             self.itemconfig(self._track, fill=current_color)
 
             self._animation_job = self.after(int(duration / steps), lambda i=i: step(i))
@@ -125,8 +160,8 @@ class ModernSwitch(tk.Canvas):
         step(0)
 
     def _hex_to_rgb(self, hex_color):
-        hex_color = hex_color.lstrip('#')
-        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        hex_color = hex_color.lstrip("#")
+        return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
     def _rgb_to_hex(self, r, g, b):
         return f"#{r:02x}{g:02x}{b:02x}"

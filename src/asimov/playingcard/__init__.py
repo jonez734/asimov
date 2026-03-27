@@ -6,6 +6,13 @@ Detects playing cards using precomputed template data.
 import cv2
 import numpy as np
 
+from . import cards
+from . import templates
+from . import train
+from . import util
+from .set import load as load_set
+from .detect import detect
+
 # Use absolute imports that go through asimov's top-level namespace
 # These work because asimov/io and asimov modules are accessible
 from asimov.io import echo
@@ -14,13 +21,6 @@ from asimov import conf
 
 ThreadSafeContext = common.ThreadSafeContext
 
-from . import cards
-from . import templates
-from . import train
-from . import util
-from .set import load as load_set
-from .detect import detect
-
 load = load_set
 card_set = load_set
 
@@ -28,6 +28,7 @@ card_set = load_set
 # ------------------------------------------------------------
 # Initialization
 # ------------------------------------------------------------
+
 
 def init(args=None, context=None, **kwargs):
     """
@@ -41,7 +42,11 @@ def init(args=None, context=None, **kwargs):
     if set_name is None:
         set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
 
-    echo(f"{{reset}}- {{labelcolor}}Load set {{valuecolor}}'{set_name}{{labelcolor}}': ", end="", flush=True)
+    echo(
+        f"{{reset}}- {{labelcolor}}Load set {{valuecolor}}'{set_name}{{labelcolor}}': ",
+        end="",
+        flush=True,
+    )
     if load_set(basedir, set_name) is True:
         echo("{green}[{checkmark} OK]{reset}", flush=True)
         return True
@@ -53,6 +58,7 @@ def init(args=None, context=None, **kwargs):
 # ------------------------------------------------------------
 # Lifecycle hooks
 # ------------------------------------------------------------
+
 
 def access(args, op, **kwargs):
     return True
@@ -70,20 +76,6 @@ def main(args, **kwargs):
 # Detection
 # ------------------------------------------------------------
 
-def detect(frame, context, **kwargs):
-    """
-    Detect playing card in frame.
-    """
-    # TODO: Implement actual detection using templates.py
-    detected = context.get("playingcard_detected")
-    if detected:
-        echo(f"detect: {detected.get('name', 'unknown')}")
-    return frame
-
-
-# ------------------------------------------------------------
-# Drawing overlay
-# ------------------------------------------------------------
 
 def draw(frame: np.ndarray, context: ThreadSafeContext):
     """

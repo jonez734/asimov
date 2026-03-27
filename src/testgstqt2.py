@@ -2,9 +2,9 @@ import cv2
 
 # Set up GStreamer pipeline for sending frames
 gst_str = (
-    'appsrc ! videoconvert ! video/x-raw,format=I420 ! '
-    'x264enc speed-preset=ultrafast tune=zerolatency ! rtph264pay config-interval=1 ! '
-    'udpsink host=localhost port=5000'
+    "appsrc ! videoconvert ! video/x-raw,format=I420 ! "
+    "x264enc speed-preset=ultrafast tune=zerolatency ! rtph264pay config-interval=1 ! "
+    "udpsink host=localhost port=5000"
 )
 
 # Open video capture (for example, from webcam or file)
@@ -30,9 +30,9 @@ while cap.isOpened():
     out.write(frame)
 
     # Display the frame locally (optional)
-    cv2.imshow('Sending to OBS', frame)
+    cv2.imshow("Sending to OBS", frame)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
 # Release everything when done

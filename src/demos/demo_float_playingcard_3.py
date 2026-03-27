@@ -22,6 +22,7 @@ FLOATING_CARD_SCENE = asimov_conf.SCENE
 # Main
 # ------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Floating playing card demo (scene-driven)"

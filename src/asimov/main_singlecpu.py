@@ -3,14 +3,18 @@ from cvzone.HandTrackingModule import HandDetector
 import importlib
 import time
 
+
 def access(args, op, **kwargs):
     return True
+
 
 def init(args, **kwargs):
     return True
 
+
 def buildargs(args, **kwargs):
     return None
+
 
 def main(args, **kwargs):
     MODULE_NAMES = [

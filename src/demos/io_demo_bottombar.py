@@ -1,4 +1,3 @@
-
 from bbsengine6 import screen
 
 screen.init()

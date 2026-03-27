@@ -50,7 +50,7 @@ void main() {
 
 shader = shaders.compileProgram(
     shaders.compileShader(vertex_shader, gl.GL_VERTEX_SHADER),
-    shaders.compileShader(fragment_shader, gl.GL_FRAGMENT_SHADER)
+    shaders.compileShader(fragment_shader, gl.GL_FRAGMENT_SHADER),
 )
 
 # Create VAO and VBO
@@ -71,7 +71,9 @@ gl.glEnableVertexAttribArray(0)
 gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 5 * 4, gl.ctypes.c_void_p(0))
 
 gl.glEnableVertexAttribArray(1)
-gl.glVertexAttribPointer(1, 2, gl.GL_FLOAT, gl.GL_FALSE, 5 * 4, gl.ctypes.c_void_p(3 * 4))
+gl.glVertexAttribPointer(
+    1, 2, gl.GL_FLOAT, gl.GL_FALSE, 5 * 4, gl.ctypes.c_void_p(3 * 4)
+)
 
 gl.glBindVertexArray(0)
 
@@ -83,9 +85,11 @@ gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
 gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
 gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 
+
 # LERP (Linear Interpolation) function
 def lerp(start, end, t):
     return start + t * (end - start)
+
 
 # Initial and target positions
 current_x = current_y = current_z = 0.0
@@ -112,7 +116,17 @@ while not glfw.window_should_close(window):
     frame = np.flip(frame, axis=0)  # Flip vertically for OpenGL
 
     gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, frame.shape[1], frame.shape[0], 0, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, frame)
+    gl.glTexImage2D(
+        gl.GL_TEXTURE_2D,
+        0,
+        gl.GL_RGB,
+        frame.shape[1],
+        frame.shape[0],
+        0,
+        gl.GL_RGB,
+        gl.GL_UNSIGNED_BYTE,
+        frame,
+    )
 
     # Lerp towards the target position
     t = frame_counter / frames_to_change
@@ -131,12 +145,31 @@ while not glfw.window_should_close(window):
     frame_counter += 1
 
     # Generate the quad with the smoothed positions
-    vertices = np.array([
-        -0.5 + smoothed_x, -0.5 + smoothed_y, smoothed_z,  0.0, 0.0,  # Bottom-left
-         0.5 + smoothed_x, -0.5 + smoothed_y, smoothed_z,  1.0, 0.0,  # Bottom-right
-         0.5 + smoothed_x,  0.5 + smoothed_y, smoothed_z,  1.0, 1.0,  # Top-right
-        -0.5 + smoothed_x,  0.5 + smoothed_y, smoothed_z,  0.0, 1.0   # Top-left
-    ], dtype=np.float32)
+    vertices = np.array(
+        [
+            -0.5 + smoothed_x,
+            -0.5 + smoothed_y,
+            smoothed_z,
+            0.0,
+            0.0,  # Bottom-left
+            0.5 + smoothed_x,
+            -0.5 + smoothed_y,
+            smoothed_z,
+            1.0,
+            0.0,  # Bottom-right
+            0.5 + smoothed_x,
+            0.5 + smoothed_y,
+            smoothed_z,
+            1.0,
+            1.0,  # Top-right
+            -0.5 + smoothed_x,
+            0.5 + smoothed_y,
+            smoothed_z,
+            0.0,
+            1.0,  # Top-left
+        ],
+        dtype=np.float32,
+    )
 
     # Update VBO with new vertex data
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, VBO)

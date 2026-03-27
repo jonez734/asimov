@@ -1,5 +1,5 @@
 from asimov.io import echo, screen, inputstring
-#from asimov.io.screen import screen as screen_init
+# from asimov.io.screen import screen as screen_init
 
 if __name__ == "__main__":
     screen.init()

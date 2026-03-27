@@ -1,15 +1,16 @@
 import warnings
+
 warnings.warn(
     "asimov.main_smp is deprecated and unused. It will be removed in a future version.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 import cv2
 import numpy as np
 from multiprocessing import Process, Queue, Event
 import time
-import queue # Import for queue.Empty exception
+import queue  # Import for queue.Empty exception
 
 # PyGLFW for window management and PyOpenGL for OpenGL bindings
 import glfw
@@ -25,17 +26,20 @@ from . import conf
 #     but passed as args to processes) ---
 # NOTE: In a more complex module setup, you might pass these queues
 # via a shared context object or similar, but global declaration is fine for this example.
-frame_queue = Queue(maxsize=conf.QUEUESIZE)         # From Capture to Processing
-opengl_input_queue = Queue(maxsize=conf.QUEUESIZE) # From Processing to OpenGL Render
+frame_queue = Queue(maxsize=conf.QUEUESIZE)  # From Capture to Processing
+opengl_input_queue = Queue(maxsize=conf.QUEUESIZE)  # From Processing to OpenGL Render
 
 # --- Events for Signaling ---
 stop_event = Event()
+
 
 # --- (1) Video Capture Process ---
 def video_capture_process(out_q, stop_e):
     cap = cv2.VideoCapture(0)  # 0 for default webcam
     if not cap.isOpened():
-        io.echo("Error: Could not open video stream in capture process. Signaling stop.")
+        io.echo(
+            "Error: Could not open video stream in capture process. Signaling stop."
+        )
         frame_q.put(None)
         return
 
@@ -44,11 +48,13 @@ def video_capture_process(out_q, stop_e):
     if cap.set(cv2.CAP_PROP_FPS, conf.FPS) is False:
         io.echo(f"could not set FPS to {conf.FPS}")
 
-    io.echo(f"Capture process started. Capturing at {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))} @ {int(cap.get(cv2.CAP_PROP_FPS))} FPS")
+    io.echo(
+        f"Capture process started. Capturing at {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))} @ {int(cap.get(cv2.CAP_PROP_FPS))} FPS"
+    )
 
     frame_count = 0
     current_retries = 0
-    while not stop_e.is_set(): # Loop only while stop_e is NOT set
+    while not stop_e.is_set():  # Loop only while stop_e is NOT set
         ret, frame = cap.read()
         if ret:
             current_retries = 0
@@ -63,7 +69,7 @@ def video_capture_process(out_q, stop_e):
                     break
         else:
             current_retries += 1
-            if current_retries >= conf.FPS*5:
+            if current_retries >= conf.FPS * 5:
                 io.echo("too many retries waiting for camera", level="error")
                 break
         time.sleep(0.01)
@@ -73,12 +79,15 @@ def video_capture_process(out_q, stop_e):
     cap.release()
 
     try:
-        out_q.put(None, timeout=1.0) # Give it a bit more time to ensure sentinel gets through since we are about to exit
+        out_q.put(
+            None, timeout=1.0
+        )  # Give it a bit more time to ensure sentinel gets through since we are about to exit
     except queue.Full:
         io.echo("Capture: Could not send sentinel to output queue (full).")
 
     io.echo("Capture process stopped.")
     return True
+
 
 # --- (2) Image Processing Process (CPU-bound) ---
 def image_processing_process(in_q, out_q):
@@ -92,23 +101,27 @@ def image_processing_process(in_q, out_q):
             break
 
         if frame is None:
-            io.echo("Processing: Received sentinel (None). Signaling downstream and exiting.")
+            io.echo(
+                "Processing: Received sentinel (None). Signaling downstream and exiting."
+            )
             # Important: Pass the sentinel down the pipeline if you have more stages.
             # Use a try-except to avoid blocking if the downstream queue is full
             # during shutdown, as the downstream consumer might have already exited.
             try:
                 out_q.put(None, timeout=2.00)
             except queue.Full:
-                io.echo("Processing: Output queue full during sentinel propagation, dropping sentinel.")
+                io.echo(
+                    "Processing: Output queue full during sentinel propagation, dropping sentinel."
+                )
 
-            break # Exit the loop, as no more frames will arrive
+            break  # Exit the loop, as no more frames will arrive
 
         # --- Your CPU-based Image Processing Logic Here ---
         # Example: Convert to grayscale and back to BGR (required for OpenGL texture from OpenCV)
-#        processed_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-#        processed_frame = cv2.cvtColor(processed_frame, cv2.COLOR_GRAY2BGR) # Convert back for display
+        #        processed_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        #        processed_frame = cv2.cvtColor(processed_frame, cv2.COLOR_GRAY2BGR) # Convert back for display
         # Example: Apply a blur
-#        processed_frame = cv2.GaussianBlur(frame, (5, 5), 0)
+        #        processed_frame = cv2.GaussianBlur(frame, (5, 5), 0)
         processed_frame = frame
 
         try:
@@ -122,9 +135,10 @@ def image_processing_process(in_q, out_q):
             # other incoming frames until we receive our own sentinel.
             io.echo("Processing: Output queue full, dropping processed frame.")
             time.sleep(0.001)
-            continue # drop frame and continue
+            continue  # drop frame and continue
 
     io.echo("Image processing process stopped.")
+
 
 # --- (3) OpenGL Render and Effects Process ---
 def opengl_render_process(in_q, stop_e):
@@ -141,9 +155,11 @@ def opengl_render_process(in_q, stop_e):
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
     glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, glfw.TRUE)
     glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-    glfw.window_hint(glfw.RESIZABLE, glfw.FALSE) # Fixed window size for simplicity
+    glfw.window_hint(glfw.RESIZABLE, glfw.FALSE)  # Fixed window size for simplicity
 
-    window = glfw.create_window(conf.DISPLAY_WIDTH, conf.DISPLAY_HEIGHT, "asimov - cam0", None, None)
+    window = glfw.create_window(
+        conf.DISPLAY_WIDTH, conf.DISPLAY_HEIGHT, "asimov - cam0", None, None
+    )
     if not window:
         glfw.terminate()
         io.echo("Error: Could not create GLFW window")
@@ -151,7 +167,7 @@ def opengl_render_process(in_q, stop_e):
         return
 
     glfw.make_context_current(window)
-    glfw.swap_interval(1) # Enable vsync (0 for no vsync)
+    glfw.swap_interval(1)  # Enable vsync (0 for no vsync)
 
     # --- Callback Functions for GLFW Events ---
     def key_callback(window, key, scancode, action, mods):
@@ -160,7 +176,7 @@ def opengl_render_process(in_q, stop_e):
                 glfw.set_window_should_close(window, True)
 
     def window_close_callback(window):
-        stop_e.set() # Set stop_event on window close button
+        stop_e.set()  # Set stop_event on window close button
         io.echo("window_close_callback()")
 
     glfw.set_key_callback(window, key_callback)
@@ -168,7 +184,7 @@ def opengl_render_process(in_q, stop_e):
 
     # Initialize OpenGL settings
     glViewport(0, 0, conf.DISPLAY_WIDTH, conf.DISPLAY_HEIGHT)
-    glClearColor(0.0, 0.0, 0.0, 1.0) # Black background
+    glClearColor(0.0, 0.0, 0.0, 1.0)  # Black background
 
     # --- Shader Setup ---
     # Vertex Shader (simple pass-through)
@@ -206,13 +222,19 @@ def opengl_render_process(in_q, stop_e):
     glShaderSource(vertex_shader_id, VERTEX_SHADER)
     glCompileShader(vertex_shader_id)
     if not glGetShaderiv(vertex_shader_id, GL_COMPILE_STATUS):
-        io.echo("Vertex shader compile error:", glGetShaderInfoLog(vertex_shader_id).decode())
+        io.echo(
+            "Vertex shader compile error:",
+            glGetShaderInfoLog(vertex_shader_id).decode(),
+        )
 
     fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER)
     glShaderSource(fragment_shader_id, FRAGMENT_SHADER)
     glCompileShader(fragment_shader_id)
     if not glGetShaderiv(fragment_shader_id, GL_COMPILE_STATUS):
-        io.echo("Fragment shader compile error:", glGetShaderInfoLog(fragment_shader_id).decode())
+        io.echo(
+            "Fragment shader compile error:",
+            glGetShaderInfoLog(fragment_shader_id).decode(),
+        )
 
     program_id = glCreateProgram()
     glAttachShader(program_id, vertex_shader_id)
@@ -228,17 +250,43 @@ def opengl_render_process(in_q, stop_e):
 
     # --- Vertices and Texture Coordinates for a Fullscreen Quad ---
     # (x, y, z, u, v)
-    vertices = np.array([
-        -1.0, -1.0, 0.0,  0.0, 0.0, # Bottom-left
-         1.0, -1.0, 0.0,  1.0, 0.0, # Bottom-right
-         1.0,  1.0, 0.0,  1.0, 1.0, # Top-right
-        -1.0,  1.0, 0.0,  0.0, 1.0  # Top-left
-    ], dtype=np.float32)
+    vertices = np.array(
+        [
+            -1.0,
+            -1.0,
+            0.0,
+            0.0,
+            0.0,  # Bottom-left
+            1.0,
+            -1.0,
+            0.0,
+            1.0,
+            0.0,  # Bottom-right
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            1.0,  # Top-right
+            -1.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,  # Top-left
+        ],
+        dtype=np.float32,
+    )
 
-    indices = np.array([
-        0, 1, 2, # First Triangle
-        2, 3, 0  # Second Triangle
-    ], dtype=np.uint32)
+    indices = np.array(
+        [
+            0,
+            1,
+            2,  # First Triangle
+            2,
+            3,
+            0,  # Second Triangle
+        ],
+        dtype=np.uint32,
+    )
 
     # Setup VAO, VBO, EBO
     VAO = glGenVertexArrays(1)
@@ -274,17 +322,17 @@ def opengl_render_process(in_q, stop_e):
     # --- FPS Calculation Variables ---
     frame_count = 0
     start_time = time.time()
-    fps_display_interval = 0.5 # Update FPS every 1 second
+    fps_display_interval = 0.5  # Update FPS every 1 second
 
     # --- Main Rendering Loop ---
     # Loop while the window is not requested to close and our stop_event is not set
     while not glfw.window_should_close(window) and not stop_e.is_set():
-        glfw.poll_events() # Process events
+        glfw.poll_events()  # Process events
 
         frame = None
         try:
             # Try to get with a timeout. This allows periodic check of stop_e.
-            frame = in_q.get(timeout=0.001) # Shorter timeout for smoother display
+            frame = in_q.get(timeout=0.001)  # Shorter timeout for smoother display
         except queue.Empty:
             io.echo("opengl_render_process.140: queue empty")
             time.sleep(0.010)
@@ -307,15 +355,27 @@ def opengl_render_process(in_q, stop_e):
         # Bind the texture and upload frame data
         glBindTexture(GL_TEXTURE_2D, texture_id)
         # Using GL_RGB as internal format and format of pixel data
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, frame.shape[1], frame.shape[0], 0, GL_RGB, GL_UNSIGNED_BYTE, frame.tobytes())
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGB,
+            frame.shape[1],
+            frame.shape[0],
+            0,
+            GL_RGB,
+            GL_UNSIGNED_BYTE,
+            frame.tobytes(),
+        )
 
-        glClear(GL_COLOR_BUFFER_BIT) # Clear the color buffer
+        glClear(GL_COLOR_BUFFER_BIT)  # Clear the color buffer
 
-        glUseProgram(program_id) # Activate shader program
-        glBindVertexArray(VAO) # Bind the vertex array object
-        glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None) # Draw the quad
+        glUseProgram(program_id)  # Activate shader program
+        glBindVertexArray(VAO)  # Bind the vertex array object
+        glDrawElements(
+            GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None
+        )  # Draw the quad
 
-        glfw.swap_buffers(window) # Swap front and back buffers
+        glfw.swap_buffers(window)  # Swap front and back buffers
 
         # --- FPS Calculation and Display ---
         frame_count += 1
@@ -337,6 +397,7 @@ def opengl_render_process(in_q, stop_e):
     glfw.terminate()
     io.echo("OpenGL render and effects process stopped.")
 
+
 # --- Main Execution Function ---
 def main(args=None, **kwargs):
     io.echo("Starting main application...")
@@ -344,13 +405,25 @@ def main(args=None, **kwargs):
     processes = []
 
     # Create processes
-    p_capture = Process(target=video_capture_process, args=(frame_queue, stop_event), name="VideoCapture")
-    #p_capture = libasimov.runmodule(args, "p_videocapture", out_q=frame_queue, stop_event=stop_event)
-    #if p_capture is False:
+    p_capture = Process(
+        target=video_capture_process,
+        args=(frame_queue, stop_event),
+        name="VideoCapture",
+    )
+    # p_capture = libasimov.runmodule(args, "p_videocapture", out_q=frame_queue, stop_event=stop_event)
+    # if p_capture is False:
     #    io.echo(f"failed to start p_capture ({p_capture=})", level="error")
     #    return False
-    p_processing = Process(target=image_processing_process, args=(frame_queue, opengl_input_queue), name="Processing")
-    p_opengl_render = Process(target=opengl_render_process, args=(opengl_input_queue, stop_event), name="OpenGLRender")
+    p_processing = Process(
+        target=image_processing_process,
+        args=(frame_queue, opengl_input_queue),
+        name="Processing",
+    )
+    p_opengl_render = Process(
+        target=opengl_render_process,
+        args=(opengl_input_queue, stop_event),
+        name="OpenGLRender",
+    )
 
     processes.extend([p_capture, p_processing, p_opengl_render])
 
@@ -366,23 +439,26 @@ def main(args=None, **kwargs):
 
     # Once render process has exited (and set stop_event), ensure all others get the signal
     # This might be redundant if opengl_render_process already set it, but harmless.
-    #if not stop_event.is_set():
+    # if not stop_event.is_set():
     #    stop_event.set() # Just in case it exited for another reason
 
     # Wait for all other processes to terminate cleanly
     exit_code = 0
     for p in processes:
-        if p.is_alive(): # Only join if it's still running
+        if p.is_alive():  # Only join if it's still running
             io.echo(f"Waiting for {p.name} to terminate...")
-            p.join(timeout=5) # Give it a timeout in case it's truly stuck
+            p.join(timeout=5)  # Give it a timeout in case it's truly stuck
             if p.is_alive():
-                io.echo(f"Warning: {p.name} did not terminate cleanly. Terminating forcefully.")
-                p.terminate() # Forceful termination as a last resort
-                p.join() # Wait for termination
-                exit_code = 1 # Indicate an error in shutdown
+                io.echo(
+                    f"Warning: {p.name} did not terminate cleanly. Terminating forcefully."
+                )
+                p.terminate()  # Forceful termination as a last resort
+                p.join()  # Wait for termination
+                exit_code = 1  # Indicate an error in shutdown
 
     io.echo("All processes checked. Application finished.")
-    return exit_code # Return 0 for success, 1 for errors during shutdown
+    return exit_code  # Return 0 for success, 1 for errors during shutdown
+
 
 def init(args=None, **kwargs):
     """
@@ -396,6 +472,7 @@ def init(args=None, **kwargs):
     # as multiprocessing components are set up in main().
     return True
 
+
 def access(args=None, op=None, **kwargs):
     """
     Provides a generic access point for operations.
@@ -405,6 +482,7 @@ def access(args=None, op=None, **kwargs):
     :return: True if operation is successful, False otherwise.
     """
     return True
+
 
 def buildargs(args=None, **kwargs):
     """

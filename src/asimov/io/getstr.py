@@ -17,12 +17,12 @@ def getstr(prompt: str = "") -> str:
 
     def update_bottombar():
         nonlocal insert_mode
-#        setbottombar("io_demo_getstr", "[INS]" if insert_mode else "[OVR]")
+
+    #        setbottombar("io_demo_getstr", "[INS]" if insert_mode else "[OVR]")
 
     def draw_line():
         """Redraw the buffer and insert/overwrite indicator with proper cursor positioning."""
         mode = "[INS]" if insert_mode else "[OVR]"
-        total_len = len(buf) + len(mode)  # full string length including indicator
 
         # Move to start of input
         echo("{decrc}", end="", flush=True)
@@ -57,10 +57,10 @@ def getstr(prompt: str = "") -> str:
                 echo("{cursorleft}", end="", flush=True)
                 draw_line()
 
-#        elif key == "KEY_DC":
-#            if cursor < len(buf):
-#                del buf[cursor]
-#                draw_line()
+        #        elif key == "KEY_DC":
+        #            if cursor < len(buf):
+        #                del buf[cursor]
+        #                draw_line()
 
         elif key == "KEY_LEFT":
             if cursor > 0:
@@ -94,4 +94,6 @@ def getstr(prompt: str = "") -> str:
                 buf[cursor] = key
             echo(key, end="", flush=True)
             cursor += 1
+
+
 #            draw_line()

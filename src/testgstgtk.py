@@ -3,9 +3,10 @@ import threading
 import cv2
 
 import gi
-gi.require_version('Gtk', '3.0')
+
+gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf
- 
+
 from bbsengine6 import io
 
 from asimov import lib as libasimov
@@ -29,6 +30,7 @@ class Asimov(object):
                     ret, self.frame = self.cap.read()
                     if not ret:
                         self.running = False
+
     def start(self):
         io.echo("starting...", level="debug")
         self.cap = cv2.VideoCapture(libasimov.VIDEODEVICE)
@@ -39,18 +41,20 @@ class Asimov(object):
         io.echo("pass")
 
     def _show(self):
-        pixbuf = GdkPixbuf.Pixbuf.new_from_data(self.frame.tobytes(),
-                                            GdkPixbuf.Colorspace.RGB,
-                                            False,
-                                            8,
-                                            self.frame.shape[1],
-                                            self.frame.shape[0],
-                                            self.frame.shape[2]*frame.shape[1])
+        pixbuf = GdkPixbuf.Pixbuf.new_from_data(
+            self.frame.tobytes(),
+            GdkPixbuf.Colorspace.RGB,
+            False,
+            8,
+            self.frame.shape[1],
+            self.frame.shape[0],
+            self.frame.shape[2] * frame.shape[1],
+        )
         builder = Gtk.Builder()
         builder.add_from_file("testgtk.glade")
 
         image.set_from_pixbuf(pixbuf.copy())
-        
+
     def on_key_release_event(self, widget, event):
         if event.keyval == Gdk.KEY_Escape:
             Gtk.main_quit()
@@ -66,7 +70,7 @@ class Asimov(object):
         else:
             self.pipeline.send_event(eos)
             io.echo("waiting for EOS...", level="debug", end="")
-            message = self.bus.timed_pop_filtered(3*Gst.SECOND, Gst.MessageType.EOS)
+            message = self.bus.timed_pop_filtered(3 * Gst.SECOND, Gst.MessageType.EOS)
             if message is None:
                 io.echo("timeout", level="debug")
             else:
@@ -81,9 +85,11 @@ class Asimov(object):
         self.pipeline.set_state(Gst.State.NULL)
         # self.bus.remove_watch(self.busid)
 
+
 def main():
     asimov = Asimov()
     asimov.start()
+
 
 if __name__ == "__main__":
     main()
