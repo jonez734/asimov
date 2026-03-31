@@ -15,7 +15,8 @@ export RSYNC = rsync --delete-after --chmod=Dg=rwxs,Fgu=rw,Fo=r --verbose \
 
 export PROJECTRELEASEDIR = /srv/repo/$(PROJECT)/
 
-export SCSS = sass --sourcemap=none --stop-on-error --trace --style expanded
+export SCSSLOADPATH = --load-path $(HOME)/projects/zoid6/scss/ --load-path $(HOME)/projects/asimov/www/skin/scss/
+export SCSS = sass $(SCSSLOADPATH) --sourcemap=none --stop-on-error --trace --style expanded
 
 all:
 
