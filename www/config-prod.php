@@ -19,11 +19,11 @@ define("config\IMAGESURL", "https://zoidtechnologies.com/static/");
 
 // Define SMARTY* constants before including zoid6config.php so it can create global aliases
 // SMARTYTEMPLATESDIR - 3-element array with proper precedence
-// Search order: 1) Site-specific templates 2) bbsengine6 shared 3) zoid6 shared
+// Search order: 1) Site-specific templates 2) zoid6 shared 3) bbsengine6 shared
 define("config\SMARTYTEMPLATESDIR", [
     0 => \config\SKINDIR . "tmpl/",
-    1 => "/srv/www/bbsengine6/skin/tmpl/",
-    2 => "/srv/www/zoid6/skin/tmpl/"
+    1 => "/srv/www/zoid6/skin/tmpl/",
+    2 => "/srv/www/bbsengine6/skin/tmpl/"
 ]);
 
 // SMARTYCOMPILEDTEMPLATESDIR - compiled template cache directory
