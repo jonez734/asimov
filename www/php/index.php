@@ -48,7 +48,7 @@ class index
   {
     \bbsengine6\session\start();
     
-    \bbsengine6\setcurrentsite("achilles");
+    \bbsengine6\setcurrentsite("asimov");
     \bbsengine6\setcurrentpage("index");
     \bbsengine6\setcurrentaction("view");
     \bbsengine6\setreturnto(\bbsengine6\getcurrenturi());
