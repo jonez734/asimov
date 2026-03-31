@@ -1,59 +1,41 @@
 <?php
 
-namespace {
-    /*
-     * @since 20190817
-     * @since 20221104
-     */
-    $includepath = get_include_path().":/srv/www/zoid6/php:/srv/www/bbsengine6/php/:/srv/www/smarty/";
-    if (set_include_path($includepath) === false)
-    {
-        print("include path fail");
-    }
+require_once('/srv/www/bbsengine6/php/bootstrap.php');
+require_once('util.php');
+\bbsengine6\util\add_include_paths(['/srv/www/zoid6/php/', '/srv/www/bbsengine6/php/', '/srv/www/smarty/']);
 
-    // require_once("zoid6.php");
-}
+// Define configuration constants in config namespace (required by bbsengine6)
+// Using backslash prefix makes them accessible via defined('\config\CONSTANT')
+define("config\SITETITLE", "Project Asimov - Robotics, AI, and Augmented Reality");
+define("config\SITEURL", "https://zoidtechnologies.com/asimov/");
+define("config\SITEDESCRIPTION", "Asimov");
+define("config\VHOSTDIR", "/srv/www/vhosts/zoidtechnologies.com/");
+define("config\DOCUMENTROOT", \config\VHOSTDIR . "html/asimov/");
+define("config\SKINDIR", \config\DOCUMENTROOT . "skin/");
+define("config\SKINURL", \config\SITEURL . "skin/");
+define("config\JSURL", "/asimov/js/");
+define("config\IMAGESURL", "https://zoidtechnologies.com/static/");
+define("config\SMARTYCOMPILEDTEMPLATESDIR", \config\VHOSTDIR . "templates_c");
+define("config\SMARTYPLUGINSDIR", [ 0 => \config\VHOSTDIR . "smarty/", 1 => "/srv/www/zoid6/smarty/"]);
+define("config\SMARTYTEMPLATESDIR", [ 0 => \config\DOCUMENTROOT . "skin/tmpl/", 1=> "/srv/www/zoid6/skin/tmpl/", 2 => "/srv/www/bbsengine6/skin/tmpl/"]);
+define("config\LOGENTRYPREFIX", "asimovprod");
+define("config\STATICSKINURL", "/static/skin/");
+define("config\GOOGLEANALYTICSACCOUNT", "UA-23705021-1");
 
-namespace config {
+// Create global aliases for code that references constants directly without namespace
+define("SITETITLE", \config\SITETITLE);
+define("SITEURL", \config\SITEURL);
+define("SITEDESCRIPTION", \config\SITEDESCRIPTION);
+define("VHOSTDIR", \config\VHOSTDIR);
+define("DOCUMENTROOT", \config\DOCUMENTROOT);
+define("SKINDIR", \config\SKINDIR);
+define("SKINURL", \config\SKINURL);
+define("JSURL", \config\JSURL);
+define("IMAGESURL", \config\IMAGESURL);
+define("SMARTYTEMPLATESDIR", \config\SMARTYTEMPLATESDIR);
+define("SMARTYCOMPILEDTEMPLATESDIR", \config\SMARTYCOMPILEDTEMPLATESDIR);
+define("SMARTYPLUGINSDIR", \config\SMARTYPLUGINSDIR);
+define("LOGENTRYPREFIX", \config\LOGENTRYPREFIX);
+define("STATICSKINURL", \config\STATICSKINURL);
 
-    define("SITEADMINEMAIL", "achilles <achilles@projects.zoidtechnologies.com>");
-
-    define("SITETITLE", "Project Achilles - A study of the affects of flavor enhancers on health");
-    define("SITEURL", "https://zoidtechnologies.com/achilles/");
-    define("SITEKEYWORDS", "project achilles, monosodium glutamate, mono-sodium glutamate, msg, glutamate, disodium glutamate, truth in labeling, health, nutrition, consumer protection, food additives");
-    define("SITEDESCRIPTION", "Project Achilles studies the affects of flavor enhancers on health");
-    //define("SITETYPE", "website");
-
-    //define("SYSTEMDSN", "pgsql://apache@127.0.0.1/zoidweb3"); @see zoid6
-    //define("SYSTEMDSN", \zoid6\SYSTEMDSN);
-    //define("config\SYSTEMDSN", "pgsql:host=127.0.0.1;port=5432;dbname=zoid6"); @see zoid6.php
-
-    define("config\VHOSTDIR", "/srv/www/vhosts/zoidtechnologies.com/html/achilles/");
-    define("DOCUMENTROOT", \config\VHOSTDIR);
-
-    define("SKINDIR", DOCUMENTROOT . "skin/");
-    define("SKINURL", SITEURL . "skin/");
-    
-    define("JSURL", "/achilles/js/");
-
-    define("IMAGESURL", "https://zoidtechnologies.com/static/");
-
-/*
-    define("SMARTYCOMPILEDTEMPLATESDIR", VHOSTDIR . "templates_c");
-    define("SMARTYPLUGINSDIR", [ 0 => VHOSTDIR . "smarty/", 1 => "/srv/www/zoid6/smarty/"]);
-    define("SMARTYTEMPLATESDIR", [ 0 => VHOSTDIR . "tmpl/", 1=> "/srv/www/zoid6/skin/tmpl/", 2 => "/srv/www/bbsengine6/skin/tmpl/"]);
-*/
-
-    define("config\LOGENTRYPREFIX", "achillesprod");
-
-//    define("STATICSKINURL", "/static/skin/");
-
-    // define("ENGINEURL", "https://engine.zoidtechnologies.com/"); @see zoid6
-
-    /**
-     * @since 20200422
-     * 3
-     */
-    define("GOOGLEANALYTICSACCOUNT", "UA-23705021-1");
-} /* config namespace */
 ?>
