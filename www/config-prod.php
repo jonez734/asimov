@@ -28,6 +28,19 @@ if (!defined("config\SMARTYTEMPLATESDIR")) {
     ]);
 }
 
+// SMARTYCOMPILEDTEMPLATESDIR - compiled template cache directory
+if (!defined("config\SMARTYCOMPILEDTEMPLATESDIR")) {
+    define("config\SMARTYCOMPILEDTEMPLATESDIR", \config\VHOSTDIR . "templates_c");
+}
+
+// SMARTYPLUGINSDIR - plugin directories for custom Smarty functions and modifiers
+if (!defined("config\SMARTYPLUGINSDIR")) {
+    define("config\SMARTYPLUGINSDIR", [
+        0 => \config\VHOSTDIR . "smarty/",
+        1 => "/srv/www/zoid6/smarty/"
+    ]);
+}
+
 define("config\LOGENTRYPREFIX", "asimovprod");
 define("config\ENGINEURL", "/engine/");
 define("config\GOOGLEANALYTICSACCOUNT", "UA-23705021-1");
@@ -46,5 +59,8 @@ define("IMAGESURL", \config\IMAGESURL);
 define("LOGENTRYPREFIX", \config\LOGENTRYPREFIX);
 define("SECTIONTEMPLATEDIR", \config\SECTIONTEMPLATEDIR);
 define("STATICSKINURL", \config\STATICSKINURL);
+define("SMARTYTEMPLATESDIR", \config\SMARTYTEMPLATESDIR);
+define("SMARTYCOMPILEDTEMPLATESDIR", \config\SMARTYCOMPILEDTEMPLATESDIR);
+define("SMARTYPLUGINSDIR", \config\SMARTYPLUGINSDIR);
 
 ?>
