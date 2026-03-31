@@ -1,5 +1,5 @@
 export HOST = merlin
-export PROJECT = achilles
+export PROJECT = asimov
 
 export PROD = $(HOST):/srv/www/vhosts/zoidtechnologies.com/html/$(PROJECT)/
 export STAGE = /srv/www/vhosts/zoidtechnologies.com/html/$(PROJECT)/
@@ -15,7 +15,7 @@ export RSYNC = rsync --delete-after --chmod=Dg=rwxs,Fgu=rw,Fo=r --verbose \
 
 export PROJECTRELEASEDIR = /srv/repo/$(PROJECT)/
 
-export SCSSLOADPATH = --load-path $(HOME)/projects/zoid6/scss/ --load-path $(HOME)/projects/asimov/www/skin/scss/
+export SCSSLOADPATH = --load-path /home/opencode/data/work/zoid6/skin/scss/ --load-path $(HOME)/projects/asimov/www/skin/scss/
 export SCSS = sass $(SCSSLOADPATH) --sourcemap=none --stop-on-error --trace --style expanded
 
 all:
