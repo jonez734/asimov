@@ -13,7 +13,7 @@ stage:
 	     --load-path /home/opencode/data/work/zoid6/scss/ \
 	     --load-path $(CURDIR) \
 	     --sourcemap=none --stop-on-error --trace --style expanded \
-	     --update .:$(SKINDIR)css/
+	     --update .:$(STAGE)skin/css/
 
 clean:
 	-rm *~ *.css *.css.map
