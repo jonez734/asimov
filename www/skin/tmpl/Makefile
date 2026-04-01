@@ -5,4 +5,4 @@ clean:
 	$(MAKE) -C sections clean
 
 stage:
-	$(RSYNC) *.tmpl sections $(STAGE)tmpl/
+	$(RSYNC) *.tmpl sections $(STAGE)skin/tmpl/

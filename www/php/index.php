@@ -48,7 +48,7 @@ class index
   {
     \bbsengine6\session\start();
     
-    \bbsengine6\setcurrentsite(defined('\config\SITENAME') ? \config\SITENAME : "NEEDINFO");
+    \bbsengine6\setcurrentsite(\config\SITENAME);
     \bbsengine6\setcurrentpage("index");
     \bbsengine6\setcurrentaction("view");
     \bbsengine6\setreturnto(\bbsengine6\getcurrenturi());

@@ -7,6 +7,7 @@ require_once('util.php');
 // Define configuration constants in config namespace (required by bbsengine6)
 // Using backslash prefix makes them accessible via defined('\config\CONSTANT')
 define("config\SITEADMINEMAIL", "asimov <asimov@projects.zoidtechnologies.com>");
+define("config\SITENAME", "asimov");
 define("config\SITETITLE", "Project Asimov - Robotics, AI, and Augmented Reality");
 define("config\SITEURL", "/asimov/");
 define("config\SITEDESCRIPTION", "Asimov");
@@ -21,9 +22,10 @@ define("config\IMAGESURL", "https://zoidtechnologies.com/static/");
 // SMARTYTEMPLATESDIR - 3-element array with proper precedence
 // Search order: 1) Site-specific templates 2) zoid6 shared 3) bbsengine6 shared
 define("config\SMARTYTEMPLATESDIR", [
-    0 => \config\SKINDIR . "tmpl/",
-    1 => "/srv/www/zoid6/skin/tmpl/",
-    2 => "/srv/www/bbsengine6/skin/tmpl/"
+    0 => \config\SKINDIR . "tmpl/",           // New structure: skin/tmpl/
+    1 => \config\DOCUMENTROOT . "tmpl/",      // Legacy structure: tmpl/
+    2 => "/srv/www/zoid6/skin/tmpl/",
+    3 => "/srv/www/bbsengine6/skin/tmpl/"
 ]);
 
 // SMARTYCOMPILEDTEMPLATESDIR - compiled template cache directory
@@ -42,7 +44,8 @@ define("config\LOGENTRYPREFIX", "asimovprod");
 define("config\ENGINEURL", "/engine/");
 define("config\GOOGLEANALYTICSACCOUNT", "UA-23705021-1");
 define("config\SECTIONTEMPLATEDIR", \config\SKINDIR . "tmpl/sections/");
-define("config\STATICSKINURL", "/static/skin/");
+define("config\SHAREDSKINURL", "/shared/skin/");
+define("config\ENGINESKINURL", "/engine/skin/");
 
 // Create global aliases for non-SMARTY constants
 // (SMARTY* aliases are created by zoid6config.php)
@@ -56,6 +59,7 @@ define("ENGINEURL", \config\ENGINEURL);
 define("IMAGESURL", \config\IMAGESURL);
 define("LOGENTRYPREFIX", \config\LOGENTRYPREFIX);
 define("SECTIONTEMPLATEDIR", \config\SECTIONTEMPLATEDIR);
-define("STATICSKINURL", \config\STATICSKINURL);
+define("SHAREDSKINURL", \config\SHAREDSKINURL);
+define("ENGINESKINURL", \config\ENGINESKINURL);
 
 ?>
