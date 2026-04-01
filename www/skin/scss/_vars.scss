@@ -2,3 +2,8 @@
 
 // Asimov-specific color overrides
 $blurb-border-color: #ccc !default;
+
+// Variable aliases to match canonical blurb.scss naming conventions
+$blurb-textcolor: $blurb-color;
+$blurb-header-textcolor: $blurb-header-color;
+$blurb-body-textcolor: $blurb-body-color;
