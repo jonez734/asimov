@@ -3,6 +3,7 @@ export PROJECT = asimov
 
 export PROD = $(HOST):/srv/www/vhosts/zoidtechnologies.com/html/$(PROJECT)/
 export STAGE = /srv/www/vhosts/zoidtechnologies.com/html/$(PROJECT)/
+export SKINDIR = $(STAGE)skin/
 
 export datestamp = $(shell date +%Y%m%d-%H%M)
 export archivename = $(PROJECT)-$(datestamp)-$(USER)
