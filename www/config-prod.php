@@ -19,13 +19,13 @@ define("config\JSURL", "/asimov/skin/js/");
 define("config\IMAGESURL", "https://zoidtechnologies.com/static/");
 
 // Define SMARTY* constants before including zoid6config.php so it can create global aliases
-// SMARTYTEMPLATESDIR - 3-element array with proper precedence
-// Search order: 1) Site-specific templates 2) zoid6 shared 3) bbsengine6 shared
+// SMARTYTEMPLATESDIR - array with proper precedence
 define("config\SMARTYTEMPLATESDIR", [
     0 => \config\SKINDIR . "tmpl/",           // New structure: skin/tmpl/
     1 => \config\DOCUMENTROOT . "tmpl/",      // Legacy structure: tmpl/
-    2 => "/srv/www/zoid6/skin/tmpl/",
-    3 => "/srv/www/bbsengine6/skin/tmpl/"
+    2 => "/srv/www/zoid6/shared/skin/tmpl/",  // Shared zoid6 templates (use this first)
+    3 => "/srv/www/zoid6/skin/tmpl/",         // zoid6 project templates
+    4 => "/srv/www/bbsengine6/skin/tmpl/"    // bbsengine6 framework templates
 ]);
 
 // SMARTYCOMPILEDTEMPLATESDIR - compiled template cache directory
@@ -37,15 +37,17 @@ define("config\SMARTYPLUGINSDIR", [
     1 => "/srv/www/zoid6/smarty/"
 ]);
 
+// Define URL constants BEFORE zoid6config.php so they're available for templates
+define("config\SHAREDSKINURL", "/shared/skin/");
+define("config\ENGINESKINURL", "/engine/skin/");
+define("config\ENGINEURL", "/engine/");
+
 // Now include zoid6config.php to create global aliases
 require_once('zoid6config.php');
 
 define("config\LOGENTRYPREFIX", "asimovprod");
-define("config\ENGINEURL", "/engine/");
 define("config\GOOGLEANALYTICSACCOUNT", "UA-23705021-1");
 define("config\SECTIONTEMPLATEDIR", \config\SKINDIR . "tmpl/sections/");
-define("config\SHAREDSKINURL", "/shared/skin/");
-define("config\ENGINESKINURL", "/engine/skin/");
 
 // Create global aliases for non-SMARTY constants
 // (SMARTY* aliases are created by zoid6config.php)
