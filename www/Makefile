@@ -16,7 +16,7 @@ export RSYNC = rsync --delete-after --chmod=Dg=rwxs,Fgu=rw,Fo=r --verbose \
 
 export PROJECTRELEASEDIR = /srv/repo/$(PROJECT)/
 
-export SCSSLOADPATH = --load-path /home/opencode/data/work/zoid6/shared/skin/scss/ --load-path /home/opencode/data/work/zoid6/scss/ --load-path $(HOME)/projects/$(PROJECT)/www/skin/scss/
+export SCSSLOADPATH = --load-path /home/opencode/data/work/zoid6/shared/skin/scss/ --load-path $(HOME)/projects/$(PROJECT)/www/skin/scss/
 export SCSS = sass $(SCSSLOADPATH) --sourcemap=none --stop-on-error --trace --style expanded
 
 all:
