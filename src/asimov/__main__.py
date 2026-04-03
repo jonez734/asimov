@@ -36,7 +36,9 @@ def main():
     except EOFError:
         io.echo("{/all}*EOF*")
     finally:
-        io.echo(f"{{savecursor}}{{curpos:{io.terminal.height()},0}}{{el}}{{reset}}{{restorecursor}}")
+        io.echo(
+            f"{{savecursor}}{{curpos:{io.terminal.height()},0}}{{el}}{{reset}}{{restorecursor}}"
+        )
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ import numpy as np
 import OpenGL.GL as gl
 import glfw
 from multiprocessing import Event
-import time
 import socket
 import ctypes
 

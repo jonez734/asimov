@@ -1,0 +1,15 @@
+body a {
+  color: #dad7cd;
+  background-color: #3a5a40;
+  margin: 0em;
+}
+body a:visited {
+  color: #c4c0b0;
+  background-color: #304a35;
+  transition: all 0.125s;
+}
+body a:hover {
+  color: #e5e3dc;
+  background-color: #3a5a40;
+  transition: all 0.125s;
+}

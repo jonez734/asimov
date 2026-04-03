@@ -18,11 +18,12 @@ except ImportError:
 
 try:
     import gi
-    gi.require_version('Gtk', '3.0')
-    gi.require_version('Gst', '1.0')
-    gi.require_version('GstApp', '1.0')
-    gi.require_version('GObject', '2.0')
-    gi.require_version('GdkPixbuf', '2.0')
+
+    gi.require_version("Gtk", "3.0")
+    gi.require_version("Gst", "1.0")
+    gi.require_version("GstApp", "1.0")
+    gi.require_version("GObject", "2.0")
+    gi.require_version("GdkPixbuf", "2.0")
     from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, GObject
     from gi.repository import Gst, GstApp
 except ImportError:

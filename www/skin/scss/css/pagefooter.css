@@ -1,0 +1,17 @@
+footer#pagefooter {
+  text-shadow: 4px 3px 3px rgba(0, 0, 0, 0.4);
+  margin: 0.5em;
+  padding: 0.50em;
+  text-align: center;
+  border: 0.125em solid #dad7cd;
+  flex: 0 1 auto;
+  background-color: #344e41;
+}
+footer#pagefooter .copyright {
+  text-align: center;
+  font-size: 0.75em;
+}
+footer#pagefooter ul {
+  margin: 0;
+  padding: 0;
+}

@@ -602,7 +602,12 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         line_thickness = 1
         point_radius = 1
 
-    if alpha is None or not isinstance(alpha, (int, float)) or alpha < 0.0 or alpha > 1.0:
+    if (
+        alpha is None
+        or not isinstance(alpha, (int, float))
+        or alpha < 0.0
+        or alpha > 1.0
+    ):
         alpha = 1.0
 
     if not isinstance(color, tuple) or len(color) != 3:

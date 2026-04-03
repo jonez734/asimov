@@ -263,6 +263,7 @@ class CameraCapture(threading.Thread):
     def stop(self):
         self._stop_event.set()
         from .. import io
+
         io.echo("CameraCapture: stop event")
 
     def _cleanup(self):

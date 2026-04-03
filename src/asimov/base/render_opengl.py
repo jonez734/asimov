@@ -4,7 +4,6 @@ import numpy as np
 import OpenGL.GL as gl
 import glfw
 import socket
-import time
 from threading import Event
 
 from . import conf, net
