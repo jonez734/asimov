@@ -4,10 +4,14 @@ import time
 import cv2
 import numpy as np
 from .. import conf, io
-from ..base.common import ThreadSafeContext
+from ..base.common import ThreadSafeContext, OneEuroFilter
 
 REQUIRES = {"FACE"}
 PROVIDES = {"FACEMASK"}
+
+_FILTER_FREQ = 30
+_FILTER_MIN_CUTOFF = 0.5
+_FILTER_BETA = 0.5
 
 _POSITION_LANDMARKS = {
     "TL": 234,
@@ -132,6 +136,11 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
                 "faces": None,
                 "timestamp": None,
                 "error_state": False,
+                "filters": {
+                    "x": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
+                    "y": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
+                    "scale": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
+                },
             }
 
         ns = context["FACEMASK"]
@@ -146,6 +155,11 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         if current_path != last_path:
             ns["overlay_img"] = _load_png(current_path) if current_path else None
             ns["last_image_path"] = current_path
+            ns["filters"] = {
+                "x": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
+                "y": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
+                "scale": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
+            }
 
         face_ns = context.get("FACE")
         if face_ns and face_ns.get("faces"):
@@ -232,6 +246,11 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         png_width = overlay_img.shape[1]
         png_height = overlay_img.shape[0]
 
+        filters = ns.get("filters", {})
+        filter_x = filters.get("x")
+        filter_y = filters.get("y")
+        filter_scale = filters.get("scale")
+
         if position in ("TC", "TL", "TR"):
             bbox = _get_face_bbox(landmarks)
             if bbox:
@@ -247,24 +266,55 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
             target_width = right_x - left_x
             target_height = bottom_y - top_y
-            dynamic_scale = (target_width / png_width) * scale
-            scaled_width = int(png_width * dynamic_scale)
-            scaled_height = int(png_height * dynamic_scale)
+            target_scale = (target_width / png_width) * scale
+            scaled_width = int(png_width * target_scale)
+            scaled_height = int(png_height * target_scale)
 
             if position == "TL":
-                x = left_x + offset_x
-                y = top_y + offset_y
+                target_x = left_x + offset_x
+                target_y = top_y + offset_y
+            elif position == "TC":
+                target_x = right_x - scaled_width // 2 + offset_x
+                target_y = top_y + offset_y
             else:
-                x = right_x - scaled_width + offset_x
-                y = top_y + offset_y
-            working_frame = _overlay_png(working_frame, overlay_img, x, y, dynamic_scale)
+                target_x = right_x - scaled_width + offset_x
+                target_y = top_y + offset_y
         else:
-            dynamic_scale = (face_width / png_width) * scale
-            scaled_width = int(png_width * dynamic_scale)
-            scaled_height = int(png_height * dynamic_scale)
-            x = anchor[0] - (scaled_width // 2) + offset_x
-            y = anchor[1] + offset_y
-            working_frame = _overlay_png(working_frame, overlay_img, x, y, dynamic_scale)
+            target_scale = (face_width / png_width) * scale
+            scaled_width = int(png_width * target_scale)
+            scaled_height = int(png_height * target_scale)
+            target_x = anchor[0] - (scaled_width // 2) + offset_x
+            target_y = anchor[1] + offset_y
+
+        if filter_x is None:
+            filter_x = OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA, init=target_x)
+            filter_y = OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA, init=target_y)
+            filter_scale = OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA, init=target_scale)
+            filters = {"x": filter_x, "y": filter_y, "scale": filter_scale}
+            ns["filters"] = filters
+            smoothed_x, smoothed_y, smoothed_scale = target_x, target_y, target_scale
+        else:
+            smoothed_x = filter_x.update(target_x)
+            smoothed_y = filter_y.update(target_y)
+            smoothed_scale = filter_scale.update(target_scale)
+
+        scaled_width = int(png_width * smoothed_scale)
+        scaled_height = int(png_height * smoothed_scale)
+
+        if position == "TL":
+            x = int(smoothed_x)
+            y = int(smoothed_y)
+        elif position == "TC":
+            x = int(smoothed_x) - scaled_width // 2
+            y = int(smoothed_y)
+        elif position == "TR":
+            x = int(smoothed_x) - scaled_width
+            y = int(smoothed_y)
+        else:
+            x = int(smoothed_x) - scaled_width // 2
+            y = int(smoothed_y)
+
+        working_frame = _overlay_png(working_frame, overlay_img, x, y, smoothed_scale)
 
     return working_frame
 
