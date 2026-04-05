@@ -233,6 +233,12 @@ OVERLAYS = {
         "order": 35,
         "hotkey": "f",
     },
+    "facemask": {
+        "module_path": "asimov.modules.facemask",
+        "enabled": False,
+        "order": 36,
+        "hotkey": "",
+    },
     "eyes_next": {
         "module_path": "asimov.modules.eyes_next",
         "enabled": True,
@@ -365,6 +371,31 @@ FACE = {
 }
 
 # ------------------------------------------------------------
+# FACEMASK (ABI-STABLE)
+# ------------------------------------------------------------
+# Face mask overlay with PNG images.
+#
+# Requires: FACE module enabled
+# Consumed by:
+#   - facemask.py
+#
+# DO NOT REMOVE OR RENAME KEYS without coordinated migration.
+
+FACEMASK = {
+    "ENABLED": False,
+    "IMAGE": {
+        "IMAGE_PATH": "",
+        "POSITION": "TC",
+        "LANDMARK": 10,
+    },
+    "ADJUST": {
+        "SCALE": 1.0,
+        "OFFSET_X": 0,
+        "OFFSET_Y": 0,
+    },
+}
+
+# ------------------------------------------------------------
 # MOTION BLUR (ABI-STABLE)
 # ------------------------------------------------------------
 # Temporal motion blur driven by fingertip velocity.
@@ -420,41 +451,55 @@ SCENE = {
             "name": "fps_overlay",
             "module": "asimov.modules.fps_overlay",
             "conf": {},
+            "enabled": True,
         },
         {
             "name": "hand",
             "module": "asimov.modules.hand",
             "conf": {},
+            "enabled": True,
         },
         {
             "name": "indexfingertip",
             "module": "asimov.modules.indexfingertip",
             "conf": {},
+            "enabled": True,
         },
         {
             "name": "rect",
             "module": "asimov.modules.rect",
             "conf": {},
+            "enabled": False,
         },
         {
             "name": "rect_touch",
             "module": "asimov.modules.rect_touch",
             "conf": {},
+            "enabled": False,
         },
         {
             "name": "face",
             "module": "asimov.modules.face",
             "conf": {},
+            "enabled": True,
+        },
+        {
+            "name": "facemask",
+            "module": "asimov.modules.facemask",
+            "conf": {},
+            "enabled": True,
         },
         {
             "name": "eyes_next",
             "module": "asimov.modules.eyes_next",
             "conf": {},
+            "enabled": False,
         },
         {
             "name": "float_playingcard",
             "module": "asimov.modules.float_playingcard",
             "conf": {},
+            "enabled": False,
         },
     ],
     "conf": {
@@ -494,6 +539,7 @@ CONF = {
     "HAND": HAND,
     "EYES": EYES,
     "FACE": FACE,
+    "FACEMASK": FACEMASK,
     "RECT": RECT,
     "RECT_TOUCH": RECT_TOUCH,
     "OVERLAYS": OVERLAYS,

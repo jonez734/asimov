@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import pyvirtualcam
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 import json
 from PIL import Image, ImageTk
 from cvzone.FPS import FPS as CVZoneFPS
@@ -293,8 +293,49 @@ def make_color_field(parent, section, key, meta, config_obj, on_change=None):
     return frame
 
 
+def make_file_field(parent, section, key, meta, config_obj, on_change=None):
+    frame = ttk.Frame(parent)
+
+    label = ttk.Label(frame, text=meta.get("label", key))
+    label.pack(anchor="w")
+
+    file_frame = ttk.Frame(frame)
+    file_frame.pack(anchor="w", padx=10, pady=5)
+
+    var = tk.StringVar(value=config_obj[section].get(key, ""))
+
+    entry = ttk.Entry(file_frame, textvariable=var, width=40)
+    entry.pack(side="left", padx=5)
+
+    def browse_file():
+        filters = meta.get("filters", [("All files", "*.*")])
+        filename = filedialog.askopenfilename(
+            title=meta.get("label", "Select File"),
+            filetypes=filters,
+        )
+        if filename:
+            var.set(filename)
+            config_obj[section][key] = filename
+            if on_change:
+                on_change(section, key, filename)
+
+    ttk.Button(file_frame, text="Browse...", command=browse_file).pack(side="left", padx=5)
+
+    def on_var_change(*args):
+        val = var.get()
+        config_obj[section][key] = val
+        if on_change:
+            on_change(section, key, val)
+
+    var.trace_add("write", on_var_change)
+
+    frame.pack(fill="x", padx=10, pady=5)
+    return frame
+
+
 def build_field(parent, section, key, meta, config_obj, on_change=None):
     field_type = meta.get("type", "float")
+    io.echo(f"[build_field] section={section}, key={key}, type={field_type}", level="debug")
 
     if field_type == "float":
         return make_scale_field(parent, section, key, meta, config_obj)
@@ -308,6 +349,8 @@ def build_field(parent, section, key, meta, config_obj, on_change=None):
         return make_radio_field(parent, section, key, meta, config_obj, on_change)
     elif field_type == "color":
         return make_color_field(parent, section, key, meta, config_obj, on_change)
+    elif field_type == "file":
+        return make_file_field(parent, section, key, meta, config_obj, on_change)
     return None
 
 
@@ -515,6 +558,7 @@ class DashboardApp:
                     schema = mod.ui_schema(args=None, context=context)
                     if schema:
                         self.module_configs[name] = (schema, config_obj)
+                        io.echo(f"[Dashboard] Loaded ui_schema for {name}: {list(schema.keys())}", level="debug")
                         for section_name, section in schema.items():
                             section_frame = ttk.LabelFrame(tab, text=section_name)
                             section_frame.pack(
@@ -526,6 +570,7 @@ class DashboardApp:
                                     section_name in config_obj
                                     and key in config_obj[section_name]
                                 ):
+                                    io.echo(f"[Dashboard] Building field: {name}.{section_name}.{key}", level="debug")
                                     on_change = None
                                     if (
                                         name.lower() == "float_playingcard"
@@ -572,6 +617,7 @@ class DashboardApp:
             "hand": "HAND",
             "indexfingertip": "INDEXFINGERTIP",
             "face": "FACE",
+            "facemask": "FACEMASK",
             "eyes_next": "EYES",
             "glitch": "GLITCH",
             "motionblur": "MOTIONBLUR",
