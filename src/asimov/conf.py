@@ -385,7 +385,7 @@ FACEMASK = {
     "ENABLED": False,
     "IMAGE": {
         "IMAGE_PATH": "",
-        "POSITION": "TC",
+        "POSITION": "TL",
         "LANDMARK": 10,
     },
     "ADJUST": {

@@ -210,6 +210,7 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     for face_data in faces_data:
         landmarks = face_data.get("landmarks")
         face_width = face_data.get("width", 100)
+        face_height = face_data.get("height", 100)
 
         if position == "CENTER":
             bbox = _get_face_bbox(landmarks)
@@ -230,15 +231,40 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
         png_width = overlay_img.shape[1]
         png_height = overlay_img.shape[0]
-        aspect_ratio = png_width / png_height if png_height > 0 else 1.0
 
-        target_height = int(face_width / aspect_ratio)
-        dynamic_scale = (target_height / png_height) * scale
+        if position in ("TC", "TL", "TR"):
+            bbox = _get_face_bbox(landmarks)
+            if bbox:
+                left_x = bbox[0]
+                right_x = bbox[2]
+                top_y = bbox[1]
+                bottom_y = bbox[3]
+            else:
+                left_x = anchor[0]
+                right_x = anchor[0]
+                top_y = anchor[1]
+                bottom_y = anchor[1] + face_height
 
-        x = anchor[0] + offset_x - (png_width * dynamic_scale) // 2
-        y = anchor[1] + offset_y - (png_height * dynamic_scale) // 2
+            target_width = right_x - left_x
+            target_height = bottom_y - top_y
+            dynamic_scale = (target_width / png_width) * scale
+            scaled_width = int(png_width * dynamic_scale)
+            scaled_height = int(png_height * dynamic_scale)
 
-        working_frame = _overlay_png(working_frame, overlay_img, x, y, dynamic_scale)
+            if position == "TL":
+                x = left_x + offset_x
+                y = top_y + offset_y
+            else:
+                x = right_x - scaled_width + offset_x
+                y = top_y + offset_y
+            working_frame = _overlay_png(working_frame, overlay_img, x, y, dynamic_scale)
+        else:
+            dynamic_scale = (face_width / png_width) * scale
+            scaled_width = int(png_width * dynamic_scale)
+            scaled_height = int(png_height * dynamic_scale)
+            x = anchor[0] - (scaled_width // 2) + offset_x
+            y = anchor[1] + offset_y
+            working_frame = _overlay_png(working_frame, overlay_img, x, y, dynamic_scale)
 
     return working_frame
 
@@ -255,7 +281,7 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "type": "radio",
                 "enum": ["TL", "TC", "TR", "CENTER"],
                 "label": "Position",
-                "default": "TC",
+                "default": "TL",
             },
             "LANDMARK": {
                 "type": "int",
