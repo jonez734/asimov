@@ -10,6 +10,7 @@
 # text: whatever is to be output by _write_token()
 
 import re
+import threading
 
 from dataclasses import dataclass, field
 
@@ -23,14 +24,21 @@ from .common import (
     _terminal_state_stack,
     _terminal_state_stack_enabled,
     _current_stream_lock,
+    _terminal_state_lock,
+    _terminal_state_stack_lock,
     TerminalState,
+    DEFAULT_INDENT_CHAR,
 )
 from .util import logentry
 from .palette import c64_palette, get_current_palette, get_palette_entry, rgb
 
 from . import terminal
 
+_runtime_vars_lock = threading.Lock()
+_emoji_lock = threading.Lock()
+
 _previous_token = Token("UNKNOWN")
+_first_line_after_f6 = False  # Don't reduce width on first line after F6
 
 _skin = {
     "theanswer": 42,
@@ -64,6 +72,18 @@ _skin = {
     # "engine.menu.titlecolor": "{black}{bglightgray}",
     # "engine.menu.disableditemcolor": "{darkgray}",
     # "engine.menu.resultfailedcolor": "{bgred}{white}",
+    "listbox.boxcolor": "{darkgreen}",
+    "listbox.titlecolor": "{inverse}",
+    "listbox.item.normal": "{white}",
+    "listbox.item.highlighted": "{listbox.item.normal}{inverse}",
+    "listbox.item.disabled": "{darkgray}",
+    "listbox.bgcolor": "",
+    "notify.criticalcolor": "{bgred}{white}",
+    "notify.urgentcolor": "{orange}",
+    "notify.importantcolor": "{yellow}",
+    "notify.routinecolor": "{lightgray}",
+    "notify.datestampcolor": "{darkgray}",
+    "notify.recipientcolor": "{cyan}",
 }
 
 # Runtime variables dictionary
@@ -78,21 +98,25 @@ _runtime_vars.update(_skin)
 
 def setvar(name, value):
     """Set a runtime variable for use in {var:<name>} or {<name>} commands."""
-    _runtime_vars[name] = value
+    with _runtime_vars_lock:
+        _runtime_vars[name] = value
 
 
 def getvar(name, default=None):
-    return _runtime_vars.get(name, default)
+    with _runtime_vars_lock:
+        return _runtime_vars.get(name, default)
 
 
 def register_emoji(name, value):
     """Register a custom emoji for use with :name: syntax."""
-    _emoji[name] = value
+    with _emoji_lock:
+        _emoji[name] = value
 
 
 def register_emojis(emojis: dict):
     """Register multiple custom emojis at once."""
-    _emoji.update(emojis)
+    with _emoji_lock:
+        _emoji.update(emojis)
 
 
 # ----------------------------

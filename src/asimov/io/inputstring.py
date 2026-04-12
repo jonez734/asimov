@@ -1,7 +1,9 @@
 import re
+import threading
 
 from . import terminal
 
+from .const import INPUTSTRING_GETCH_TIMEOUT
 from .echo import echo, rendered_length, echo_traceback
 from .getch import getch_str as getch
 from .common import (
@@ -13,6 +15,8 @@ from .common import (
 from .util import logentry
 
 # --- 0. MANDATORY DEFINITIONS & GLOBALS ---
+
+_inputstring_lock = threading.Lock()
 
 
 class Completer:
@@ -100,6 +104,9 @@ class Completer:
 
 
 yank_buffer = []  # Clipboard
+_yank_buffer_lock = threading.Lock()
+
+_key_actions_lock = threading.Lock()
 
 
 def move_cursor(row, col):
@@ -156,12 +163,14 @@ KEY_ACTIONS = {}
 
 
 def add_key_mapping(key_string, action_lambda):
-    KEY_ACTIONS[key_string] = action_lambda
+    with _key_actions_lock:
+        KEY_ACTIONS[key_string] = action_lambda
 
 
 def remove_key_mapping(key_string):
-    if key_string in KEY_ACTIONS:
-        del KEY_ACTIONS[key_string]
+    with _key_actions_lock:
+        if key_string in KEY_ACTIONS:
+            del KEY_ACTIONS[key_string]
 
 
 # --- 2. Helper Functions ---

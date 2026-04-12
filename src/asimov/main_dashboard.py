@@ -319,7 +319,9 @@ def make_file_field(parent, section, key, meta, config_obj, on_change=None):
             if on_change:
                 on_change(section, key, filename)
 
-    ttk.Button(file_frame, text="Browse...", command=browse_file).pack(side="left", padx=5)
+    ttk.Button(file_frame, text="Browse...", command=browse_file).pack(
+        side="left", padx=5
+    )
 
     def on_var_change(*args):
         val = var.get()
@@ -335,7 +337,9 @@ def make_file_field(parent, section, key, meta, config_obj, on_change=None):
 
 def build_field(parent, section, key, meta, config_obj, on_change=None):
     field_type = meta.get("type", "float")
-    io.echo(f"[build_field] section={section}, key={key}, type={field_type}", level="debug")
+    io.echo(
+        f"[build_field] section={section}, key={key}, type={field_type}", level="debug"
+    )
 
     if field_type == "float":
         return make_scale_field(parent, section, key, meta, config_obj)
@@ -535,11 +539,12 @@ class DashboardApp:
         self.current_frame = frame.copy()
 
     def _toggle_module(self, name, enabled):
-        for item in self.modules:
-            if item["name"] == name:
-                item["config"]["enabled"] = enabled
-                self._log(f"Module '{name}' {'enabled' if enabled else 'disabled'}")
-                break
+        with logic_lock:
+            for item in self.modules:
+                if item["name"] == name:
+                    item["config"]["enabled"] = enabled
+                    self._log(f"Module '{name}' {'enabled' if enabled else 'disabled'}")
+                    break
 
     def _build_module_tabs(self):
         for item in self.modules:
@@ -558,7 +563,10 @@ class DashboardApp:
                     schema = mod.ui_schema(args=None, context=context)
                     if schema:
                         self.module_configs[name] = (schema, config_obj)
-                        io.echo(f"[Dashboard] Loaded ui_schema for {name}: {list(schema.keys())}", level="debug")
+                        io.echo(
+                            f"[Dashboard] Loaded ui_schema for {name}: {list(schema.keys())}",
+                            level="debug",
+                        )
                         for section_name, section in schema.items():
                             section_frame = ttk.LabelFrame(tab, text=section_name)
                             section_frame.pack(
@@ -570,7 +578,10 @@ class DashboardApp:
                                     section_name in config_obj
                                     and key in config_obj[section_name]
                                 ):
-                                    io.echo(f"[Dashboard] Building field: {name}.{section_name}.{key}", level="debug")
+                                    io.echo(
+                                        f"[Dashboard] Building field: {name}.{section_name}.{key}",
+                                        level="debug",
+                                    )
                                     on_change = None
                                     if (
                                         name.lower() == "float_playingcard"
@@ -743,13 +754,14 @@ def get_active_modules(args):
 
 def handle_hotkeys(key, modules):
     char = chr(key).lower()
-    for item in modules:
-        if item.get("config", {}).get("hotkey") == char:
-            item["config"]["enabled"] = not item["config"]["enabled"]
-            io.echo(
-                f"TOGGLE: {item['name']} is now {item['config']['enabled']}",
-                level="info",
-            )
+    with logic_lock:
+        for item in modules:
+            if item.get("config", {}).get("hotkey") == char:
+                item["config"]["enabled"] = not item["config"]["enabled"]
+                io.echo(
+                    f"TOGGLE: {item['name']} is now {item['config']['enabled']}",
+                    level="info",
+                )
 
 
 # --- Lifecycle ---

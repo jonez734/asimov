@@ -1,5 +1,4 @@
-from .const import MAX_TERMINAL_WIDTH, FALLBACK_TERMINAL_WIDTH
-###from .echo import echo
+from .const import MAX_TERMINAL_WIDTH, FALLBACK_TERMINAL_WIDTH, OSC, BEL
 
 import shutil
 import os
@@ -9,7 +8,7 @@ def size() -> os.terminal_size:
     return shutil.get_terminal_size()
 
 
-def columns() -> int:
+def columns():
     """
     Return terminal width in columns. If MAX_TERMINAL_SIZE is None, return the
     terminal's actual width. If MAX_TERMINAL_SIZE is an int, clamp to it.
@@ -38,12 +37,15 @@ def columns() -> int:
 width = columns
 
 
-def lines() -> int:
+def lines():
     return size().lines
 
 
 height = lines
 
-###def title(t:str) -> None:
-###  echo(f"{{settitle:{t}}}", flush=True, end="")
-###  return
+
+def title(t: str) -> None:
+    """Set the terminal window title."""
+    from .common import write_current_output_stream
+
+    write_current_output_stream(f"{OSC}0;{t}{BEL}", flush=True)

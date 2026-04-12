@@ -1,4 +1,4 @@
-from .echo import echo, rendered_length
+from .echo import echo, rendered_length, echo_traceback
 from . import terminal
 
 # terminal import lines as terminal_lines, columns as terminal_columns

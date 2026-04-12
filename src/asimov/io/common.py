@@ -14,6 +14,8 @@ from .const import ESC, CSI
 
 from . import terminal
 
+DEFAULT_INDENT_CHAR = " "
+
 
 @dataclass
 class Token:
@@ -50,24 +52,29 @@ _current_input_stream = sys.stdin
 _current_output_stream = sys.stdout
 
 _current_stream_lock = threading.Lock()
+_terminal_state_lock = threading.Lock()
 
 
 def set_output_stream(stream):
     global _current_output_stream
-    _current_output_stream = stream
+    with _current_stream_lock:
+        _current_output_stream = stream
 
 
 def set_input_stream(stream):
     global _current_input_stream
-    _current_input_stream = stream
+    with _current_stream_lock:
+        _current_input_stream = stream
 
 
 _input_queue = collections.deque()
+_input_queue_lock = threading.Lock()
 
 
 def _read_current_input_stream(size: int = 1) -> str:
-    if _input_queue:
-        return _input_queue.popleft()
+    with _input_queue_lock:
+        if _input_queue:
+            return _input_queue.popleft()
     return _current_input_stream.read(size)
 
 
@@ -175,8 +182,9 @@ def get_dsr(mode="curpos", timeout: float = 1.0) -> tuple[int, int] | str:
                     # Remove the matched DSR from buf and push the rest back into the queue
                     start, end = match.span()
                     leftover = buffer[:start] + buffer[end:]
-                    _input_queue.clear()
-                    _input_queue.extend(leftover)
+                    with _input_queue_lock:
+                        _input_queue.clear()
+                        _input_queue.extend(leftover)
                     return (row, col)
 
                 # Step 2c: check for timeout
@@ -265,7 +273,12 @@ def drain_stream_to_queue(stream, queue):
                 ch = stream.read(1)
                 if not ch:
                     break  # EOF or no more data
-                queue.append(ch)
+                # Lock for _input_queue, otherwise assume caller handles it
+                if queue is _input_queue:
+                    with _input_queue_lock:
+                        queue.append(ch)
+                else:
+                    queue.append(ch)
             except BlockingIOError:
                 break  # would block → stop
     finally:
@@ -286,6 +299,8 @@ class TerminalState:
     raw: bool = False
     decdhl: bool = False  # double height
     decdwl: bool = False
+    indent: int = 0
+    indent_char: str = DEFAULT_INDENT_CHAR
 
     def __repr__(self):
         return f"TerminalState({self.cursor_row=}, {self.cursor_col=}, {self.wordwrap=}, {self.has_color=}, {self.hidden=}, {self.acs=}, {self.raw=})"
@@ -297,4 +312,18 @@ _terminal_state = TerminalState(
 _terminal_state_stack = []
 _terminal_state_stack_enabled = False
 
+_terminal_state_lock = threading.Lock()
+_terminal_state_stack_lock = threading.Lock()
+
 _input_dirty = False
+
+
+def get_terminal_state():
+    with _terminal_state_lock:
+        return _terminal_state
+
+
+def set_terminal_state(state: TerminalState):
+    global _terminal_state
+    with _terminal_state_lock:
+        _terminal_state = state

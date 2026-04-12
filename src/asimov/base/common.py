@@ -134,12 +134,6 @@ def safe_distance(p1, p2):
     return math.sqrt(squared_diff_sum)
 
 
-# ---------
-# logging
-# ---------
-import logging
-import logging.handlers
-
 # default syslog handler
 default_handler = logging.handlers.SysLogHandler(address="/dev/log")
 default_formatter = logging.Formatter(
@@ -332,6 +326,25 @@ class ThreadSafeContext(dict):
         """Returns a non-thread-safe snapshot for rendering."""
         with self._lock:
             return super().copy()
+
+    def update(self, *args, **kwargs):
+        with self._lock:
+            super().update(*args, **kwargs)
+
+    def atomic_get_then_set(self, get_key, set_key, set_value):
+        """Atomically get one key's value while setting another."""
+        with self._lock:
+            old_value = super().get(get_key)
+            super().__setitem__(set_key, set_value)
+            return old_value
+
+    def pop(self, key, *args):
+        with self._lock:
+            return super().pop(key, *args)
+
+    def clear(self):
+        with self._lock:
+            super().clear()
 
 
 class OneEuroFilter:

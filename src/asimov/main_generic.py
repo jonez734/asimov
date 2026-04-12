@@ -110,14 +110,14 @@ def get_active_modules(args):
 def handle_hotkeys(key, modules):
     """Toggles module state based on hotkeys in conf.py."""
     char = chr(key).lower()
-    for item in modules:
-        if item.get("config", {}).get("hotkey") == char:
-            item["config"]["enabled"] = not item["config"]["enabled"]
-            # Using new echo levels from echo.py
-            io.echo(
-                f"TOGGLE: {item['name']} is now {item['config']['enabled']}",
-                level="info",
-            )
+    with logic_lock:
+        for item in modules:
+            if item.get("config", {}).get("hotkey") == char:
+                item["config"]["enabled"] = not item["config"]["enabled"]
+                io.echo(
+                    f"TOGGLE: {item['name']} is now {item['config']['enabled']}",
+                    level="info",
+                )
 
 
 # --- 4. Module Lifecycle ---
