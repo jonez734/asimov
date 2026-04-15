@@ -9,6 +9,34 @@ from dataclasses import dataclass
 from asimov import io
 
 
+# --- Help Handling (added from bbsengine6) ---
+
+
+def _is_help_request(argv: list) -> bool:
+    """Check if argv contains --help or -h"""
+    return "--help" in argv or "-h" in argv
+
+
+def _has_subparser_info(args) -> bool:
+    """Check if args has subparser-related attributes set from parent parser."""
+    if args is None:
+        return False
+    subparser_attrs = ["_subsubparser", "_sub_parser", "subcommand", "command"]
+    return any(
+        hasattr(args, attr) and getattr(args, attr) is not None
+        for attr in subparser_attrs
+    )
+
+
+def _create_help_from_docstring(module) -> object:
+    """Create argparse parser from module docstring for help display"""
+    if not hasattr(module, "__doc__") or not module.__doc__:
+        return None
+
+    parser = argparse.ArgumentParser(description=module.__doc__.strip(), add_help=True)
+    return parser
+
+
 @dataclass
 class SignatureError:
     func_name: str
@@ -282,6 +310,7 @@ def runcallback(
 def run(args: argparse.Namespace, mod_ref: Union[str, ModuleType], **kwargs):
     """
     Main lifecycle: check (with access) -> init -> buildargs -> main.
+    Includes help handling from bbsengine6.
     """
     m = get(mod_ref, args)
 
@@ -292,12 +321,42 @@ def run(args: argparse.Namespace, mod_ref: Union[str, ModuleType], **kwargs):
         runcallback(args, m.init, **kwargs)
 
         argv = kwargs.get("argv", [])
+
+        # Help handling (from bbsengine6)
+        if _is_help_request(argv):
+            prgargparser = runcallback(args, m.buildargs, **kwargs)
+
+            if prgargparser is not None:
+                prgargparser.print_help()
+            else:
+                fallback_parser = _create_help_from_docstring(m)
+                if fallback_parser:
+                    fallback_parser.print_help()
+                else:
+                    io.echo(
+                        f"Help for {getattr(m, '__name__', 'unknown')}: No documentation available",
+                        level="info",
+                    )
+
+            return True  # Help is success, not error
+
         prgargparser = runcallback(args, m.buildargs, **kwargs)
-        if prgargparser:
+        if prgargparser is not None:
             try:
-                prgargparser.parse_args([a.strip() for a in argv[1:]])
-            except (SystemExit, argparse.ArgumentError):
+                argv = [a.strip() for a in argv] if argv else []
+
+                # If argv is empty but args has subparser info from parent parser
+                if not argv and _has_subparser_info(args):
+                    prgargs = args
+                else:
+                    prgargs = prgargparser.parse_args(argv)
+            except SystemExit as e:
+                return e.code == 0 if hasattr(e, "code") else False
+            except argparse.ArgumentError:
+                io.echo("argument error", level="error")
                 return False
+
+            return runcallback(prgargs, m.main, **kwargs)
 
         return runcallback(args, m.main, **kwargs)
     except Exception:
