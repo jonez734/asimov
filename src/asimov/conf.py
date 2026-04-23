@@ -67,7 +67,7 @@ CONF = {
     },
     "INDEXFINGERTIP": {
         "DETECTION": {
-            "DETECTION_CON": 0.6,
+            "DETECTION_CON": 0.5,
         },
         "FREQ": 30,
         "FILTER": {
@@ -255,69 +255,6 @@ CONF = {
         "MAX_HANDS": 1,
         "DETECTION_CON": 0.7,
     },
-    "SCENE": {
-        "name": "float_card",
-        "modules": [
-            {
-                "name": "fps_overlay",
-                "module": "asimov.modules.fps_overlay",
-                "conf": {},
-                "enabled": True,
-            },
-            {
-                "name": "hand",
-                "module": "asimov.modules.hand",
-                "conf": {},
-                "enabled": True,
-            },
-            {
-                "name": "indexfingertip",
-                "module": "asimov.modules.indexfingertip",
-                "conf": {},
-                "enabled": True,
-            },
-            {
-                "name": "rect",
-                "module": "asimov.modules.rect",
-                "conf": {},
-                "enabled": False,
-            },
-            {
-                "name": "rect_touch",
-                "module": "asimov.modules.rect_touch",
-                "conf": {},
-                "enabled": False,
-            },
-            {
-                "name": "face",
-                "module": "asimov.modules.face",
-                "conf": {},
-                "enabled": True,
-            },
-            {
-                "name": "facemask",
-                "module": "asimov.modules.facemask",
-                "conf": {},
-                "enabled": True,
-            },
-            {
-                "name": "eyes_next",
-                "module": "asimov.modules.eyes_next",
-                "conf": {},
-                "enabled": False,
-            },
-            {
-                "name": "float_playingcard",
-                "module": "asimov.modules.float_playingcard",
-                "conf": {},
-                "enabled": False,
-            },
-        ],
-        "conf": {
-            "HAND": {"MAX_HANDS": 1},
-            "FLOAT_PLAYINGCARD": {"OPACITY": 0.85},
-        },
-    },
     "FLOAT_PLAYINGCARD": {
         "Card": {
             "rank": None,
@@ -337,6 +274,42 @@ CONF = {
         "DETECTION_THRESHOLD": 0.8,
     },
 }
+
+# ------------------------------------------------------------
+# Scene Loading
+# ------------------------------------------------------------
+
+
+def _load_scenes():
+    """Load scenes from scenes/ directory."""
+    scenes_dir = Path(__file__).parent / "scenes"
+    scenes = {}
+    active = "float_card"
+
+    if scenes_dir.exists() and scenes_dir.is_dir():
+        for json_file in sorted(scenes_dir.glob("*.json")):
+            try:
+                with open(json_file) as f:
+                    scene_data = json.load(f)
+                name = scene_data.get("name", json_file.stem)
+                scenes[name] = scene_data
+                _config_logger.info(f"Loaded scene: {name}")
+            except json.JSONDecodeError as e:
+                _config_logger.warning(f"Invalid JSON in {json_file.name}: {e}")
+            except OSError as e:
+                _config_logger.warning(f"Cannot read {json_file.name}: {e}")
+
+    if not scenes:
+        scenes["float_card"] = {
+            "name": "float_card",
+            "modules": [],
+            "config": {},
+        }
+
+    return {"active": active, **scenes}
+
+
+CONF["SCENES"] = _load_scenes()
 
 # ------------------------------------------------------------
 # Thread-Safe Getters and Setters
@@ -451,11 +424,15 @@ def _load_external_config():
             _config_logger.info(f"Loaded keys: {list(data.keys())}")
             return data
         except json.JSONDecodeError as e:
-            _config_logger.warning(f"Invalid JSON in {config_file}: {e}, using defaults")
+            _config_logger.warning(
+                f"Invalid JSON in {config_file}: {e}, using defaults"
+            )
         except OSError as e:
             _config_logger.warning(f"Cannot read {config_file}: {e}, using defaults")
     else:
-        _config_logger.debug(f"External config not found at {config_file}, using defaults")
+        _config_logger.debug(
+            f"External config not found at {config_file}, using defaults"
+        )
     return {}
 
 

@@ -17,11 +17,11 @@ ERR_TEXT_THICKNESS = 2
 
 
 def detect(frame, context: ThreadSafeContext, **kwargs):
-    if_conf = conf.CONF["INDEXFINGERTIP"]
+    if_conf = conf.get("INDEXFINGERTIP", {})
     try:
         # ---- Init -----------------------------------------------------------
         if "INDEXFINGERTIP" not in context:
-            f_params = if_conf["FILTER"]
+            f_params = if_conf.get("FILTER", {})
             context["INDEXFINGERTIP"] = {
                 "ema": {
                     "x": OneEuroFilter(
@@ -42,7 +42,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
             }
 
         ns = context["INDEXFINGERTIP"]
-        f_params = if_conf["FILTER"]
+        f_params = if_conf.get("FILTER", {})
         filter_enabled = f_params.get("enabled", True)
         alpha = f_params.get("alpha", 0.4)
         deadzone = f_params.get("deadzone", 2)
@@ -54,20 +54,29 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         # ---- Consume HAND module -------------------------------------------
         hand_ns = context.get("HAND")
         if not hand_ns or not hand_ns.get("hands"):
+            io.echo("Indexfingertip: no hand detected", level="debug")
             return
 
         hand = hand_ns["hands"][0]
+        io.echo(f"Indexfingertip: hand keys={list(hand.keys())}", level="debug")
 
-        # Check detection confidence
-        detection_con = hand.get("detectionCon", 0)
-        if detection_con < if_conf.get("DETECTION", {}).get(
-            "DETECTION_CON", 0.6
-        ):
-            return
+        # Skip confidence check if not provided by cvzone (cvzone doesn't always include it)
+        detection_con = hand.get("confidence", hand.get("detectionCon", None))
+        if detection_con is not None:
+            min_conf = if_conf.get("DETECTION", {}).get("DETECTION_CON", 0.5)
+            if detection_con < min_conf:
+                io.echo(
+                    f"Indexfingertip: low conf {detection_con:.2f} < {min_conf}",
+                    level="debug",
+                )
+                return
 
         # cvzone finger state (geometry-only, no detection)
         fingers = hand_ns["detector"].fingersUp(hand)
-        if fingers != INDEX_UP_PATTERN:
+        io.echo(f"Indexfingertip: fingers={fingers}", level="debug")
+        # Only require index finger up (index 1), not strict pattern match
+        if fingers[1] != 1:
+            io.echo("Indexfingertip: index finger not up", level="debug")
             return
 
         # ---- Extract + smooth ----------------------------------------------
@@ -107,6 +116,11 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         }
         ns["active"] = True
 
+        io.echo(
+            f"Indexfingertip: detected at ({smooth_x:.0f}, {smooth_y:.0f})",
+            level="debug",
+        )
+
         context["INDEXFINGERTIP"] = ns
 
     except Exception:
@@ -115,13 +129,14 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         io.echo_traceback("Indexfingertip detect exception")
 
 
-def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
-    ns = context.get("INDEXFINGERTIP")
-    if not ns:
+def draw(frame, context: ThreadSafeContext, /, config=None, **kwargs) -> np.ndarray:
+    if_conf = conf.get("INDEXFINGERTIP", {})
+    if not if_conf.get("DRAW", {}).get("enabled", True):
         return frame
 
-    if_conf = conf.CONF["INDEXFINGERTIP"]
-    if not if_conf.get("DRAW", {}).get("enabled", True):
+    ns = context.get("INDEXFINGERTIP")
+    if not ns:
+        io.echo("Indexfingertip draw: no context", level="debug")
         return frame
 
     if ns.get("error_state"):
@@ -137,19 +152,28 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         return frame
 
     if not ns.get("active"):
+        io.echo("Indexfingertip draw: not active", level="debug")
         return frame
 
     data = ns.get("data")
     if not data:
+        io.echo("Indexfingertip draw: no data", level="debug")
         return frame
 
-    draw_conf = if_conf["DRAW"]
+    io.echo(
+        f"Indexfingertip draw: at ({data['x']:.0f}, {data['y']:.0f})", level="debug"
+    )
+
+    draw_conf = if_conf.get("DRAW", {})
+    radius = draw_conf.get("radius", 6)
+    color = draw_conf.get("color", (0, 255, 0))
+    thickness = draw_conf.get("thickness", -1)
     cv2.circle(
         frame,
         (int(data["x"]), int(data["y"])),
-        draw_conf["radius"],
-        draw_conf["color"],
-        draw_conf["thickness"],
+        radius,
+        color,
+        thickness,
     )
 
     return frame

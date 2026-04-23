@@ -90,6 +90,12 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
 
+        if hands:
+            io.echo(
+                f"Hand: {len(hands)} detected, confidence={hands[0].get('confidence', 'N/A')}",
+                level="debug",
+            )
+
         context["HAND"] = ns
 
     except Exception:

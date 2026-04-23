@@ -716,9 +716,15 @@ _current_scene = None
 def get_active_modules(args):
     global _current_scene
 
-    scene_def = getattr(conf, "SCENE", None)
+    scenes_def = conf.CONF.get("SCENES")
+    if not scenes_def:
+        io.echo("No SCENES defined in conf", level="error")
+        return []
+
+    active_name = scenes_def.get("active", "float_card")
+    scene_def = scenes_def.get(active_name)
     if not scene_def:
-        io.echo("No SCENE defined in conf", level="error")
+        io.echo(f"Scene '{active_name}' not found in SCENES", level="error")
         return []
 
     try:
