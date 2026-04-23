@@ -2,7 +2,11 @@
 # Central configuration for Asimov
 
 import copy
+import json
+import logging
+import os
 import threading
+from pathlib import Path
 
 # ------------------------------------------------------------
 # Thread Safety
@@ -16,6 +20,7 @@ _conf_changed = threading.Event()
 # ------------------------------------------------------------
 
 LOGGER_NAME = "asimov"
+_config_logger = logging.getLogger("asimov.conf")
 
 # ------------------------------------------------------------
 # Window / UI
@@ -588,3 +593,55 @@ def get_overlays_changed_event():
 def clear_overlays_changed():
     """Clear the change flag after refresh."""
     _conf_changed.clear()
+
+
+# ------------------------------------------------------------
+# External Configuration
+# ------------------------------------------------------------
+
+
+def _load_external_config():
+    """Load external JSON config for partial override of defaults."""
+    config_path = os.environ.get("ASIMOV_CONFIG")
+    if config_path:
+        config_file = Path(config_path)
+        source = f"ASIMOV_CONFIG={config_path}"
+    else:
+        config_file = Path.home() / ".asimov" / "config.json"
+        source = "~/.asimov/config.json (default)"
+
+    if config_file.exists():
+        try:
+            with open(config_file) as f:
+                data = json.load(f)
+            _config_logger.info(f"Loading external config from: {config_file}")
+            _config_logger.info(f"Config source: {source}")
+            _config_logger.info(f"Loaded keys: {list(data.keys())}")
+            return data
+        except json.JSONDecodeError as e:
+            _config_logger.warning(f"Invalid JSON in {config_file}: {e}, using defaults")
+        except OSError as e:
+            _config_logger.warning(f"Cannot read {config_file}: {e}, using defaults")
+    else:
+        _config_logger.debug(f"External config not found at {config_file}, using defaults")
+    return {}
+
+
+def _apply_external_config(external):
+    """Apply external config via partial override."""
+    if not external:
+        return
+
+    for key, value in external.items():
+        if key in CONF:
+            CONF[key].update(value)
+            _config_logger.info(f"Overridden CONF['{key}']: {list(value.keys())}")
+        elif key in globals() and isinstance(globals().get(key), dict):
+            globals()[key].update(value)
+            _config_logger.info(f"Overridden {key}: {list(value.keys())}")
+        else:
+            _config_logger.warning(f"Ignored unknown config key: {key}")
+
+
+_external = _load_external_config()
+_apply_external_config(_external)

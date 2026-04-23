@@ -107,6 +107,60 @@ conf.INDEXFINGERTIP["LANDMARK_ID"]
 conf.INDEXFINGERTIP["DETECTION_CON"]
 ```
 
+## External Configuration
+
+Asimov supports loading configuration from an external JSON file for easier customization without editing source code.
+
+### Using External Config
+
+Set the `ASIMOV_CONFIG` environment variable to the path of your config file:
+
+```bash
+export ASIMOV_CONFIG=/path/to/config.json
+```
+
+If not set, Asimov defaults to `~/.asimov/config.json`.
+
+### Verbose Logging
+
+When an external config is loaded, Asimov logs details about the configuration:
+
+```
+asimov.conf INFO Loading external config from: /home/user/.asimov/config.json
+asimov.conf INFO Config source: ~/.asimov/config.json (default)
+asimov.conf INFO Loaded keys: ['HAND', 'OVERLAYS']
+asimov.conf INFO Overridden CONF['HAND']: ['ENABLED', 'MODEL_COMPLEXITY']
+asimov.conf INFO Overridden CONF['OVERLAYS']: ['hand', 'indexfingertip']
+```
+
+Enable debug logging for missing config file messages:
+
+```python
+logging.getLogger("asimov.conf").setLevel(logging.DEBUG)
+```
+
+### Partial Override
+
+The external config does a **partial override** — only keys present in the JSON file are changed. All other values remain as defaults defined in `conf.py`.
+
+### Example Config
+
+See `config.example.json` in the asimov source for a complete reference of overridable keys:
+
+```json
+{
+    "HAND": {
+        "ENABLED": false
+    },
+    "OVERLAYS": {
+        "hand": {
+            "enabled": false,
+            "order": 15
+        }
+    }
+}
+```
+
 ## Network (asimov.net)
 
 Asimov provides UDP/TCP frame transmission for distributed video processing:
