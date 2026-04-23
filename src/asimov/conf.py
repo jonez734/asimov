@@ -63,6 +63,7 @@ CONF = {
         },
         "DEBUG": {
             "SHOW_FPS": False,
+            "SHOW_DETECTION": False,
         },
     },
     "INDEXFINGERTIP": {
@@ -84,6 +85,9 @@ CONF = {
             "radius": 6,
             "color": (0, 255, 0),
             "thickness": -1,
+        },
+        "DEBUG": {
+            "enabled": False,
         },
     },
     "FPS_OVERLAY": {

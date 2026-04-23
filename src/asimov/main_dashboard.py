@@ -790,7 +790,8 @@ def buildargs(args=None, **kwargs):
 
 def main(args, **kwargs):
     modules = get_active_modules(args)
-    io.echo(f"Loaded {len(modules)} modules", level="debug")
+    if getattr(args, "debug", False):
+        io.echo(f"Loaded {len(modules)} modules", level="debug")
 
     io.echo(f"Opening camera: {args.capture_device}")
     cap_handle, error = cap.open_ready(

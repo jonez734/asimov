@@ -51,32 +51,39 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         ns["active"] = False
         ns["data"] = None
 
+        debug = if_conf.get("DEBUG", {}).get("enabled", False)
+
         # ---- Consume HAND module -------------------------------------------
         hand_ns = context.get("HAND")
         if not hand_ns or not hand_ns.get("hands"):
-            io.echo("Indexfingertip: no hand detected", level="debug")
+            if debug:
+                io.echo("Indexfingertip: no hand detected", level="debug")
             return
 
         hand = hand_ns["hands"][0]
-        io.echo(f"Indexfingertip: hand keys={list(hand.keys())}", level="debug")
+        if debug:
+            io.echo(f"Indexfingertip: hand keys={list(hand.keys())}", level="debug")
 
         # Skip confidence check if not provided by cvzone (cvzone doesn't always include it)
         detection_con = hand.get("confidence", hand.get("detectionCon", None))
         if detection_con is not None:
             min_conf = if_conf.get("DETECTION", {}).get("DETECTION_CON", 0.5)
             if detection_con < min_conf:
-                io.echo(
-                    f"Indexfingertip: low conf {detection_con:.2f} < {min_conf}",
-                    level="debug",
-                )
+                if debug:
+                    io.echo(
+                        f"Indexfingertip: low conf {detection_con:.2f} < {min_conf}",
+                        level="debug",
+                    )
                 return
 
         # cvzone finger state (geometry-only, no detection)
         fingers = hand_ns["detector"].fingersUp(hand)
-        io.echo(f"Indexfingertip: fingers={fingers}", level="debug")
+        if debug:
+            io.echo(f"Indexfingertip: fingers={fingers}", level="debug")
         # Only require index finger up (index 1), not strict pattern match
         if fingers[1] != 1:
-            io.echo("Indexfingertip: index finger not up", level="debug")
+            if debug:
+                io.echo("Indexfingertip: index finger not up", level="debug")
             return
 
         # ---- Extract + smooth ----------------------------------------------
@@ -116,10 +123,11 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         }
         ns["active"] = True
 
-        io.echo(
-            f"Indexfingertip: detected at ({smooth_x:.0f}, {smooth_y:.0f})",
-            level="debug",
-        )
+        if debug:
+            io.echo(
+                f"Indexfingertip: detected at ({smooth_x:.0f}, {smooth_y:.0f})",
+                level="debug",
+            )
 
         context["INDEXFINGERTIP"] = ns
 
@@ -134,9 +142,12 @@ def draw(frame, context: ThreadSafeContext, /, config=None, **kwargs) -> np.ndar
     if not if_conf.get("DRAW", {}).get("enabled", True):
         return frame
 
+    debug = if_conf.get("DEBUG", {}).get("enabled", False)
+
     ns = context.get("INDEXFINGERTIP")
     if not ns:
-        io.echo("Indexfingertip draw: no context", level="debug")
+        if debug:
+            io.echo("Indexfingertip draw: no context", level="debug")
         return frame
 
     if ns.get("error_state"):
@@ -152,17 +163,20 @@ def draw(frame, context: ThreadSafeContext, /, config=None, **kwargs) -> np.ndar
         return frame
 
     if not ns.get("active"):
-        io.echo("Indexfingertip draw: not active", level="debug")
+        if debug:
+            io.echo("Indexfingertip draw: not active", level="debug")
         return frame
 
     data = ns.get("data")
     if not data:
-        io.echo("Indexfingertip draw: no data", level="debug")
+        if debug:
+            io.echo("Indexfingertip draw: no data", level="debug")
         return frame
 
-    io.echo(
-        f"Indexfingertip draw: at ({data['x']:.0f}, {data['y']:.0f})", level="debug"
-    )
+    if debug:
+        io.echo(
+            f"Indexfingertip draw: at ({data['x']:.0f}, {data['y']:.0f})", level="debug"
+        )
 
     draw_conf = if_conf.get("DRAW", {})
     radius = draw_conf.get("radius", 6)
@@ -259,11 +273,16 @@ def ui_schema(args=None, context=None) -> dict | None:
             },
         },
         "DEBUG": {
+            "enabled": {
+                "type": "bool",
+                "default": False,
+                "label": "Enable Debug Output",
+            },
             "SHOW_TRAIL": {
                 "type": "bool",
                 "default": False,
                 "label": "Show Motion Trail",
-            }
+            },
         },
     }
 

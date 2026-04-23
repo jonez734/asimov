@@ -90,7 +90,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
         ns["hands"] = hands or []
         ns["timestamp"] = time.time()
 
-        if hands:
+        if hands and cfg.get("DEBUG", {}).get("SHOW_DETECTION", False):
             io.echo(
                 f"Hand: {len(hands)} detected, confidence={hands[0].get('confidence', 'N/A')}",
                 level="debug",
@@ -279,7 +279,12 @@ def ui_schema(args=None, context=None) -> dict | None:
             },
         },
         "DEBUG": {
-            "SHOW_FPS": {"type": "bool", "default": False, "label": "Show Hand FPS"}
+            "SHOW_FPS": {"type": "bool", "default": False, "label": "Show Hand FPS"},
+            "SHOW_DETECTION": {
+                "type": "bool",
+                "default": False,
+                "label": "Show Detection Info",
+            },
         },
     }
 
