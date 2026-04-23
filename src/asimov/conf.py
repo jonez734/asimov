@@ -401,7 +401,8 @@ def get_overlays_changed_event():
 
 def clear_overlays_changed():
     """Clear the change flag after refresh."""
-    _conf_changed.clear()
+    with _conf_lock:
+        _conf_changed.clear()
 
 
 # ------------------------------------------------------------

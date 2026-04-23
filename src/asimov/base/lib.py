@@ -70,15 +70,19 @@ class VideoCaptureThread(threading.Thread):
         self.running = True
         self.frame = None
         self.lock = threading.Lock()
+        self._stop_event = threading.Event()
         self.thread = threading.Thread(target=self.update, daemon=True)
         self.thread.start()
 
     def update(self):
-        while self.running:
-            ret, frame = self.cap.read()
-            if ret:
-                with self.lock:
-                    self.frame = frame
+        while self.running and not self._stop_event.is_set():
+            try:
+                ret, frame = self.cap.read()
+                if ret:
+                    with self.lock:
+                        self.frame = frame
+            except Exception as e:
+                io.echo(f"VideoCaptureThread: update failed: {e}", level="error")
 
     def get_frame(self):
         with self.lock:
@@ -86,8 +90,12 @@ class VideoCaptureThread(threading.Thread):
 
     def stop(self):
         self.running = False
-        self.thread.join()
-        self.cap.release()
+        self._stop_event.set()
+        if self.thread.is_alive():
+            self.thread.join(timeout=2.0)
+        if self.cap and self.cap.isOpened():
+            self.cap.release()
+        io.echo("VideoCaptureThread: stopped and resources released")
 
 
 class Asimov(object):

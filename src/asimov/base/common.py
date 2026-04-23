@@ -236,15 +236,18 @@ class CameraCapture(threading.Thread):
 
         try:
             while not self._stop_event.is_set():
-                ret, frame = self.cap.read()
+                try:
+                    ret, frame = self.cap.read()
+                    if not ret:
+                        time.sleep(0.1)
+                        continue
 
-                if not ret:
+                    flipped = cv2.flip(frame, 1)
+                    with self.lock:
+                        self.frame = flipped
+                except Exception as e:
+                    logentry(f"CameraCapture: _run: exception {e}", level="error")
                     time.sleep(0.1)
-                    continue
-
-                flipped = cv2.flip(frame, 1)
-                with self.lock:
-                    self.frame = flipped
         except Exception as e:
             logentry(f"CameraCapture: _run: exception {e}", level="error")
         finally:
@@ -252,7 +255,9 @@ class CameraCapture(threading.Thread):
 
     def read(self):
         with self.lock:
-            return self.frame.copy() if self.frame is not None else None
+            if self.frame is not None:
+                return self.frame.copy()
+            return None
 
     def stop(self):
         self._stop_event.set()

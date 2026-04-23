@@ -22,6 +22,7 @@ from asimov.playingcard import cards
 
 context = ThreadSafeContext()
 logic_lock = threading.Lock()
+_stop_event = threading.Event()
 
 logic_fps = CVZoneFPS(avgCount=30)
 render_fps = CVZoneFPS(avgCount=30)
@@ -678,7 +679,7 @@ class DashboardApp:
 
 def _consumer(modules: list, args: argparse.Namespace):
     try:
-        while True:
+        while not _stop_event.is_set():
             with logic_lock:
                 frame = context.get("SHARED_FRAME")
 
@@ -811,9 +812,13 @@ def main(args, **kwargs):
 
     actual_width, actual_height, actual_fps = cap_result
 
+    _stop_event.clear()
+    _threads = []
+
     # Start logic thread
-    t = threading.Thread(target=_consumer, args=(modules, args), daemon=True)
-    t.start()
+    consumer_thread = threading.Thread(target=_consumer, args=(modules, args), daemon=True)
+    _threads.append(consumer_thread)
+    consumer_thread.start()
 
     # Start Tkinter dashboard
     root = tk.Tk()
@@ -883,9 +888,16 @@ def main(args, **kwargs):
             cap.release(cap_handle)
 
     render_thread = threading.Thread(target=render_loop, daemon=True)
+    _threads.append(render_thread)
     render_thread.start()
 
     root.mainloop()
+
+    _stop_event.set()
+
+    for th in _threads:
+        if th.is_alive():
+            th.join(timeout=2.0)
 
     # Shutdown modules that have close() methods
     for item in modules:
