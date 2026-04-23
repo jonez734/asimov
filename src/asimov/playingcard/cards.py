@@ -72,7 +72,9 @@ def get_card_path(
         Full path to the card PNG file
     """
     if basedir is None:
-        basedir = conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata")
+        basedir = conf.CONF["PLAYINGCARD"].get(
+            "BASEDIR", "$HOME/projects/playingcarddata"
+        )
     if set_name is None:
         set_name = conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle")
 

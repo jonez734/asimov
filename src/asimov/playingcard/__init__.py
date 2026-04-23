@@ -36,7 +36,9 @@ def init(args=None, context=None, **kwargs):
     """
     basedir = getattr(args, "basedir", None)
     if basedir is None:
-        basedir = conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata")
+        basedir = conf.CONF["PLAYINGCARD"].get(
+            "BASEDIR", "$HOME/projects/playingcarddata"
+        )
 
     set_name = getattr(args, "set_name", None)
     if set_name is None:

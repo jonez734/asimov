@@ -93,11 +93,15 @@ def init(args, context=None, **kwargs):
             getattr(
                 args,
                 "basedir",
-                conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata"),
+                conf.CONF["PLAYINGCARD"].get(
+                    "BASEDIR", "$HOME/projects/playingcarddata"
+                ),
             )
         )
     )
-    _set_name = getattr(args, "set_name", conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle"))
+    _set_name = getattr(
+        args, "set_name", conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle")
+    )
 
     glitch.set_max_concurrent(2)
     glitch.register("scanlines")
@@ -286,9 +290,7 @@ def detect(frame, context, /, **kw):
 
         hand_width = bbox[2] if bbox else 100
         card_width = _card_image.shape[1] if _card_image is not None else 100
-        target_scale = (hand_width / card_width) * fp_conf.get(
-            "SCALE", 0.8
-        )
+        target_scale = (hand_width / card_width) * fp_conf.get("SCALE", 0.8)
 
         if _filter_x is None:
             _filter_x = OneEuroFilter(
@@ -351,9 +353,7 @@ def draw(frame, context, /, config=None, **kw):
         suit = config.get("suit", suit)
         opacity = config.get("opacity", opacity)
 
-    enable_glitch = card_config.get(
-        "glitch", fp_conf.get("GLITCH", True)
-    )
+    enable_glitch = card_config.get("glitch", fp_conf.get("GLITCH", True))
     if config:
         enable_glitch = config.get("glitch", enable_glitch)
 

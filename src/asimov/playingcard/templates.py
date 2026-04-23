@@ -30,7 +30,9 @@ def load_templates(basedir=None, set_name=None):
     Loads all precomputed templates from scaled/ under the given set.
     """
     if basedir is None:
-        basedir = conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata")
+        basedir = conf.CONF["PLAYINGCARD"].get(
+            "BASEDIR", "$HOME/projects/playingcarddata"
+        )
     if set_name is None:
         set_name = conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle")
 

@@ -101,7 +101,10 @@ def add_camera_args(parser, hidden=False):
             "--capture-height",
             dict(type=int, default=capture_conf["HEIGHT"], help="Frame height"),
         ),
-        ("--capture-fps", dict(type=int, default=capture_conf["FPS"], help="Capture FPS")),
+        (
+            "--capture-fps",
+            dict(type=int, default=capture_conf["FPS"], help="Capture FPS"),
+        ),
     ]
 
     if hidden:
