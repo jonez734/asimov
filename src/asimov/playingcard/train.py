@@ -28,9 +28,9 @@ MIN_CORNER_SIZE = 60
 
 def extract_templates(basedir=None, set_name=None, corner_size=None):
     if basedir is None:
-        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+        basedir = conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata")
     if set_name is None:
-        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
+        set_name = conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle")
     set_dir = get_safe_path(basedir, "sets", set_name)
     templates = {}
 
@@ -81,9 +81,9 @@ def extract_templates(basedir=None, set_name=None, corner_size=None):
 
 def train(basedir=None, set_name=None):
     if basedir is None:
-        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+        basedir = conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata")
     if set_name is None:
-        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
+        set_name = conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle")
     # Extract raw templates (dynamic corner)
     templates, set_dir, corner_size = extract_templates(
         basedir, set_name, corner_size=None

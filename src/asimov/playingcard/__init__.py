@@ -36,11 +36,11 @@ def init(args=None, context=None, **kwargs):
     """
     basedir = getattr(args, "basedir", None)
     if basedir is None:
-        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+        basedir = conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata")
 
     set_name = getattr(args, "set_name", None)
     if set_name is None:
-        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
+        set_name = conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle")
 
     echo(
         f"{{reset}}- {{labelcolor}}Load set {{valuecolor}}'{set_name}{{labelcolor}}': ",

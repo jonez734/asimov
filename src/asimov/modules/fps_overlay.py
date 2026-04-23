@@ -13,7 +13,7 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     if not fps_data:
         return frame
 
-    draw_conf = conf.FPS_OVERLAY.get("DRAW", {})
+    draw_conf = conf.CONF["FPS_OVERLAY"].get("DRAW", {})
     if not draw_conf.get("enabled", True):
         return frame
 

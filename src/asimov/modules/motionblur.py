@@ -15,11 +15,12 @@ CTX_KEY = "MOTIONBLUR"
 
 
 def detect(frame, context: ThreadSafeContext, **kwargs):
+    motionblur_conf = conf.CONF["MOTIONBLUR"]
     try:
         # ---- Init ----------------------------------------------------------
         if CTX_KEY not in context:
             context[CTX_KEY] = {
-                "frames": deque(maxlen=conf.MOTIONBLUR["HISTORY_LEN"]),
+                "frames": deque(maxlen=motionblur_conf["HISTORY_LEN"]),
                 "last_pos": None,
                 "active": False,
                 "error_state": False,
@@ -71,6 +72,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
 
 def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
+    motionblur_conf = conf.CONF["MOTIONBLUR"]
     ns = context.get(CTX_KEY)
     if not ns or ns.get("error_state") or not ns.get("active"):
         return frame
@@ -92,9 +94,9 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     # ---- Blur strength ----------------------------------------------------
     alpha = np.clip(
-        velocity / conf.MOTIONBLUR["VELOCITY_NORM"],
-        conf.MOTIONBLUR["ALPHA_MIN"],
-        conf.MOTIONBLUR["ALPHA_MAX"],
+        velocity / motionblur_conf["VELOCITY_NORM"],
+        motionblur_conf["ALPHA_MIN"],
+        motionblur_conf["ALPHA_MAX"],
     )
 
     frames = ns["frames"]
@@ -108,12 +110,11 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     ux = dx / mag
     uy = dy / mag
 
-    max_offset = conf.MOTIONBLUR["MAX_OFFSET"]
+    max_offset = motionblur_conf["MAX_OFFSET"]
     total = len(frames)
 
     # ---- Base fingertip mask ---------------------------------------------
     h, w = frame.shape[:2]
-    ###    radius = conf.MOTIONBLUR["RADIUS"]
     radius = int(np.clip(velocity * 0.4, 6, 24))
 
     yy, xx = np.ogrid[:h, :w]
@@ -121,12 +122,12 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     base_mask = base_mask.astype(np.float32)[..., None]
 
     # ---- Optional yellow color gate --------------------------------------
-    if conf.MOTIONBLUR.get("COLOR_GATE", False):
+    if motionblur_conf.get("COLOR_GATE", False):
         import cv2
 
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        lo = np.array(conf.MOTIONBLUR["YELLOW_MIN"], dtype=np.uint8)
-        hi = np.array(conf.MOTIONBLUR["YELLOW_MAX"], dtype=np.uint8)
+        lo = np.array(motionblur_conf["YELLOW_MIN"], dtype=np.uint8)
+        hi = np.array(motionblur_conf["YELLOW_MAX"], dtype=np.uint8)
         color_mask = cv2.inRange(hsv, lo, hi).astype(np.float32) / 255.0
         color_mask = color_mask[..., None]
         mask = base_mask * color_mask
@@ -138,7 +139,7 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
     weights = np.linspace(
         alpha,
-        conf.MOTIONBLUR["TAIL_ALPHA"],
+        motionblur_conf["TAIL_ALPHA"],
         total,
     )
     weights /= weights.sum()

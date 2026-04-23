@@ -17,10 +17,11 @@ ERR_TEXT_THICKNESS = 2
 
 
 def detect(frame, context: ThreadSafeContext, **kwargs):
+    if_conf = conf.CONF["INDEXFINGERTIP"]
     try:
         # ---- Init -----------------------------------------------------------
         if "INDEXFINGERTIP" not in context:
-            f_params = conf.INDEXFINGERTIP["FILTER"]
+            f_params = if_conf["FILTER"]
             context["INDEXFINGERTIP"] = {
                 "ema": {
                     "x": OneEuroFilter(
@@ -41,7 +42,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
             }
 
         ns = context["INDEXFINGERTIP"]
-        f_params = conf.INDEXFINGERTIP["FILTER"]
+        f_params = if_conf["FILTER"]
         filter_enabled = f_params.get("enabled", True)
         alpha = f_params.get("alpha", 0.4)
         deadzone = f_params.get("deadzone", 2)
@@ -59,7 +60,7 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
 
         # Check detection confidence
         detection_con = hand.get("detectionCon", 0)
-        if detection_con < conf.INDEXFINGERTIP.get("DETECTION", {}).get(
+        if detection_con < if_conf.get("DETECTION", {}).get(
             "DETECTION_CON", 0.6
         ):
             return
@@ -119,7 +120,8 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     if not ns:
         return frame
 
-    if not conf.INDEXFINGERTIP.get("DRAW", {}).get("enabled", True):
+    if_conf = conf.CONF["INDEXFINGERTIP"]
+    if not if_conf.get("DRAW", {}).get("enabled", True):
         return frame
 
     if ns.get("error_state"):
@@ -141,12 +143,13 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     if not data:
         return frame
 
+    draw_conf = if_conf["DRAW"]
     cv2.circle(
         frame,
         (int(data["x"]), int(data["y"])),
-        conf.INDEXFINGERTIP["DRAW"]["radius"],
-        conf.INDEXFINGERTIP["DRAW"]["color"],
-        conf.INDEXFINGERTIP["DRAW"]["thickness"],
+        draw_conf["radius"],
+        draw_conf["color"],
+        draw_conf["thickness"],
     )
 
     return frame

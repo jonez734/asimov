@@ -137,9 +137,21 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
                 "timestamp": None,
                 "error_state": False,
                 "filters": {
-                    "x": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
-                    "y": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
-                    "scale": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
+                    "x": OneEuroFilter(
+                        freq=_FILTER_FREQ,
+                        min_cutoff=_FILTER_MIN_CUTOFF,
+                        beta=_FILTER_BETA,
+                    ),
+                    "y": OneEuroFilter(
+                        freq=_FILTER_FREQ,
+                        min_cutoff=_FILTER_MIN_CUTOFF,
+                        beta=_FILTER_BETA,
+                    ),
+                    "scale": OneEuroFilter(
+                        freq=_FILTER_FREQ,
+                        min_cutoff=_FILTER_MIN_CUTOFF,
+                        beta=_FILTER_BETA,
+                    ),
                 },
             }
 
@@ -156,9 +168,15 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
             ns["overlay_img"] = _load_png(current_path) if current_path else None
             ns["last_image_path"] = current_path
             ns["filters"] = {
-                "x": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
-                "y": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
-                "scale": OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA),
+                "x": OneEuroFilter(
+                    freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA
+                ),
+                "y": OneEuroFilter(
+                    freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA
+                ),
+                "scale": OneEuroFilter(
+                    freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA
+                ),
             }
 
         face_ns = context.get("FACE")
@@ -169,11 +187,13 @@ def detect(frame, context: ThreadSafeContext, **kwargs):
                 if bbox:
                     face_width = bbox[2] - bbox[0]
                     face_height = bbox[3] - bbox[1]
-                    faces_data.append({
-                        "landmarks": face_landmarks,
-                        "width": face_width,
-                        "height": face_height,
-                    })
+                    faces_data.append(
+                        {
+                            "landmarks": face_landmarks,
+                            "width": face_width,
+                            "height": face_height,
+                        }
+                    )
             ns["faces"] = faces_data
         else:
             ns["faces"] = None
@@ -287,9 +307,24 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
             target_y = anchor[1] + offset_y
 
         if filter_x is None:
-            filter_x = OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA, init=target_x)
-            filter_y = OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA, init=target_y)
-            filter_scale = OneEuroFilter(freq=_FILTER_FREQ, min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA, init=target_scale)
+            filter_x = OneEuroFilter(
+                freq=_FILTER_FREQ,
+                min_cutoff=_FILTER_MIN_CUTOFF,
+                beta=_FILTER_BETA,
+                init=target_x,
+            )
+            filter_y = OneEuroFilter(
+                freq=_FILTER_FREQ,
+                min_cutoff=_FILTER_MIN_CUTOFF,
+                beta=_FILTER_BETA,
+                init=target_y,
+            )
+            filter_scale = OneEuroFilter(
+                freq=_FILTER_FREQ,
+                min_cutoff=_FILTER_MIN_CUTOFF,
+                beta=_FILTER_BETA,
+                init=target_scale,
+            )
             filters = {"x": filter_x, "y": filter_y, "scale": filter_scale}
             ns["filters"] = filters
             smoothed_x, smoothed_y, smoothed_scale = target_x, target_y, target_scale

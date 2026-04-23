@@ -93,11 +93,11 @@ def init(args, context=None, **kwargs):
             getattr(
                 args,
                 "basedir",
-                conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata"),
+                conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata"),
             )
         )
     )
-    _set_name = getattr(args, "set_name", conf.PLAYINGCARD.get("SET_NAME", "bicycle"))
+    _set_name = getattr(args, "set_name", conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle"))
 
     glitch.set_max_concurrent(2)
     glitch.register("scanlines")
@@ -145,7 +145,8 @@ def _load_card_from_assets(rank, suit):
 def _load_card_from_config():
     global _card_image, _last_path
 
-    path = conf.FLOAT_PLAYINGCARD.get("IMAGE")
+    fp_conf = conf.CONF["FLOAT_PLAYINGCARD"]
+    path = fp_conf.get("IMAGE")
     if not path:
         img = cards.load_card_image("queen", "spades", _basedir, _set_name)
         if img is not None:
@@ -207,8 +208,9 @@ def _stable_phase(seed) -> float:
 def _float_offset(phase):
     t = time.monotonic() - _start_time
 
-    amplitude = conf.FLOAT_PLAYINGCARD.get("FLOAT_AMPLITUDE", 12)
-    frequency = conf.FLOAT_PLAYINGCARD.get("FLOAT_FREQUENCY", 0.5)
+    fp_conf = conf.CONF["FLOAT_PLAYINGCARD"]
+    amplitude = fp_conf.get("FLOAT_AMPLITUDE", 12)
+    frequency = fp_conf.get("FLOAT_FREQUENCY", 0.5)
 
     return int(math.sin(2 * math.pi * frequency * t + phase) * amplitude)
 
@@ -280,10 +282,11 @@ def detect(frame, context, /, **kw):
         _last_hand_detected_time = now
 
         cx, cy = center
+        fp_conf = conf.CONF["FLOAT_PLAYINGCARD"]
 
         hand_width = bbox[2] if bbox else 100
         card_width = _card_image.shape[1] if _card_image is not None else 100
-        target_scale = (hand_width / card_width) * conf.FLOAT_PLAYINGCARD.get(
+        target_scale = (hand_width / card_width) * fp_conf.get(
             "SCALE", 0.8
         )
 
@@ -313,10 +316,11 @@ def detect(frame, context, /, **kw):
             smoothed_cy = _filter_y.update(cy)
             smoothed_scale = _filter_scale.update(target_scale)
 
+        fp_conf = conf.CONF["FLOAT_PLAYINGCARD"]
         context.card = {
             "center": (int(smoothed_cx), int(smoothed_cy)),
             "scale": smoothed_scale,
-            "angle": conf.FLOAT_PLAYINGCARD.get("ROTATION", 0),
+            "angle": fp_conf.get("ROTATION", 0),
             "phase": _current_phase,
         }
     else:
@@ -335,11 +339,12 @@ def detect(frame, context, /, **kw):
 def draw(frame, context, /, config=None, **kw):
     global _card_image, _current_rank, _current_suit
 
-    card_config = conf.FLOAT_PLAYINGCARD.get("Card", {})
+    fp_conf = conf.CONF["FLOAT_PLAYINGCARD"]
+    card_config = fp_conf.get("Card", {})
 
     rank = card_config.get("rank")
     suit = card_config.get("suit")
-    opacity = card_config.get("opacity", conf.FLOAT_PLAYINGCARD.get("OPACITY", 0.8))
+    opacity = card_config.get("opacity", fp_conf.get("OPACITY", 0.8))
 
     if config:
         rank = config.get("rank", rank)
@@ -347,7 +352,7 @@ def draw(frame, context, /, config=None, **kw):
         opacity = config.get("opacity", opacity)
 
     enable_glitch = card_config.get(
-        "glitch", conf.FLOAT_PLAYINGCARD.get("GLITCH", True)
+        "glitch", fp_conf.get("GLITCH", True)
     )
     if config:
         enable_glitch = config.get("glitch", enable_glitch)

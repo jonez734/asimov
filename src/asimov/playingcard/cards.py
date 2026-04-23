@@ -65,16 +65,16 @@ def get_card_path(
     Args:
         rank: Card rank (e.g., "A", "2", "10", "K")
         suit: Card suit (e.g., "hearts", "spades")
-        basedir: Base directory (defaults to conf.PLAYINGCARD.BASEDIR)
-        set_name: Card set name (defaults to conf.PLAYINGCARD.SET_NAME)
+        basedir: Base directory (defaults to CONF["PLAYINGCARD"].BASEDIR)
+        set_name: Card set name (defaults to CONF["PLAYINGCARD"].SET_NAME)
 
     Returns:
         Full path to the card PNG file
     """
     if basedir is None:
-        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+        basedir = conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata")
     if set_name is None:
-        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
+        set_name = conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle")
 
     basedir = os.path.expandvars(os.path.expanduser(basedir))
     rank_name = RANK_FILENAME.get(rank, rank.lower())
@@ -107,8 +107,8 @@ def load_card_image(
     Args:
         rank: Card rank (e.g., "A", "2", "10", "K")
         suit: Card suit (e.g., "hearts", "spades")
-        basedir: Base directory (defaults to conf.PLAYINGCARD.BASEDIR)
-        set_name: Card set name (defaults to conf.PLAYINGCARD.SET_NAME)
+        basedir: Base directory (defaults to CONF["PLAYINGCARD"].BASEDIR)
+        set_name: Card set name (defaults to CONF["PLAYINGCARD"].SET_NAME)
 
     Returns:
         RGBA numpy array (H, W, 4), or None if not found

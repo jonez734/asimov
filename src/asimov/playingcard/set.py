@@ -17,9 +17,9 @@ def is_loaded(set_name):
 
 def load(basedir=None, set_name=None) -> bool:
     if basedir is None:
-        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+        basedir = conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata")
     if set_name is None:
-        set_name = conf.PLAYINGCARD.get("SET_NAME", "bicycle")
+        set_name = conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle")
 
     basedir = os.path.expandvars(os.path.expanduser(basedir))
 
@@ -79,9 +79,9 @@ def save(basedir=None, set_name=None, filename=None) -> bool:
     global _loaded_set, _loaded_set_name
 
     if basedir is None:
-        basedir = conf.PLAYINGCARD.get("BASEDIR", "$HOME/projects/playingcarddata")
+        basedir = conf.CONF["PLAYINGCARD"].get("BASEDIR", "$HOME/projects/playingcarddata")
     if set_name is None:
-        set_name = _loaded_set_name or conf.PLAYINGCARD.get("SET_NAME", "bicycle")
+        set_name = _loaded_set_name or conf.CONF["PLAYINGCARD"].get("SET_NAME", "bicycle")
 
     if _loaded_set is None:
         echo(

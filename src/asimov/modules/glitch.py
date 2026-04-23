@@ -21,9 +21,9 @@ def _get_glitch_func(name: str):
     Resolve a glitch implementation function by name.
     Functions are named: _glitch_<name>
     """
-    module_path = conf.GLITCH.get(
+    module_path = conf.CONF["GLITCH"].get(
         "DEFAULT_MODULE",
-        conf.GLITCH_DEFAULT_MODULE,
+        "asimov.modules.glitch",
     )
 
     try:
@@ -40,14 +40,15 @@ def _init_namespace(context: ThreadSafeContext) -> Dict[str, Any]:
     """
     Ensure GLITCH namespace exists in shared context.
     """
+    glitch_conf = conf.CONF["GLITCH"]
     now = time.time()
     ns = {
         "active": {},  # name -> metadata
         "history": {},  # name -> per-glitch history
         "last_trigger": now,
         "next_interval": random.uniform(
-            conf.GLITCH["MIN_INTERVAL"],
-            conf.GLITCH["MAX_INTERVAL"],
+            glitch_conf["MIN_INTERVAL"],
+            glitch_conf["MAX_INTERVAL"],
         ),
     }
     context["GLITCH"] = ns
@@ -66,8 +67,9 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> None:
     - mutates context only
     - MUST NOT modify frames
     """
+    glitch_conf = conf.CONF["GLITCH"]
 
-    if not conf.GLITCH.get("ENABLED", True):
+    if not glitch_conf.get("ENABLED", True):
         if "GLITCH" in context:
             context["GLITCH"]["active"].clear()
         return
@@ -96,9 +98,9 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> None:
     # 2. Trigger new glitch if allowed
     # --------------------------------------------------
 
-    max_concurrent = conf.GLITCH.get(
+    max_concurrent = glitch_conf.get(
         "MAX_CONCURRENT",
-        conf.GLITCH_DEFAULT_MAX_CONCURRENT,
+        2,
     )
 
     if len(ns["active"]) >= max_concurrent:
@@ -107,7 +109,7 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> None:
     if now - ns["last_trigger"] < ns["next_interval"]:
         return
 
-    registry = conf.GLITCH.get("REGISTRY", {})
+    registry = glitch_conf.get("REGISTRY", {})
     candidates = [name for name, cfg in registry.items() if cfg.get("enabled", True)]
 
     if not candidates:
@@ -121,16 +123,16 @@ def detect(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> None:
     ns["active"][choice] = {
         "start_time": now,
         "duration": random.uniform(
-            cfg.get("min_duration", conf.GLITCH["MIN_DURATION"]),
-            cfg.get("max_duration", conf.GLITCH["MAX_DURATION"]),
+            cfg.get("min_duration", glitch_conf["MIN_DURATION"]),
+            cfg.get("max_duration", glitch_conf["MAX_DURATION"]),
         ),
         "params": cfg,
     }
 
     ns["last_trigger"] = now
     ns["next_interval"] = random.uniform(
-        conf.GLITCH["MIN_INTERVAL"],
-        conf.GLITCH["MAX_INTERVAL"],
+        glitch_conf["MIN_INTERVAL"],
+        glitch_conf["MAX_INTERVAL"],
     )
 
 
@@ -148,8 +150,9 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     output_frame = frame
 
     # SNAPSHOT iteration (thread-safe)
+    glitch_conf = conf.CONF["GLITCH"]
     for name, meta in list(ns["active"].items()):
-        if not conf.GLITCH["REGISTRY"].get(name, {}).get("enabled", True):
+        if not glitch_conf["REGISTRY"].get(name, {}).get("enabled", True):
             continue
 
         func = _get_glitch_func(name)
@@ -171,8 +174,8 @@ def draw(frame: np.ndarray, context: ThreadSafeContext, **kwargs) -> np.ndarray:
 
 
 def _glitch_vhs_warp(frame, t=0, **kwargs):
-    intensity_pct = kwargs.get("intensity", conf.GLITCH_DEFAULT_VHS_INTENSITY) / 100.0
-    freq = kwargs.get("frequency", conf.GLITCH_DEFAULT_VHS_FREQ)
+    intensity_pct = kwargs.get("intensity", 5) / 100.0
+    freq = kwargs.get("frequency", 1.5)
 
     h, w = frame.shape[:2]
     max_shift = w * intensity_pct  # Proportional to width
@@ -192,11 +195,11 @@ def _glitch_datamosh(frame, history=None, key=None, **kwargs):
 
     intensity = kwargs.get(
         "intensity",
-        conf.GLITCH_DEFAULT_DATAMOSH_INTENSITY,
+        0.3,
     )
     strips = kwargs.get(
         "num_strips",
-        conf.GLITCH_DEFAULT_DATAMOSH_STRIPS,
+        6,
     )
 
     h, w = frame.shape[:2]
@@ -220,18 +223,18 @@ def _glitch_ghost(frame, history=None, key=None, **kwargs):
 
     alpha = kwargs.get(
         "alpha",
-        conf.GLITCH_DEFAULT_GHOST_ALPHA,
+        0.4,
     )
     shift_pct = (
         kwargs.get(
             "shift",
-            conf.GLITCH_DEFAULT_GHOST_SHIFT,
+            5,
         )
         / 100.0
     )  # Convert to percentage
 
     if key not in history:
-        history[key] = deque(maxlen=conf.GLITCH_DEFAULT_GHOST_MAXLEN)
+        history[key] = deque(maxlen=5)
 
     hist = history[key]
     hist.append(frame.copy())
@@ -252,7 +255,7 @@ def _glitch_scanlines(frame, t=0, **kwargs):
     h = frame.shape[0]
     step_pct = 0.02  # 2% of height
     step = max(2, int(h * step_pct))
-    opacity = conf.GLITCH_DEFAULT_SCANLINE_OPACITY
+    opacity = 0.7
 
     output = frame.copy()
     offset = int(t * speed) % step
@@ -262,7 +265,7 @@ def _glitch_scanlines(frame, t=0, **kwargs):
 
 
 def _glitch_whitenoise(frame, **kwargs):
-    intensity = conf.GLITCH_DEFAULT_WHITE_NOISE_INTENSITY
+    intensity = 20
     noise = np.random.randint(0, intensity, frame.shape, dtype=np.uint8)
     return cv2.add(frame, noise)
 
@@ -334,9 +337,10 @@ def scheduler():
     if random.random() > 0.02:
         return
 
+    glitch_conf = conf.CONF["GLITCH"]
     enabled = [
         name
-        for name, cfg in conf.GLITCH.get("REGISTRY", {}).items()
+        for name, cfg in glitch_conf.get("REGISTRY", {}).items()
         if cfg.get("enabled", True)
     ]
 
