@@ -1,0 +1,46 @@
+{
+    "name": "only-indexfingertip",
+    "description": "Index fingertip tracking with hand detection and fps overlay",
+    "modules": [
+        {
+            "name": "fps_overlay",
+            "module": "asimov.modules.fps_overlay",
+            "config": {},
+            "enabled": true
+        },
+        {
+            "name": "hand",
+            "module": "asimov.modules.hand",
+            "config": {},
+            "enabled": true
+        },
+        {
+            "name": "indexfingertip",
+            "module": "asimov.modules.indexfingertip",
+            "config": {},
+            "enabled": true
+        },
+        {
+            "name": "face",
+            "module": "asimov.modules.face",
+            "config": {},
+            "enabled": false
+        },
+        {
+            "name": "facemask",
+            "module": "asimov.modules.facemask",
+            "config": {},
+            "enabled": false
+        },
+        {
+            "name": "float_playingcard",
+            "module": "asimov.modules.float_playingcard",
+            "config": {},
+            "enabled": false
+        }
+    ],
+    "config": {
+        "HAND": {"MAX_HANDS": 1},
+        "FLOAT_PLAYINGCARD": {"OPACITY": 0.85}
+    }
+}
