@@ -288,7 +288,7 @@ def _load_scenes():
     """Load scenes from scenes/ directory."""
     scenes_dir = Path(__file__).parent / "scenes"
     scenes = {}
-    active = "float_card"
+    active = "all"
 
     if scenes_dir.exists() and scenes_dir.is_dir():
         for json_file in sorted(scenes_dir.glob("*.json")):
@@ -304,8 +304,8 @@ def _load_scenes():
                 _config_logger.warning(f"Cannot read {json_file.name}: {e}")
 
     if not scenes:
-        scenes["float_card"] = {
-            "name": "float_card",
+        scenes["all"] = {
+            "name": "all",
             "modules": [],
             "config": {},
         }
