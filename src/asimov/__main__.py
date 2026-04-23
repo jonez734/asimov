@@ -9,6 +9,7 @@ libasimov = base.lib
 
 
 def buildargs(args=None, **kwargs: dict):
+    capture_conf = conf.CONF["CAPTURE"]
     parser = argparse.ArgumentParser("asimov")
     parser.add_argument("--verbose", action="store_true", dest="verbose")
     parser.add_argument("--debug", action="store_true", dest="debug")
@@ -16,11 +17,11 @@ def buildargs(args=None, **kwargs: dict):
     parser.add_argument("--set-name", default="bicycle")
     parser.add_argument("--main", type=str, default="dashboard")
     parser.add_argument(
-        "--capture-device", type=capture_device_type, default=conf.CAPTURE_DEVICE
+        "--capture-device", type=capture_device_type, default=capture_conf["DEVICE"]
     )
-    parser.add_argument("--capture-width", type=int, default=conf.CAPTURE_WIDTH)
-    parser.add_argument("--capture-height", type=int, default=conf.CAPTURE_HEIGHT)
-    parser.add_argument("--capture-fps", type=int, default=conf.CAPTURE_FPS)
+    parser.add_argument("--capture-width", type=int, default=capture_conf["WIDTH"])
+    parser.add_argument("--capture-height", type=int, default=capture_conf["HEIGHT"])
+    parser.add_argument("--capture-fps", type=int, default=capture_conf["FPS"])
 
     return parser
 

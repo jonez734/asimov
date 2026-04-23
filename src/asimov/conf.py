@@ -339,34 +339,6 @@ CONF = {
 }
 
 # ------------------------------------------------------------
-# Backward Compatibility Aliases
-# NOTE: These bypass the lock and are NOT thread-safe.
-# Use getters/setters for thread-safe access.
-# ------------------------------------------------------------
-
-CAPTURE_DEVICE = CONF["CAPTURE"]["DEVICE"]
-CAPTURE_WIDTH = CONF["CAPTURE"]["WIDTH"]
-CAPTURE_HEIGHT = CONF["CAPTURE"]["HEIGHT"]
-CAPTURE_FPS = CONF["CAPTURE"]["FPS"]
-WINDOW_NAME = CONF["UI"]["WINDOW_NAME"]
-
-HAND = CONF["HAND"]
-INDEXFINGERTIP = CONF["INDEXFINGERTIP"]
-FPS_OVERLAY = CONF["FPS_OVERLAY"]
-RECT = CONF["RECT"]
-RECT_TOUCH = CONF["RECT_TOUCH"]
-GLITCH = CONF["GLITCH"]
-OVERLAYS = CONF["OVERLAYS"]
-EYES = CONF["EYES"]
-FACE = CONF["FACE"]
-FACEMASK = CONF["FACEMASK"]
-MOTIONBLUR = CONF["MOTIONBLUR"]
-FLOAT_CARD = CONF["FLOAT_CARD"]
-SCENE = CONF["SCENE"]
-FLOAT_PLAYINGCARD = CONF["FLOAT_PLAYINGCARD"]
-PLAYINGCARD = CONF["PLAYINGCARD"]
-
-# ------------------------------------------------------------
 # Thread-Safe Getters and Setters
 # ------------------------------------------------------------
 

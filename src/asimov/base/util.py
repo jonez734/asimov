@@ -87,20 +87,21 @@ def add_camera_args(parser, hidden=False):
         >>> parser = argparse.ArgumentParser()
         >>> add_camera_args(parser)
     """
+    capture_conf = conf.CONF["CAPTURE"]
     args = [
         (
             "--capture-device",
-            dict(type=int, default=conf.CAPTURE_DEVICE, help="Camera device index"),
+            dict(type=int, default=capture_conf["DEVICE"], help="Camera device index"),
         ),
         (
             "--capture-width",
-            dict(type=int, default=conf.CAPTURE_WIDTH, help="Frame width"),
+            dict(type=int, default=capture_conf["WIDTH"], help="Frame width"),
         ),
         (
             "--capture-height",
-            dict(type=int, default=conf.CAPTURE_HEIGHT, help="Frame height"),
+            dict(type=int, default=capture_conf["HEIGHT"], help="Frame height"),
         ),
-        ("--capture-fps", dict(type=int, default=conf.CAPTURE_FPS, help="Capture FPS")),
+        ("--capture-fps", dict(type=int, default=capture_conf["FPS"], help="Capture FPS")),
     ]
 
     if hidden:

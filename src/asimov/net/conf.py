@@ -1,13 +1,13 @@
 # asimov/net/conf.py
 # Network configuration for Asimov frame transmission
 
-# Re-exported from base for convenience in demos
-from asimov import conf  # noqa: F401
+from asimov import conf
 
-CAPTURE_WIDTH = conf.CAPTURE_WIDTH
-CAPTURE_HEIGHT = conf.CAPTURE_HEIGHT
-CAPTURE_FPS = conf.CAPTURE_FPS
-CAPTURE_DEVICE = conf.CAPTURE_DEVICE
+CAPTURE_CONF = conf.CONF["CAPTURE"]
+CAPTURE_WIDTH = CAPTURE_CONF["WIDTH"]
+CAPTURE_HEIGHT = CAPTURE_CONF["HEIGHT"]
+CAPTURE_FPS = CAPTURE_CONF["FPS"]
+CAPTURE_DEVICE = CAPTURE_CONF["DEVICE"]
 
 
 CHUNK_SIZE = 64

@@ -267,7 +267,7 @@ def main(args, **kwargs):
                 # Output
                 vcam.send(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 vcam.sleep_until_next_frame()
-                cv2.imshow(getattr(conf, "WINDOW_NAME", "Asimov Preview"), frame)
+                cv2.imshow(conf.CONF["UI"].get("WINDOW_NAME", "Asimov Preview"), frame)
 
     except Exception:
         io.echo_traceback("Main lifecycle crash")
