@@ -86,7 +86,34 @@ asimov/
 
 ## Configuration
 
-Configuration is centralized in `asimov/conf.py`:
+Configuration is centralized in `asimov/conf.py`. All configs are stored in a unified `CONF` dict with nested sections.
+
+### Thread-Safe Access (Recommended)
+
+Use the built-in getters for thread-safe access:
+
+```python
+from asimov import conf
+
+# Capture settings via CONF dict
+conf.CONF["CAPTURE"]["DEVICE"]
+conf.CONF["CAPTURE"]["WIDTH"]
+conf.CONF["CAPTURE"]["HEIGHT"]
+conf.CONF["CAPTURE"]["FPS"]
+
+# Module configs via CONF dict
+conf.CONF["HAND"]["ENABLED"]
+conf.CONF["INDEXFINGERTIP"]["DETECTION"]["DETECTION_CON"]
+
+# Or use thread-safe getters
+conf.get("HAND")
+conf.get_module("HAND")
+conf.get_capture("DEVICE")
+```
+
+### Backward Compatibility
+
+For backward compatibility, module-level aliases are available (NOT thread-safe):
 
 ```python
 from asimov import conf
@@ -95,17 +122,22 @@ from asimov import conf
 conf.CAPTURE_DEVICE  # Camera device index
 conf.CAPTURE_WIDTH   # Frame width
 conf.CAPTURE_HEIGHT  # Frame height
-conf.CAPTURE_FPS     # Frames per second
+conf.CAPTURE_FPS    # Frames per second
 
-# Hand detection
+# Module configs
 conf.HAND["ENABLED"]
-conf.HAND["MODEL_COMPLEXITY"]
-conf.HAND["MIN_DETECTION_CONFIDENCE"]
-
-# Index fingertip
-conf.INDEXFINGERTIP["LANDMARK_ID"]
-conf.INDEXFINGERTIP["DETECTION_CON"]
+conf.INDEXFINGERTIP["DETECTION"]["DETECTION_CON"]
 ```
+
+### Thread-Safe Getters
+
+| Function | Description |
+|----------|-------------|
+| `conf.get(key)` | Generic getter, returns deep copy |
+| `conf.get_module(key)` | Get module config by name |
+| `conf.get_capture(key)` | Get capture setting (DEVICE, WIDTH, etc.) |
+| `conf.set_module(key, value)` | Set entire module config |
+| `conf.update_module(key, updates)` | Partial update module config |
 
 ## External Configuration
 

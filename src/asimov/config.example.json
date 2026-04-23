@@ -1,13 +1,13 @@
 {
-    "comment": "Asimov External Config Example",
-    "comment2": "Copy this file to ~/.asimov/config.json or set ASIMOV_CONFIG",
-    "comment3": "Only keys present here will override conf.py defaults",
-    
-    "CAPTURE_DEVICE": 0,
-    "CAPTURE_WIDTH": 640,
-    "CAPTURE_HEIGHT": 480,
-    "CAPTURE_FPS": 30,
-    
+    "CAPTURE": {
+        "DEVICE": 0,
+        "WIDTH": 640,
+        "HEIGHT": 480,
+        "FPS": 30
+    },
+    "UI": {
+        "WINDOW_NAME": "Asimov Preview"
+    },
     "HAND": {
         "ENABLED": true,
         "MODEL_COMPLEXITY": 1,
@@ -16,6 +16,7 @@
         "DETECTION_CON": 0.6,
         "USE_OVERLAY": false,
         "OVERLAY_ALPHA": 0.7,
+        "TEXT_COLOR": [0, 255, 0],
         "DETECTION": {
             "MIN_DETECTION_CONF": 0.7,
             "MAX_HANDS": 1
@@ -36,7 +37,6 @@
             "SHOW_FPS": false
         }
     },
-    
     "INDEXFINGERTIP": {
         "DETECTION": {
             "DETECTION_CON": 0.6
@@ -58,7 +58,6 @@
             "thickness": -1
         }
     },
-    
     "FPS_OVERLAY": {
         "DRAW": {
             "enabled": true,
@@ -69,7 +68,6 @@
             "thickness": 2
         }
     },
-    
     "RECT": {
         "COLOR": [0, 180, 255],
         "TOUCHED_COLOR": [0, 0, 255],
@@ -78,13 +76,11 @@
         "LABEL_SCALE": 0.5,
         "LABEL_THICKNESS": 1
     },
-    
     "RECT_TOUCH": {
         "DETECTION": {
             "enabled": true
         }
     },
-    
     "GLITCH": {
         "ENABLED": true,
         "MIN_INTERVAL": 2.0,
@@ -92,9 +88,18 @@
         "MIN_DURATION": 0.5,
         "MAX_DURATION": 2.5,
         "MAX_CONCURRENT": 2,
-        "DEFAULT_MODULE": "asimov.modules.glitch"
+        "DEFAULT_MODULE": "asimov.modules.glitch",
+        "REGISTRY": {
+            "vhs_warp": {"enabled": true, "weight": 1.0},
+            "datamosh": {"enabled": true, "weight": 0.8},
+            "ghost": {"enabled": true, "weight": 0.6},
+            "scanlines": {"enabled": true, "weight": 0.4},
+            "whitenoise": {"enabled": true, "weight": 0.3},
+            "tearing": {"enabled": true, "weight": 0.3},
+            "color_shift": {"enabled": true, "weight": 0.3},
+            "vertical_hold": {"enabled": true, "weight": 0.2}
+        }
     },
-    
     "OVERLAYS": {
         "fps_overlay": {
             "module_path": "asimov.modules.fps_overlay",
@@ -120,6 +125,12 @@
             "order": 25,
             "hotkey": "r"
         },
+        "rect_touch": {
+            "module_path": "asimov.modules.rect_touch",
+            "enabled": true,
+            "order": 26,
+            "hotkey": ""
+        },
         "face": {
             "module_path": "asimov.modules.face",
             "enabled": true,
@@ -139,8 +150,13 @@
             "hotkey": "e"
         }
     },
-    
     "EYES": {
+        "FACEMESH": {
+            "LANDMARKS": {
+                "LEFT_EYE": [33, 133, 160, 159, 158, 157, 173],
+                "RIGHT_EYE": [362, 263, 387, 386, 385, 384, 398]
+            }
+        },
         "FILTER": {
             "FREQ": 60.0,
             "MIN_CUTOFF": 1.0,
@@ -154,7 +170,6 @@
             "GRACE_PERIOD": 0.35
         }
     },
-    
     "FACE": {
         "ENABLED": true,
         "MESH": {
@@ -177,7 +192,6 @@
             "POINT_RADIUS": 1
         }
     },
-    
     "FACEMASK": {
         "ENABLED": false,
         "IMAGE": {
@@ -191,7 +205,6 @@
             "OFFSET_Y": 0
         }
     },
-    
     "MOTIONBLUR": {
         "HISTORY_LEN": 8,
         "VELOCITY_NORM": 40.0,
@@ -207,7 +220,6 @@
         "RADIUS_MAX_FRAC": 0.025,
         "RADIUS_VELOCITY_NORM": 40.0
     },
-    
     "FLOAT_CARD": {
         "PALM_SCALE": 1.5,
         "OPACITY": 0.8,
@@ -215,13 +227,26 @@
         "MAX_HANDS": 1,
         "DETECTION_CON": 0.7
     },
-    
+    "SCENE": {
+        "name": "float_card",
+        "modules": [
+            {"name": "fps_overlay", "module": "asimov.modules.fps_overlay", "conf": {}, "enabled": true},
+            {"name": "hand", "module": "asimov.modules.hand", "conf": {}, "enabled": true},
+            {"name": "indexfingertip", "module": "asimov.modules.indexfingertip", "conf": {}, "enabled": true},
+            {"name": "rect", "module": "asimov.modules.rect", "conf": {}, "enabled": false},
+            {"name": "rect_touch", "module": "asimov.modules.rect_touch", "conf": {}, "enabled": false},
+            {"name": "face", "module": "asimov.modules.face", "conf": {}, "enabled": true},
+            {"name": "facemask", "module": "asimov.modules.facemask", "conf": {}, "enabled": true},
+            {"name": "eyes_next", "module": "asimov.modules.eyes_next", "conf": {}, "enabled": false},
+            {"name": "float_playingcard", "module": "asimov.modules.float_playingcard", "conf": {}, "enabled": false}
+        ],
+        "conf": {
+            "HAND": {"MAX_HANDS": 1},
+            "FLOAT_PLAYINGCARD": {"OPACITY": 0.85}
+        }
+    },
     "FLOAT_PLAYINGCARD": {
-        "CARD": {
-            "rank": null,
-            "suit": null,
-            "opacity": 0.8
-        },
+        "Card": {"rank": null, "suit": null, "opacity": 0.8},
         "IMAGE": null,
         "SCALE": 0.8,
         "ROTATION": 0,
@@ -229,7 +254,6 @@
         "FLOAT_AMPLITUDE": 12,
         "FLOAT_FREQUENCY": 0.5
     },
-    
     "PLAYINGCARD": {
         "BASEDIR": "$HOME/projects/playingcarddata",
         "SET_NAME": "bicycle",
