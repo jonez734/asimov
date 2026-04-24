@@ -23,6 +23,7 @@ from asimov.playingcard import cards
 context = ThreadSafeContext()
 logic_lock = threading.Lock()
 _stop_event = threading.Event()
+_modules = []
 
 logic_fps = CVZoneFPS(avgCount=30)
 render_fps = CVZoneFPS(avgCount=30)
@@ -368,8 +369,11 @@ class DashboardApp:
         self.modules = modules
         self.module_configs = {}
         self.running = True
+        self._shutting_down = False
         self.frame_queue = queue.Queue(maxsize=1)
         self.current_frame = None
+        self.current_scene_name = conf.CONF["SCENES"].get("active", "all")
+        self._args = None
 
         self._build_ui()
 
@@ -412,15 +416,35 @@ class DashboardApp:
         self.status_label = ttk.Label(control_frame, text="Running", foreground="green")
         self.status_label.pack(side="right", padx=5)
 
-        enable_frame = ttk.LabelFrame(self.right_content, text="Modules")
-        enable_frame.pack(fill="x", padx=10, pady=5)
+        scene_frame = ttk.LabelFrame(self.right_content, text="Scene")
+        scene_frame.pack(fill="x", padx=10, pady=5)
+
+        self.scene_var = tk.StringVar(value=self.current_scene_name)
+
+        scenes_dict = conf.CONF.get("SCENES", {})
+        available_scenes = [k for k in scenes_dict.keys() if k != "active"]
+
+        for scene_name in available_scenes:
+            rb = ttk.Radiobutton(
+                scene_frame,
+                text=scene_name,
+                variable=self.scene_var,
+                value=scene_name,
+                command=self._on_scene_changed,
+            )
+            rb.pack(anchor="w", padx=20, pady=2)
+
+        self.scene_frame = scene_frame
+
+        self.enable_frame = ttk.LabelFrame(self.right_content, text="Modules")
+        self.enable_frame.pack(fill="x", padx=10, pady=5)
 
         self.module_vars = {}
         for item in self.modules:
             name = item["name"]
             var = tk.BooleanVar(value=item.get("config", {}).get("enabled", True))
             cb = ttk.Checkbutton(
-                enable_frame,
+                self.enable_frame,
                 text=name,
                 variable=var,
                 command=lambda n=name, v=var: self._toggle_module(n, v.get()),
@@ -448,6 +472,9 @@ class DashboardApp:
         ttk.Button(
             btn_frame, text="Show All Config", command=self._show_all_config
         ).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Refresh Scenes", command=self._refresh_scenes).pack(
+            side="left", padx=5
+        )
         ttk.Button(btn_frame, text="Stop", command=self._stop).pack(
             side="right", padx=5
         )
@@ -536,8 +563,12 @@ class DashboardApp:
         self.root.after(33, self._update_canvas)
 
     def push_frame(self, frame):
-        """Called from render thread to push new frame."""
-        self.current_frame = frame.copy()
+        def _update():
+            if not self._shutting_down:
+                self.current_frame = frame.copy()
+
+        if not self._shutting_down:
+            self.root.after(0, _update)
 
     def _toggle_module(self, name, enabled):
         with logic_lock:
@@ -667,24 +698,113 @@ class DashboardApp:
         self.output_text.see("end")
 
     def _stop(self):
+        self._shutting_down = True
         self.running = False
         self.root.quit()
 
     def update_status(self, message):
-        self.status_label.config(text=message)
+        def _update():
+            if not self._shutting_down:
+                self.status_label.config(text=message)
+
+        if not self._shutting_down:
+            self.root.after(0, _update)
+
+    def _on_scene_changed(self):
+        """Handle scene selection change."""
+        new_scene = self.scene_var.get()
+        if new_scene != self.current_scene_name:
+            self._reload_scene(new_scene)
+
+    def _refresh_scenes(self):
+        """Re-scan scenes directory and update UI."""
+        new_scenes, active = conf.reload_scenes()
+
+        for widget in self.scene_frame.winfo_children():
+            widget.destroy()
+
+        self.scene_var.set(active)
+        self.current_scene_name = active
+
+        available_scenes = [k for k in new_scenes.keys() if k != "active"]
+        for scene_name in available_scenes:
+            rb = ttk.Radiobutton(
+                self.scene_frame,
+                text=scene_name,
+                variable=self.scene_var,
+                value=scene_name,
+                command=self._on_scene_changed,
+            )
+            rb.pack(anchor="w", padx=20, pady=2)
+
+        self._log(f"Scenes refreshed. Active: {active}")
+
+    def _reload_scene(self, scene_name):
+        """Dynamically switch to a different scene."""
+        global _modules
+        
+        self._log(f"Switching to scene: {scene_name}")
+
+        with logic_lock:
+            for item in self.modules:
+                m = item.get("module_ref")
+                if m and hasattr(m, "close"):
+                    try:
+                        m.close(self._args, context=context)
+                    except Exception as e:
+                        self._log(f"Error closing {item['name']}: {e}")
+
+        conf.set_scenes("active", scene_name)
+
+        new_modules = get_active_modules(self._args, scene_name)
+
+        _modules = new_modules
+        self.modules = new_modules
+        self.current_scene_name = scene_name
+
+        self._rebuild_module_checkboxes()
+
+        for tab_id in self.notebook.tabs():
+            self.notebook.forget(tab_id)
+        self.module_configs = {}
+        self._build_module_tabs()
+
+        self.right_content.update_idletasks()
+        self.right_canvas.config(scrollregion=self.right_canvas.bbox("all"))
+
+        self._log(f"Scene changed to: {scene_name}")
+
+    def _rebuild_module_checkboxes(self):
+        """Rebuild the module enable/disable checkboxes."""
+        for widget in self.enable_frame.winfo_children():
+            widget.destroy()
+
+        self.module_vars = {}
+        for item in self.modules:
+            name = item["name"]
+            var = tk.BooleanVar(value=item.get("config", {}).get("enabled", True))
+            cb = ttk.Checkbutton(
+                self.enable_frame,
+                text=name,
+                variable=var,
+                command=lambda n=name, v=var: self._toggle_module(n, v.get()),
+            )
+            cb.pack(anchor="w", padx=20, pady=2)
+            self.module_vars[name] = var
 
 
 # --- Thread Logic ---
 
 
-def _consumer(modules: list, args: argparse.Namespace):
+def _consumer(args: argparse.Namespace):
+    global _modules
     try:
         while not _stop_event.is_set():
             with logic_lock:
                 frame = context.get("SHARED_FRAME")
 
             if frame is not None:
-                for item in modules:
+                for item in _modules:
                     if not item.get("config", {}).get("enabled", True):
                         continue
 
@@ -714,7 +834,7 @@ _current_scene = None
 # --- Helper Functions ---
 
 
-def get_active_modules(args):
+def get_active_modules(args, scene_name=None):
     global _current_scene
 
     scenes_def = conf.CONF.get("SCENES")
@@ -722,7 +842,7 @@ def get_active_modules(args):
         io.echo("No SCENES defined in conf", level="error")
         return []
 
-    active_name = scenes_def.get("active", "float_card")
+    active_name = scene_name or scenes_def.get("active", "float_card")
     scene_def = scenes_def.get(active_name)
     if not scene_def:
         io.echo(f"Scene '{active_name}' not found in SCENES", level="error")
@@ -790,9 +910,11 @@ def buildargs(args=None, **kwargs):
 
 
 def main(args, **kwargs):
-    modules = get_active_modules(args)
+    global _modules
+    
+    _modules = get_active_modules(args)
     if getattr(args, "debug", False):
-        io.echo(f"Loaded {len(modules)} modules", level="debug")
+        io.echo(f"Loaded {len(_modules)} modules", level="debug")
 
     io.echo(f"Opening camera: {args.capture_device}")
     cap_handle, error = cap.open_ready(
@@ -816,13 +938,14 @@ def main(args, **kwargs):
     _threads = []
 
     # Start logic thread
-    consumer_thread = threading.Thread(target=_consumer, args=(modules, args), daemon=True)
+    consumer_thread = threading.Thread(target=_consumer, args=(args,), daemon=True)
     _threads.append(consumer_thread)
     consumer_thread.start()
 
     # Start Tkinter dashboard
     root = tk.Tk()
-    app = DashboardApp(root, modules)
+    app = DashboardApp(root, _modules)
+    app._args = args
 
     # Render loop - pushes frames to dashboard
     def render_loop():
@@ -849,7 +972,7 @@ def main(args, **kwargs):
                         context["SHARED_FRAME"] = frame
 
                     # Rendering phase
-                    for item in modules:
+                    for item in _modules:
                         if not item.get("config", {}).get("enabled", True):
                             continue
                         if not item.get("can_draw", False):
@@ -900,7 +1023,7 @@ def main(args, **kwargs):
             th.join(timeout=2.0)
 
     # Shutdown modules that have close() methods
-    for item in modules:
+    for item in _modules:
         m = item.get("module_ref")
         if m and hasattr(m, "close"):
             try:

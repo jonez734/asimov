@@ -315,6 +315,47 @@ def _load_scenes():
 
 CONF["SCENES"] = _load_scenes()
 
+
+def reload_scenes():
+    """Re-scan scenes directory and update CONF['SCENES'].
+
+    Returns tuple: (new_scenes_dict, active_scene_name)
+    """
+    with _conf_lock:
+        old_active = CONF["SCENES"].get("active", "all")
+        new_scenes = {}
+
+        scenes_dir = Path(__file__).parent / "scenes"
+        if scenes_dir.exists() and scenes_dir.is_dir():
+            for json_file in sorted(scenes_dir.glob("*.json")):
+                try:
+                    with open(json_file) as f:
+                        scene_data = json.load(f)
+                    name = scene_data.get("name", json_file.stem)
+                    new_scenes[name] = scene_data
+                    _config_logger.info(f"Loaded scene: {name}")
+                except json.JSONDecodeError as e:
+                    _config_logger.warning(f"Invalid JSON in {json_file.name}: {e}")
+                except OSError as e:
+                    _config_logger.warning(f"Cannot read {json_file.name}: {e}")
+
+        if not new_scenes:
+            new_scenes["all"] = {"name": "all", "modules": [], "config": {}}
+
+        active = old_active if old_active in new_scenes else list(new_scenes.keys())[0]
+
+        CONF["SCENES"] = {"active": active, **new_scenes}
+        _conf_changed.set()
+
+        return (new_scenes, active)
+
+
+def set_scenes(key: str, value):
+    """Thread-safe setter for SCENES settings."""
+    with _conf_lock:
+        CONF["SCENES"][key] = value
+        _conf_changed.set()
+
 # ------------------------------------------------------------
 # Thread-Safe Getters and Setters
 # ------------------------------------------------------------
