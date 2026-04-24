@@ -33,6 +33,12 @@
             "enabled": true
         },
         {
+            "name": "eyes_next",
+            "module": "asimov.modules.eyes_next",
+            "config": {},
+            "enabled": true
+        },
+        {
             "name": "float_playingcard",
             "module": "asimov.modules.float_playingcard",
             "config": {},
