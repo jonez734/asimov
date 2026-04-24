@@ -754,6 +754,35 @@ class DashboardApp:
                     except Exception as e:
                         self._log(f"Error closing {item['name']}: {e}")
 
+        known_prefixes = ["HAND", "FACE", "INDEXFINGER", "CARD", "RECT", "EYES", "GLITCH", "MOTION"]
+        existing_keys = set()
+        for key in context.keys():
+            if any(key.startswith(p) for p in known_prefixes):
+                existing_keys.add(key)
+
+        if hasattr(context, "card"):
+            existing_keys.add("CARD")
+
+        declared_keys = set()
+        for item in self.modules:
+            m = item.get("module_ref")
+            if m and hasattr(m, "get_stateful_keys"):
+                try:
+                    keys = m.get_stateful_keys()
+                    declared_keys.update(keys)
+                except Exception:
+                    pass
+
+        for key in declared_keys:
+            if key in context:
+                del context[key]
+            if key == "CARD" and hasattr(context, "card"):
+                delattr(context, "card")
+
+        leftover_keys = existing_keys - declared_keys
+        if leftover_keys:
+            self._log(f"Warning: Undeclared context keys remain: {sorted(leftover_keys)}. Module may need get_stateful_keys()")
+
         conf.set_scenes("active", scene_name)
 
         new_modules = get_active_modules(self._args, scene_name)

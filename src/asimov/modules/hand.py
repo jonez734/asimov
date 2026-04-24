@@ -308,6 +308,11 @@ def main(args, **kwargs):
     return True
 
 
+def get_stateful_keys() -> list[str]:
+    """Return list of context keys this module manages."""
+    return ["HAND"]
+
+
 def close(args, **kwargs):
     context = kwargs.get("context")
     if context and "HAND" in context:

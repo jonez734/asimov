@@ -407,5 +407,10 @@ def access(args, op, /, **kwargs):
     return True
 
 
+def get_stateful_keys() -> list[str]:
+    """Return list of context keys this module manages."""
+    return ["FACEMASK"]
+
+
 def main(args, **kwargs):
     return True

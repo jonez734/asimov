@@ -116,7 +116,6 @@ def test_detect_no_hand():
 def test_detect_hand_below_confidence():
     """Test when hand confidence is too low."""
     from asimov.modules import indexfingertip
-    from asimov import conf
 
     context = TestContext()
     hand = create_mock_hand(confidence=0.3)
@@ -136,7 +135,6 @@ def test_detect_hand_below_confidence():
 def test_detect_index_finger_up():
     """Test detection when index finger is up."""
     from asimov.modules import indexfingertip
-    from asimov import conf
 
     context = TestContext()
     # lmList with landmark 8 at position (320, 240)
@@ -159,7 +157,6 @@ def test_detect_index_finger_up():
 def test_detect_index_finger_down():
     """Test that detection fails when index finger is down."""
     from asimov.modules import indexfingertip
-    from asimov import conf
 
     context = TestContext()
     lm_list = [[0, 0, 0]] * 21
@@ -181,7 +178,6 @@ def test_detect_index_finger_down():
 def test_detect_multiple_fingers_up():
     """Test detection works when multiple fingers are up."""
     from asimov.modules import indexfingertip
-    from asimov import conf
 
     context = TestContext()
     lm_list = [[0, 0, 0]] * 21
@@ -204,7 +200,6 @@ def test_draw_inactive():
     """Test draw when not active."""
     import numpy as np
     from asimov.modules import indexfingertip
-    from asimov import conf
 
     context = TestContext()
     context["INDEXFINGERTIP"] = {"active": False, "data": None}
@@ -220,7 +215,6 @@ def test_draw_active():
     """Test draw when active."""
     import numpy as np
     from asimov.modules import indexfingertip
-    from asimov import conf
 
     context = TestContext()
     context["INDEXFINGERTIP"] = {

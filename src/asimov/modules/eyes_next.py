@@ -14,6 +14,12 @@ from ..base.common import ThreadSafeContext, OneEuroFilter
 REQUIRES = {"FACE"}
 PROVIDES = {"EYES"}
 
+
+def get_stateful_keys() -> list[str]:
+    """Return list of context keys this module manages."""
+    return ["EYES"]
+
+
 # ------------------------------------------------------------
 # Internal helpers
 # ------------------------------------------------------------

@@ -133,6 +133,11 @@ def buildargs(args, **kwargs):
     return None
 
 
+def get_stateful_keys() -> list[str]:
+    """Return list of context keys this module manages."""
+    return ["CARD"]
+
+
 def main(args, **kwargs):
     return True
 
