@@ -430,7 +430,6 @@ class DashboardApp:
                 text=scene_name,
                 variable=self.scene_var,
                 value=scene_name,
-                command=self._on_scene_changed,
             )
             rb.pack(anchor="w", padx=20, pady=2)
 
@@ -473,6 +472,9 @@ class DashboardApp:
             btn_frame, text="Show All Config", command=self._show_all_config
         ).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Refresh Scenes", command=self._refresh_scenes).pack(
+            side="left", padx=5
+        )
+        ttk.Button(btn_frame, text="Change Scene", command=self._on_scene_changed).pack(
             side="left", padx=5
         )
         ttk.Button(btn_frame, text="Stop", command=self._stop).pack(
@@ -742,7 +744,7 @@ class DashboardApp:
     def _reload_scene(self, scene_name):
         """Dynamically switch to a different scene."""
         global _modules
-        
+
         self._log(f"Switching to scene: {scene_name}")
 
         with logic_lock:
@@ -754,7 +756,16 @@ class DashboardApp:
                     except Exception as e:
                         self._log(f"Error closing {item['name']}: {e}")
 
-        known_prefixes = ["HAND", "FACE", "INDEXFINGER", "CARD", "RECT", "EYES", "GLITCH", "MOTION"]
+        known_prefixes = [
+            "HAND",
+            "FACE",
+            "INDEXFINGER",
+            "CARD",
+            "RECT",
+            "EYES",
+            "GLITCH",
+            "MOTION",
+        ]
         existing_keys = set()
         for key in context.keys():
             if any(key.startswith(p) for p in known_prefixes):
@@ -781,7 +792,9 @@ class DashboardApp:
 
         leftover_keys = existing_keys - declared_keys
         if leftover_keys:
-            self._log(f"Warning: Undeclared context keys remain: {sorted(leftover_keys)}. Module may need get_stateful_keys()")
+            self._log(
+                f"Warning: Undeclared context keys remain: {sorted(leftover_keys)}. Module may need get_stateful_keys()"
+            )
 
         conf.set_scenes("active", scene_name)
 
@@ -894,12 +907,14 @@ def get_active_modules(args, scene_name=None):
     active = []
     for item in _current_scene["modules"]:
         mod = item["module"]
+        cfg = item["config"].copy()
+        cfg["enabled"] = item.get("enabled", True)
 
         active.append(
             {
                 "name": item["name"],
                 "module_ref": mod,
-                "config": item["config"],
+                "config": cfg,
                 "can_detect": hasattr(mod, "detect"),
                 "can_draw": hasattr(mod, "draw"),
             }
@@ -940,7 +955,7 @@ def buildargs(args=None, **kwargs):
 
 def main(args, **kwargs):
     global _modules
-    
+
     _modules = get_active_modules(args)
     if getattr(args, "debug", False):
         io.echo(f"Loaded {len(_modules)} modules", level="debug")
