@@ -127,33 +127,40 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
     if len(positions) < 2:
         return frame
 
-    # Find bounding box of all stored pointer positions
-    all_x = [p[0] for p in positions] + [x]
-    all_y = [p[1] for p in positions] + [y]
+    import cv2
 
-    trail_min_x = min(all_x)
-    trail_max_x = max(all_x)
-    trail_min_y = min(all_y)
-    trail_max_y = max(all_y)
+    oldest_x, oldest_y = positions[0]
 
-    # Create circular masks at each position in the trail
+    dist = ((x - oldest_x) ** 2 + (y - oldest_y) ** 2) ** 0.5
+
+    velocity_threshold = confs["TRAIL"].get("VELOCITY_THRESHOLD", 5)
+    if dist < velocity_threshold:
+        return frame
+
+    center_x = (oldest_x + x) / 2
+    center_y = (oldest_y + y) / 2
+
     radius = confs["TRAIL"]["RADIUS"]
-    yy, xx = np.ogrid[:h, :w]
+    axes_a = int(dist / 2 + radius)
+    axes_b = int(max(radius, dist * 0.3))
+
+    angle = np.degrees(np.arctan2(y - oldest_y, x - oldest_x))
 
     base_mask = np.zeros((h, w), dtype=np.float32)
-    for px, py in positions:
-        dist_sq = (xx - px) ** 2 + (yy - py) ** 2
-        base_mask = np.maximum(base_mask, (dist_sq <= radius**2).astype(np.float32))
-
-    # Add circle at current position
-    dist_sq = (xx - x) ** 2 + (yy - y) ** 2
-    base_mask = np.maximum(base_mask, (dist_sq <= radius**2).astype(np.float32))
+    cv2.ellipse(
+        base_mask,
+        (int(center_x), int(center_y)),
+        (axes_a, axes_b),
+        angle,
+        0,
+        360,
+        1,
+        -1,
+    )
 
     base_mask = base_mask[..., None]
 
     if confs["COLOR_GATE"].get("COLOR_GATE", False):
-        import cv2
-
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         lo = np.array(confs["COLOR_GATE"]["YELLOW_MIN"], dtype=np.uint8)
         hi = np.array(confs["COLOR_GATE"]["YELLOW_MAX"], dtype=np.uint8)
@@ -178,9 +185,9 @@ def draw(frame, context: ThreadSafeContext, **kwargs) -> np.ndarray:
         shifted = np.roll(f, shift=(oy, ox), axis=(0, 1))
         blurred += shifted.astype(np.float32) * wgt
 
-    # Use newest stored frame as base (clean, no webcam noise)
-    # Only apply trail in mask area, preserve original frame elsewhere
-    base_frame = newest_frame.astype(np.float32)
+    # Use current frame as base (has UI elements like FPS)
+    # Only apply trail blur in mask area, preserve original frame elsewhere
+    base_frame = frame.astype(np.float32)
     composite = (base_frame * (1.0 - mask) + blurred * mask).astype(np.uint8)
 
     frame[:] = composite
@@ -235,6 +242,14 @@ def ui_schema(args=None, context=None) -> dict | None:
                 "max": 100,
                 "step": 1,
                 "label": "Max Offset",
+            },
+            "VELOCITY_THRESHOLD": {
+                "type": "int",
+                "default": 5,
+                "min": 0,
+                "max": 20,
+                "step": 1,
+                "label": "Velocity Threshold",
             },
         },
         "ALPHA": {

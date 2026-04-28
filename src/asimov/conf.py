@@ -242,6 +242,7 @@ CONF = {
             "HISTORY_LEN": 8,
             "RADIUS": 6,
             "MAX_OFFSET": 20,
+            "VELOCITY_THRESHOLD": 5,
         },
         "ALPHA": {
             "ALPHA_MIN": 0.15,
