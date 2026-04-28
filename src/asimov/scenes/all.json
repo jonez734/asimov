@@ -21,6 +21,12 @@
             "enabled": true
         },
         {
+            "name": "motionblur",
+            "module": "asimov.modules.motionblur",
+            "config": {},
+            "enabled": true
+        },
+        {
             "name": "face",
             "module": "asimov.modules.face",
             "config": {},

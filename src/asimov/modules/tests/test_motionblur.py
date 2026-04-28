@@ -48,6 +48,19 @@ def test_detect_creates_context():
     print("  test_detect_creates_context -> PASS")
 
 
+def test_nested_config_access():
+    """Test nested config structure matches ui_schema."""
+    from asimov import conf
+    confs = conf.CONF["MOTIONBLUR"]
+    assert "TRAIL" in confs
+    assert "ALPHA" in confs
+    assert "VELOCITY" in confs
+    assert "COLOR_GATE" in confs
+    assert confs["TRAIL"]["HISTORY_LEN"] == 8
+    assert confs["COLOR_GATE"]["COLOR_GATE"] is False
+    print("  test_nested_config_access -> PASS")
+
+
 def test_draw_returns_frame():
     """Test draw returns frame."""
     from asimov.modules import motionblur
@@ -58,12 +71,29 @@ def test_draw_returns_frame():
     print("  test_draw_returns_frame -> PASS")
 
 
+def test_ui_schema():
+    """Test ui_schema returns valid schema."""
+    from asimov.modules import motionblur
+    schema = motionblur.ui_schema()
+    assert schema is not None
+    assert isinstance(schema, dict)
+    assert "TRAIL" in schema
+    assert "ALPHA" in schema
+    assert "VELOCITY" in schema
+    assert "COLOR_GATE" in schema
+    assert schema["TRAIL"]["HISTORY_LEN"]["type"] == "int"
+    assert schema["ALPHA"]["ALPHA_MIN"]["type"] == "float"
+    assert schema["COLOR_GATE"]["COLOR_GATE"]["type"] == "bool"
+    print("  test_ui_schema -> PASS")
+
+
 if __name__ == "__main__":
     print("Running MOTIONBLUR MODULE TESTS...")
     test_init_returns_true()
     test_main_returns_true()
     test_access_returns_true()
     test_get_stateful_keys()
+    test_ui_schema()
     test_detect_creates_context()
     test_draw_returns_frame()
     print("\nALL TESTS PASSED")
