@@ -70,6 +70,23 @@ from .ping import (
     wait_for_pong,
 )
 
+# Frame types and addressing (optional numpy)
+from .frame_types import (
+    Frame,
+    NumpyFrame,
+    frame_from_any,
+    frames_equal,
+)
+
+# Frame addressing (DSN-like URIs)
+from .frame_address import (
+    FrameScheme,
+    FrameAddress,
+    FrameAddressParser,
+    ParseResult,
+    default_port_for_scheme,
+)
+
 __all__ = [
     # conf
     "CHUNK_SIZE",
@@ -125,4 +142,15 @@ __all__ = [
     "respond_to_ping",
     "send_ping_and_wait_for_pong",
     "wait_for_pong",
+    # frame_types
+    "Frame",
+    "NumpyFrame",
+    "frame_from_any",
+    "frames_equal",
+    # frame_address
+    "FrameScheme",
+    "FrameAddress",
+    "FrameAddressParser",
+    "ParseResult",
+    "default_port_for_scheme",
 ]

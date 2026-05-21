@@ -1,4 +1,4 @@
-# asimov/net/udp.py
+# bbsengine6/net/udp.py
 # UDP sender/receiver classes with frame transmission support
 
 import logging
@@ -7,10 +7,8 @@ import struct
 import time
 import zlib
 import math
-from typing import Optional, Callable, Any
+from typing import Optional, Callable, Any, Union, Dict
 from collections import defaultdict
-
-import numpy as np
 
 from .packet import (
     encode_packet,
@@ -22,7 +20,6 @@ from .packet import (
     PONG,
     EOS,
 )
-
 from .frame import (
     PACKET_TYPE_FRAME,
     FramePacket,
@@ -30,8 +27,17 @@ from .frame import (
     decode_frame_packet,
     FRAME_PACKET_HEADER_SIZE,
 )
+from .frame_types import Frame, NumpyFrame
+from .frame_address import FrameAddress, FrameAddressParser, ParseResult
 from .conf import BUFFER_SIZE
 
+# Optional numpy support
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    np = None
 
 UDP_MAX_PAYLOAD = 65507 - 28 - FRAME_PACKET_HEADER_SIZE
 
@@ -46,148 +52,253 @@ def _calc_optimal_blocks_per_packet(block_w: int, block_h: int, compress: bool) 
 
 class UDPSender:
     def __init__(
-        self, host: str, port: int, bind_port: int = 0, blocking: bool = False
+        self,
+        host_or_dsn: Optional[Union[str, FrameAddress]] = None,
+        port: Optional[int] = None,
+        *,
+        dsn: Optional[str] = None,
+        address: Optional[FrameAddress] = None,
+        bind_port: int = 0,
+        blocking: bool = False,
     ):
-        self.host = host
-        self.port = port
-        self.addr = (host, port)
+        """
+        UDP Sender with flexible constructor.
+        
+        Old API: UDPSender("example.com", 4200)
+        New API: UDPSender(dsn="udp://example.com:4200/")
+        """
+        self.addr = None
         self.blocking = blocking
+        self.sock: Optional[socket.socket] = None
+        self.prev_frame: Optional[Union[Frame, NumpyFrame]] = None
+        self.error: Optional[ParseResult] = None
+        self.address: Optional[FrameAddress] = None
+        
+        # Validate and normalize arguments
+        result = self._validate_and_normalize_args(host_or_dsn, port, dsn, address)
+        if not result.success:
+            self.error = result
+            return
+        
+        self.address = result.value
+        self.addr = (self.address.host, self.address.port)
+        
+        # Setup socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
+        
         if bind_port > 0:
             self.sock.bind(("0.0.0.0", bind_port))
         else:
             self.sock.bind(("0.0.0.0", 0))
-
+        
         if not blocking:
             self.sock.setblocking(False)
-
-        self.prev_frame = None
-
+    
+    @staticmethod
+    def _validate_and_normalize_args(
+        host_or_dsn: Optional[Union[str, FrameAddress]],
+        port: Optional[int],
+        dsn: Optional[str],
+        address: Optional[FrameAddress],
+    ) -> ParseResult:
+        """Validate and convert arguments to FrameAddress."""
+        
+        arg_count = sum([
+            host_or_dsn is not None,
+            port is not None,
+            dsn is not None,
+            address is not None,
+        ])
+        
+        if arg_count == 0:
+            return ParseResult(False, error="No connection parameters provided", code="NO_ARGS")
+        
+        if address is not None:
+            if arg_count > 1:
+                return ParseResult(False, error="Cannot mix address object with other args", code="AMBIGUOUS_ARGS")
+            return address.validate()
+        
+        if dsn is not None:
+            if arg_count > 1:
+                return ParseResult(False, error="Cannot mix dsn with other args", code="AMBIGUOUS_ARGS")
+            return FrameAddressParser.parse(dsn)
+        
+        if isinstance(host_or_dsn, str) and host_or_dsn.startswith(("tcp://", "udp://", "unix://", "ws://", "wss://")):
+            if port is not None:
+                return ParseResult(False, error="Cannot specify port with DSN string", code="AMBIGUOUS_ARGS")
+            return FrameAddressParser.parse(host_or_dsn)
+        
+        if isinstance(host_or_dsn, str) and port is not None:
+            from .frame_address import FrameScheme
+            address = FrameAddress(
+                scheme=FrameScheme.UDP,
+                host=host_or_dsn,
+                port=port,
+                socket_path=None,
+                user=None,
+                password=None,
+                path="/",
+            )
+            return address.validate()
+        
+        if isinstance(host_or_dsn, str) and port is None:
+            return ParseResult(False, error="Port required when host provided", code="MISSING_PORT")
+        
+        return ParseResult(False, error="Invalid arguments", code="INVALID_ARGS")
+    
     def send_frame(
         self,
-        frame: np.ndarray,
-        frame_id: int,
-        prev_frame: np.ndarray = None,
+        frame: Union[bytes, Frame, NumpyFrame, object],
+        frame_id: Optional[int] = None,
+        prev_frame: Optional[Union[bytes, Frame, NumpyFrame, object]] = None,
         cols: int = 0,
         rows: int = 0,
         compress: bool = False,
         full_frame: bool = False,
         auto_batch: bool = True,
-    ):
-        """
-        Send frame - default: delta frames with auto-batching.
-
-        Args:
-            frame: The frame to send
-            frame_id: Unique frame identifier
-            prev_frame: Previous frame for delta. If None, uses self.prev_frame.
-            cols, rows: Grid dimensions. Auto-calculated if not provided.
-            compress: Enable zlib compression
-            full_frame: If True, send all blocks (not just changes)
-            auto_batch: If True, automatically batch blocks to fill UDP packets
-        """
-        height, width = frame.shape[:2]
-
-        if prev_frame is None:
-            prev_frame = self.prev_frame
-
-        is_delta = not full_frame and prev_frame is not None
-
-        if cols <= 0 or rows <= 0:
-            max_block_size = 64
-            block_size = min(max_block_size, math.gcd(width, height))
-            if block_size < 8:
-                block_size = 8
-            cols = (width + block_size - 1) // block_size
-            rows = (height + block_size - 1) // block_size
-
-        block_w = width // cols
-        block_h = height // rows
-        total_blocks = cols * rows
-
-        blocks_per_packet = 1
-        if auto_batch:
-            blocks_per_packet = _calc_optimal_blocks_per_packet(
-                block_w, block_h, compress
-            )
-
-        if is_delta:
-            from asimov.base import util
-
-            get_changed_blocks = util.get_changed_blocks
-
-            changed = get_changed_blocks(frame, prev_frame, frame_id, compress)
-            block_ids = [b.id for b in changed]
-            block_datas = {b.id: b.data for b in changed}
-        else:
-            block_ids = list(range(total_blocks))
-            block_datas = {}
-
-        for i in range(0, len(block_ids), blocks_per_packet):
-            batch_ids = block_ids[i : i + blocks_per_packet]
-            blocks = []
-
-            for block_id in batch_ids:
-                if block_id in block_datas:
-                    data = block_datas[block_id]
+        is_delta: Optional[bool] = None,
+    ) -> Optional[ParseResult]:
+        """Send frame. Returns error if not successful."""
+        if self.error:
+            return self.error
+        
+        if not self.sock:
+            return ParseResult(False, error="Socket not initialized", code="NO_SOCKET")
+        
+        try:
+            # Normalize to Frame object
+            if isinstance(frame, (Frame, NumpyFrame)):
+                frame_obj = frame
+            else:
+                if isinstance(frame, bytes):
+                    frame_size = len(frame)
+                    if frame_size == 6220800:
+                        width, height = 1920, 1080
+                    elif frame_size == 921600:
+                        width, height = 640, 480
+                    elif frame_size == 230400:
+                        width, height = 320, 240
+                    else:
+                        pixels = frame_size // 3
+                        width = int(math.sqrt(pixels))
+                        height = pixels // width
+                    frame_obj = Frame(frame, width, height, frame_id)
                 else:
+                    # Assume numpy array
+                    frame_obj = NumpyFrame(frame, frame_id)
+            
+            width, height = frame_obj.width, frame_obj.height
+            frame_bytes = frame_obj.to_bytes()
+            
+            # Determine delta mode
+            if is_delta is None:
+                is_delta = not full_frame and prev_frame is not None
+                if is_delta and prev_frame is not None:
+                    if isinstance(prev_frame, (Frame, NumpyFrame)):
+                        prev_obj = prev_frame
+                    else:
+                        prev_obj = NumpyFrame(prev_frame) if hasattr(prev_frame, 'shape') else None
+                    
+                    if prev_obj:
+                        is_delta = frame_obj.to_bytes() != prev_obj.to_bytes()
+                    else:
+                        is_delta = False
+            
+            # Calculate grid
+            if cols <= 0 or rows <= 0:
+                max_block_size = 64
+                gcd_val = math.gcd(width, height)
+                block_size = min(max_block_size, gcd_val if gcd_val > 0 else 64)
+                if block_size < 8:
+                    block_size = 8
+                cols = (width + block_size - 1) // block_size
+                rows = (height + block_size - 1) // block_size
+            
+            block_w = width // cols
+            block_h = height // rows
+            total_blocks = cols * rows
+            
+            blocks_per_packet = 1
+            if auto_batch:
+                blocks_per_packet = _calc_optimal_blocks_per_packet(block_w, block_h, compress)
+            
+            block_ids = list(range(total_blocks))
+            
+            for i in range(0, len(block_ids), blocks_per_packet):
+                batch_ids = block_ids[i : i + blocks_per_packet]
+                blocks = []
+                
+                for block_id in batch_ids:
                     row = block_id // cols
                     col = block_id % cols
                     x0 = col * block_w
                     y0 = row * block_h
                     x1 = min(x0 + block_w, width)
                     y1 = min(y0 + block_h, height)
-
-                    chunk = frame[y0:y1, x0:x1]
-                    data = chunk.tobytes()
-
-                if compress:
-                    data = zlib.compress(data)
-
-                blocks.append(data)
-
-            packet = FramePacket(
-                frame_id=frame_id,
-                block_id=batch_ids[0] if batch_ids else 0,
-                cols=cols,
-                rows=rows,
-                block_w=block_w,
-                block_h=block_h,
-                width=width,
-                height=height,
-                total_blocks=total_blocks,
-                is_delta=is_delta,
-                compressed=compress,
-                blocks=blocks,
-                blocks_in_packet=len(blocks),
-                timestamp=time.time(),
-            )
-
-            encoded = encode_frame_packet(packet)
-            self.sock.sendto(encoded, self.addr)
-
-        self.prev_frame = frame.copy()
-
+                    
+                    block_h_actual = y1 - y0
+                    block_w_actual = x1 - x0
+                    bytes_per_row = width * 3
+                    
+                    block_data = b""
+                    for y in range(y0, y1):
+                        start = y * bytes_per_row + x0 * 3
+                        end = start + block_w_actual * 3
+                        block_data += frame_bytes[start:end]
+                    
+                    if compress:
+                        block_data = zlib.compress(block_data)
+                    
+                    blocks.append(block_data)
+                
+                packet = FramePacket(
+                    frame_id=frame_id,
+                    block_id=batch_ids[0] if batch_ids else 0,
+                    cols=cols,
+                    rows=rows,
+                    block_w=block_w,
+                    block_h=block_h,
+                    width=width,
+                    height=height,
+                    total_blocks=total_blocks,
+                    is_delta=is_delta,
+                    compressed=compress,
+                    blocks=blocks,
+                    blocks_in_packet=len(blocks),
+                    timestamp=time.time(),
+                )
+                
+                encoded = encode_frame_packet(packet)
+                self.sock.sendto(encoded, self.addr)
+            
+            self.prev_frame = frame_obj
+            return None
+        
+        except Exception as e:
+            return ParseResult(False, error=f"Send frame failed: {str(e)}", code="SEND_FRAME_ERROR")
+    
     def send_ping(self):
         """Send a PING packet."""
         data = encode_packet(PACKET_TYPE_PING)
         self.sock.sendto(data, self.addr)
-
+    
     def send_pong(self, timestamp: float = 0.0):
         """Send a PONG packet."""
         ts = timestamp if timestamp != 0.0 else time.time()
         data = encode_packet(PACKET_TYPE_PONG, timestamp=ts)
         self.sock.sendto(data, self.addr)
-
+    
     def send_eos(self):
         """Send an End-of-Stream packet."""
         data = encode_packet(PACKET_TYPE_EOS)
         self.sock.sendto(data, self.addr)
-
+    
     def receive(self, timeout: float = 0.5) -> Optional[dict]:
         """Receive a packet (non-blocking)."""
+        if not self.sock:
+            return None
+        
         self.sock.setblocking(False)
         try:
             self.sock.settimeout(timeout)
@@ -199,65 +310,146 @@ class UDPSender:
         except BlockingIOError:
             pass
         return None
-
+    
     def close(self):
-        self.sock.close()
+        if self.sock:
+            self.sock.close()
+            self.sock = None
 
 
 class UDPReceiver:
     def __init__(
         self,
-        host: str,
-        port: int,
+        host_or_dsn: Optional[Union[str, FrameAddress]] = None,
+        port: Optional[int] = None,
+        *,
+        dsn: Optional[str] = None,
+        address: Optional[FrameAddress] = None,
         frame_received_callback: Optional[Callable] = None,
         idle_callback: Optional[Callable] = None,
         local_port: int = 0,
         blocking: bool = True,
         timeout: float = 0.5,
     ):
-        self.host = host
-        self.port = port
-        self.addr = (host, port)
+        """
+        UDP Receiver with flexible constructor.
+        
+        Old API: UDPReceiver("127.0.0.1", 4200)
+        New API: UDPReceiver(dsn="udp://127.0.0.1:4200/")
+        """
         self.blocking = blocking
         self.timeout = timeout
-
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.setsockopt(
-            socket.SOL_SOCKET, socket.SO_RCVBUF, 10 * 1024 * 1024
-        )  # 10MB
-        self.sock.bind(("0.0.0.0", port))
-
-        if not blocking:
-            self.sock.setblocking(False)
-
-        self.sock.settimeout(timeout)
-
         self.frame_received_callback = frame_received_callback
         self.idle_callback = idle_callback
-
-        self.frames = defaultdict(dict)
-        self.frame_meta = {}
-        self.prev_frame = None
-        self.prev_frame_meta = {}
+        self.sock: Optional[socket.socket] = None
+        self.error: Optional[ParseResult] = None
+        self.address: Optional[FrameAddress] = None
+        
+        self.frames: Dict[int, Dict[int, bytes]] = defaultdict(dict)
+        self.frame_meta: Dict[int, Dict] = {}
+        self.prev_frame: Optional[Union[Frame, NumpyFrame]] = None
+        self.prev_frame_meta: Dict = {}
         self.last_displayed_frame_id = -1
         self.running = False
-
+        
+        result = self._validate_and_normalize_args(host_or_dsn, port, dsn, address)
+        if not result.success:
+            self.error = result
+            return
+        
+        self.address = result.value
+        self._setup_server(local_port)
+    
+    @staticmethod
+    def _validate_and_normalize_args(
+        host_or_dsn: Optional[Union[str, FrameAddress]],
+        port: Optional[int],
+        dsn: Optional[str],
+        address: Optional[FrameAddress],
+    ) -> ParseResult:
+        """Validate and convert arguments to FrameAddress."""
+        
+        arg_count = sum([
+            host_or_dsn is not None,
+            port is not None,
+            dsn is not None,
+            address is not None,
+        ])
+        
+        if arg_count == 0:
+            return ParseResult(True, value=None)
+        
+        if address is not None:
+            if arg_count > 1:
+                return ParseResult(False, error="Cannot mix address object with other args", code="AMBIGUOUS_ARGS")
+            return address.validate()
+        
+        if dsn is not None:
+            if arg_count > 1:
+                return ParseResult(False, error="Cannot mix dsn with other args", code="AMBIGUOUS_ARGS")
+            return FrameAddressParser.parse(dsn)
+        
+        if isinstance(host_or_dsn, str) and host_or_dsn.startswith(("tcp://", "udp://", "unix://", "ws://", "wss://")):
+            if port is not None:
+                return ParseResult(False, error="Cannot specify port with DSN string", code="AMBIGUOUS_ARGS")
+            return FrameAddressParser.parse(host_or_dsn)
+        
+        if isinstance(host_or_dsn, str) and port is not None:
+            from .frame_address import FrameScheme
+            address = FrameAddress(
+                scheme=FrameScheme.UDP,
+                host=host_or_dsn,
+                port=port,
+                socket_path=None,
+                user=None,
+                password=None,
+                path="/",
+            )
+            return address.validate()
+        
+        if isinstance(host_or_dsn, str) and port is None:
+            return ParseResult(False, error="Port required when host provided", code="MISSING_PORT")
+        
+        return ParseResult(False, error="Invalid arguments", code="INVALID_ARGS")
+    
+    def _setup_server(self, local_port: int = 0):
+        """Setup server socket and bind."""
+        if self.error:
+            return
+        
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 10 * 1024 * 1024)
+            
+            bind_port = local_port if local_port > 0 else (self.address.port if self.address else 0)
+            self.sock.bind(("0.0.0.0", bind_port))
+            
+            if not self.blocking:
+                self.sock.setblocking(False)
+            
+            self.sock.settimeout(self.timeout)
+        except Exception as e:
+            self.error = ParseResult(False, error=f"Server setup failed: {str(e)}", code="SERVER_SETUP_ERROR")
+    
     def start_listening(self):
         """Start listening for frames in a loop."""
         self.running = True
         try:
             while self.running:
                 self.receive()
-
+                
                 if self.idle_callback:
                     if not self.idle_callback():
                         break
         finally:
             self.close()
-
+    
     def receive(self) -> Any:
         """Receive and reassemble frames."""
+        if self.error or not self.sock:
+            return None
+        
         try:
             self.sock.settimeout(self.timeout)
             data, addr = self.sock.recvfrom(BUFFER_SIZE)
@@ -265,12 +457,12 @@ class UDPReceiver:
             return None
         except BlockingIOError:
             return None
-
+        
         if not data:
             return None
-
+        
         packet_type_raw = struct.unpack("!B", data[:1])[0]
-
+        
         if packet_type_raw == PACKET_TYPE_PING:
             self.send_pong()
             return PING
@@ -280,17 +472,17 @@ class UDPReceiver:
             return EOS
         elif packet_type_raw == PACKET_TYPE_FRAME:
             return self._handle_frame_packet(data)
-
+        
         return None
-
-    def _handle_frame_packet(self, data: bytes) -> Optional[np.ndarray]:
+    
+    def _handle_frame_packet(self, data: bytes) -> Optional[Union[Frame, NumpyFrame]]:
         """Handle an incoming frame packet and reassemble if complete."""
         try:
             packet = decode_frame_packet(data)
         except Exception as e:
-            print(f"Failed to decode frame packet: {e}")
+            logging.warning(f"Failed to decode frame packet: {e}")
             return None
-
+        
         frame_id = packet.frame_id
         cols = packet.cols
         rows = packet.rows
@@ -301,24 +493,17 @@ class UDPReceiver:
         total_blocks = packet.total_blocks
         is_delta = packet.is_delta
         compressed = packet.compressed
-
+        
         if frame_id in self.frame_meta:
             old_meta = self.frame_meta[frame_id]
-            if (
-                old_meta["width"] != width
-                or old_meta["height"] != height
-                or old_meta["total_blocks"] != total_blocks
-            ):
-                logging.warning(
-                    f"Frame {frame_id} dimensions changed (was {old_meta['width']}x{old_meta['height']} "
-                    f"blocks={old_meta['total_blocks']}, now {width}x{height} blocks={total_blocks}), "
-                    "discarding old frame data"
-                )
+            if (old_meta["width"] != width or old_meta["height"] != height or 
+                old_meta["total_blocks"] != total_blocks):
+                logging.warning(f"Frame {frame_id} dimensions changed, discarding old data")
                 if frame_id in self.frames:
                     del self.frames[frame_id]
                 self.prev_frame = None
                 is_delta = False
-
+        
         self.frame_meta[frame_id] = {
             "cols": cols,
             "rows": rows,
@@ -330,31 +515,34 @@ class UDPReceiver:
             "is_delta": is_delta,
             "compressed": compressed,
         }
-
+        
         for i, block_data in enumerate(packet.blocks):
             block_id = packet.block_id + i
-
+            
             if compressed:
                 try:
                     block_data = zlib.decompress(block_data)
                 except zlib.error as e:
-                    print(f"Failed to decompress block {block_id}: {e}")
+                    logging.warning(f"Failed to decompress block {block_id}: {e}")
                     continue
-
+            
             self.frames[frame_id][block_id] = block_data
-
+        
         received_count = len(self.frames[frame_id])
-
+        
         if received_count >= total_blocks:
             return self._reassemble_frame(frame_id)
-
+        
         return None
-
-    def _reassemble_frame(self, frame_id: int) -> Optional[np.ndarray]:
-        """Reassemble a complete frame from chunks."""
+    
+    def _reassemble_frame(self, frame_id: int) -> Optional[Union[Frame, NumpyFrame]]:
+        """
+        Reassemble a complete frame from chunks.
+        Returns NumpyFrame if numpy available, Frame otherwise.
+        """
         if frame_id not in self.frames:
             return None
-
+        
         meta = self.frame_meta[frame_id]
         cols = meta["cols"]
         block_w = meta["block_w"]
@@ -363,120 +551,139 @@ class UDPReceiver:
         height = meta["height"]
         total_blocks = meta["total_blocks"]
         is_delta = meta["is_delta"]
-
+        
         blocks = self.frames[frame_id]
-
-        if (
-            is_delta
-            and self.prev_frame is not None
-            and self.prev_frame.shape == (height, width, 3)
-        ):
-            full_frame = self.prev_frame.copy()
-            apply_to_prev = True
+        
+        # Use numpy if available
+        if HAS_NUMPY:
+            return self._reassemble_frame_numpy(frame_id, meta, blocks)
+        else:
+            return self._reassemble_frame_bytes(frame_id, meta, blocks)
+    
+    def _reassemble_frame_numpy(self, frame_id: int, meta: Dict, blocks: Dict[int, bytes]) -> Optional[NumpyFrame]:
+        """Reassemble frame using numpy."""
+        cols = meta["cols"]
+        block_w = meta["block_w"]
+        block_h = meta["block_h"]
+        width = meta["width"]
+        height = meta["height"]
+        total_blocks = meta["total_blocks"]
+        is_delta = meta["is_delta"]
+        
+        if is_delta and self.prev_frame is not None and isinstance(self.prev_frame, NumpyFrame):
+            if self.prev_frame.width == width and self.prev_frame.height == height:
+                full_frame = self.prev_frame.data.copy()
+            else:
+                full_frame = np.zeros((height, width, 3), dtype=np.uint8)
         else:
             full_frame = np.zeros((height, width, 3), dtype=np.uint8)
-            apply_to_prev = False
-
+        
         for block_id, block_data in blocks.items():
             if block_id >= total_blocks:
-                logging.warning(
-                    f"Skipping block {block_id}: exceeds total_blocks {total_blocks}"
-                )
+                logging.warning(f"Skipping block {block_id}: exceeds total_blocks")
                 continue
-
+            
             row = block_id // cols
             col = block_id % cols
             x = col * block_w
             y = row * block_h
-
+            
             actual_block_w = min(block_w, width - x)
             actual_block_h = min(block_h, height - y)
-
+            
             if actual_block_h <= 0 or actual_block_w <= 0:
-                logging.warning(
-                    f"Skipping block {block_id}: invalid dimensions {actual_block_w}x{actual_block_h}"
-                )
+                logging.warning(f"Skipping block {block_id}: invalid dimensions")
                 continue
-
+            
             try:
                 block_img = np.frombuffer(block_data, dtype=np.uint8).reshape(
                     (actual_block_h, actual_block_w, 3)
                 )
+                full_frame[y : y + actual_block_h, x : x + actual_block_w] = block_img
             except ValueError as e:
                 logging.warning(f"Skipping block {block_id}: reshape failed: {e}")
                 continue
-
-            h, w = block_img.shape[:2]
-
-            if y + h > height or x + w > width:
-                logging.warning(
-                    f"Skipping block {block_id}: would exceed bounds "
-                    f"(y={y}+h={h} > height={height} or x={x}+w={w} > width={width})"
-                )
-                continue
-
-            full_frame[y : y + h, x : x + w] = block_img
-
+        
         del self.frames[frame_id]
         self.frame_meta.pop(frame_id, None)
-
-        if apply_to_prev and self.prev_frame is not None:
-            for block_id, block_data in blocks.items():
-                if block_id >= total_blocks:
-                    logging.warning(
-                        f"Skipping block {block_id} in prev_frame: exceeds total_blocks {total_blocks}"
-                    )
-                    continue
-
-                row = block_id // cols
-                col = block_id % cols
-                x = col * block_w
-                y = row * block_h
-
-                actual_block_w = min(block_w, width - x)
-                actual_block_h = min(block_h, height - y)
-
-                if actual_block_h <= 0 or actual_block_w <= 0:
-                    logging.warning(
-                        f"Skipping block {block_id} in prev_frame: invalid dimensions"
-                    )
-                    continue
-
-                try:
-                    block_img = np.frombuffer(block_data, dtype=np.uint8).reshape(
-                        (actual_block_h, actual_block_w, 3)
-                    )
-                except ValueError as e:
-                    logging.warning(
-                        f"Skipping block {block_id} in prev_frame: reshape failed: {e}"
-                    )
-                    continue
-
-                h, w = block_img.shape[:2]
-
-                if y + h > height or x + w > width:
-                    logging.warning(
-                        f"Skipping block {block_id} in prev_frame: would exceed bounds"
-                    )
-                    continue
-
-                self.prev_frame[y : y + h, x : x + w] = block_img
-        else:
-            self.prev_frame = full_frame.copy()
-
+        
+        frame_obj = NumpyFrame(full_frame.copy(), frame_id)
+        self.prev_frame = frame_obj
         self.prev_frame_meta = meta
-
+        
         if self.frame_received_callback:
-            self.frame_received_callback(full_frame, frame_id)
-
-        return full_frame.copy()
-
+            self.frame_received_callback(frame_obj, frame_id)
+        
+        return frame_obj
+    
+    def _reassemble_frame_bytes(self, frame_id: int, meta: Dict, blocks: Dict[int, bytes]) -> Optional[Frame]:
+        """Reassemble frame as bytes."""
+        cols = meta["cols"]
+        block_w = meta["block_w"]
+        block_h = meta["block_h"]
+        width = meta["width"]
+        height = meta["height"]
+        total_blocks = meta["total_blocks"]
+        is_delta = meta["is_delta"]
+        
+        bytes_per_row = width * 3
+        if is_delta and self.prev_frame is not None and isinstance(self.prev_frame, Frame):
+            if len(self.prev_frame.data) == height * bytes_per_row:
+                full_frame_bytes = bytearray(self.prev_frame.data)
+            else:
+                full_frame_bytes = bytearray(height * bytes_per_row)
+        else:
+            full_frame_bytes = bytearray(height * bytes_per_row)
+        
+        for block_id, block_data in blocks.items():
+            if block_id >= total_blocks:
+                logging.warning(f"Skipping block {block_id}: exceeds total_blocks")
+                continue
+            
+            row = block_id // cols
+            col = block_id % cols
+            x = col * block_w
+            y = row * block_h
+            
+            actual_block_w = min(block_w, width - x)
+            actual_block_h = min(block_h, height - y)
+            
+            if actual_block_h <= 0 or actual_block_w <= 0:
+                logging.warning(f"Skipping block {block_id}: invalid dimensions")
+                continue
+            
+            expected_size = actual_block_h * actual_block_w * 3
+            if len(block_data) != expected_size:
+                logging.warning(f"Skipping block {block_id}: size mismatch")
+                continue
+            
+            for by in range(actual_block_h):
+                dst_offset = (y + by) * bytes_per_row + x * 3
+                src_offset = by * actual_block_w * 3
+                full_frame_bytes[dst_offset:dst_offset + actual_block_w * 3] = block_data[src_offset:src_offset + actual_block_w * 3]
+        
+        del self.frames[frame_id]
+        self.frame_meta.pop(frame_id, None)
+        
+        frame_obj = Frame(bytes(full_frame_bytes), width, height, frame_id)
+        self.prev_frame = frame_obj
+        self.prev_frame_meta = meta
+        
+        if self.frame_received_callback:
+            self.frame_received_callback(frame_obj, frame_id)
+        
+        return frame_obj
+    
     def send_pong(self, timestamp: float = 0.0):
         """Send a PONG response."""
+        if not self.sock:
+            return
         ts = timestamp if timestamp != 0.0 else time.time()
         data = encode_packet(PACKET_TYPE_PONG, timestamp=ts)
-        self.sock.sendto(data, self.addr)
-
+        self.sock.sendto(data, ("255.255.255.255", self.address.port if self.address else 4200))
+    
     def close(self):
         self.running = False
-        self.sock.close()
+        if self.sock:
+            self.sock.close()
+            self.sock = None
