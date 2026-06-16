@@ -66,7 +66,7 @@ def load(args: Any, scene_def: dict) -> dict:
 
         mod_name = entry.get("name", "<unnamed>")
         mod_ref = entry.get("module")
-        mod_conf = entry.get("conf", {})
+        mod_conf = entry.get("config", {})
 
         if not mod_ref:
             raise ValueError(f"module entry '{mod_name}' missing 'module'")
@@ -87,6 +87,7 @@ def load(args: Any, scene_def: dict) -> dict:
                 "name": mod_name,
                 "module": mod,
                 "config": mod_conf,
+                "enabled": entry.get("enabled", True),
             }
         )
 

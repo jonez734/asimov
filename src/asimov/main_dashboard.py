@@ -433,6 +433,15 @@ class DashboardApp:
             )
             rb.pack(anchor="w", padx=20, pady=2)
 
+        scene_btn_frame = ttk.Frame(scene_frame)
+        scene_btn_frame.pack(fill="x", padx=20, pady=5)
+        ttk.Button(scene_btn_frame, text="Change Scene", command=self._on_scene_changed).pack(
+            side="left", padx=5
+        )
+        ttk.Button(scene_btn_frame, text="Refresh Scenes", command=self._refresh_scenes).pack(
+            side="left", padx=5
+        )
+
         self.scene_frame = scene_frame
 
         self.enable_frame = ttk.LabelFrame(self.right_content, text="Modules")
@@ -471,12 +480,6 @@ class DashboardApp:
         ttk.Button(
             btn_frame, text="Show All Config", command=self._show_all_config
         ).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="Refresh Scenes", command=self._refresh_scenes).pack(
-            side="left", padx=5
-        )
-        ttk.Button(btn_frame, text="Change Scene", command=self._on_scene_changed).pack(
-            side="left", padx=5
-        )
         ttk.Button(btn_frame, text="Stop", command=self._stop).pack(
             side="right", padx=5
         )
