@@ -23,8 +23,8 @@ define("config\IMAGESURL", "https://zoidtechnologies.com/static/");
 define("config\SMARTYTEMPLATESDIR", [
     0 => \config\SKINDIR . "tmpl/",           // New structure: skin/tmpl/
     1 => \config\DOCUMENTROOT . "tmpl/",      // Legacy structure: tmpl/
-    2 => "/srv/www/zoid6/shared/skin/tmpl/",  // Shared zoid6 templates (use this first)
-    3 => "/srv/www/zoid6/skin/tmpl/",         // zoid6 project templates
+    2 => "/srv/www/vhosts/zoidtechnologies.com/html/shared/skin/tmpl/",  // Shared zoid6 templates (use this first)
+    3 => "/srv/www/vhosts/zoidtechnologies.com/html/shared/skin/tmpl/",         // zoid6 project templates
     4 => "/srv/www/bbsengine6/skin/tmpl/"    // bbsengine6 framework templates
 ]);
 
