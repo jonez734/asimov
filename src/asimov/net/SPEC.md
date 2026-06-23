@@ -2,7 +2,7 @@
 
 ## Overview
 
-`asimov_net` is a networking library for Asimov that provides TCP/UDP frame transmission capabilities with RFC 3986 DSN-style addressing. It enables sending and receiving video frames over network sockets with support for delta compression, chunking, batching, and flexible constructor APIs.
+`asimov_net` is a networking library for Asimov that provides TCP/UDP video frame transmission capabilities with RFC 3986 DSN-style addressing. It enables sending and receiving video frames over network sockets with support for delta compression, chunking, batching, and flexible constructor APIs.
 
 ## Package Structure
 
@@ -12,11 +12,11 @@ asimov_net/
 ├── conf.py               # Configuration constants
 ├── socket.py             # Low-level socket utilities
 ├── packet.py             # Base packet types and encoding
-├── frame.py              # Frame packet types and encoding
-├── frame_types.py        # Frame type abstractions (bytes/numpy) - NEW
-├── frame_address.py      # RFC 3986 DSN-style frame addressing - NEW
-├── tcp.py                # TCP sender/receiver with DSN support - ENHANCED
-├── udp.py                # UDP sender/receiver with DSN support - ENHANCED
+├── videoframe.py         # VideoFrame packet types and encoding
+├── videoframe_types.py   # VideoFrame type abstractions (bytes/numpy)
+├── videoframe_address.py # RFC 3986 DSN-style videoframe addressing
+├── tcp.py                # TCP sender/receiver with DSN support
+├── udp.py                # UDP sender/receiver with DSN support
 └── ping.py               # Ping/Pong utilities
 ```
 

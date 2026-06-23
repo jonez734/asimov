@@ -1,6 +1,8 @@
 # asimov_net/__init__.py
-# Network package for Asimov - TCP/UDP frame transmission
+# Network package for Asimov - video frame transmission
+# Uses bbsengine6.net for TCP/UDP/socket, has its own videoframe code
 
+# Configuration
 from .conf import (
     CHUNK_SIZE,
     DEFAULT_PORT,
@@ -22,12 +24,18 @@ from .conf import (
     CAPTURE_DEVICE,
 )
 
-from .socket import (
+# Socket utilities from bbsengine6.net
+from bbsengine6.net import (
     recv_all,
     recv_udp,
     send_with_length,
     recv_with_length,
-    retry_until_connected,
+)
+
+# TCP sender/receiver from bbsengine6.net
+from bbsengine6.net import (
+    TCPSender,
+    TCPReceiver,
 )
 
 from .packet import (
@@ -45,7 +53,8 @@ from .packet import (
     PACKET_TYPE_EOS,
 )
 
-from .frame import (
+# Video frame (asimov-specific)
+from .videoframe import (
     FramePacket,
     encode_frame_packet,
     decode_frame_packet,
@@ -53,38 +62,32 @@ from .frame import (
     FRAME_PACKET_HEADER_SIZE,
 )
 
-from .tcp import (
-    TCPSender,
-    TCPReceiver,
-)
-
-from .udp import (
-    UDPSender,
-    UDPReceiver,
-    UDP_MAX_PAYLOAD,
-)
-
-from .ping import (
-    respond_to_ping,
-    send_ping_and_wait_for_pong,
-    wait_for_pong,
-)
-
-# Frame types and addressing (optional numpy)
-from .frame_types import (
+# Video frame types - from bbsengine6.net (general-purpose, not video-specific)
+from bbsengine6.net import (
     Frame,
     NumpyFrame,
     frame_from_any,
     frames_equal,
 )
 
-# Frame addressing (DSN-like URIs)
-from .frame_address import (
+# Backward compatibility aliases
+VideoFrame = Frame
+NumpyVideoFrame = NumpyFrame
+
+# Video frame addressing (asimov-specific)
+from .videoframe_address import (
     FrameScheme,
     FrameAddress,
     FrameAddressParser,
     ParseResult,
     default_port_for_scheme,
+)
+
+# Ping utilities (asimov-specific)
+from .ping import (
+    respond_to_ping,
+    send_ping_and_wait_for_pong,
+    wait_for_pong,
 )
 
 __all__ = [
@@ -107,12 +110,14 @@ __all__ = [
     "CAPTURE_HEIGHT",
     "CAPTURE_FPS",
     "CAPTURE_DEVICE",
-    # socket
+    # socket (from bbsengine6)
     "recv_all",
     "recv_udp",
     "send_with_length",
     "recv_with_length",
-    "retry_until_connected",
+    # tcp (from bbsengine6)
+    "TCPSender",
+    "TCPReceiver",
     # packet
     "Packet",
     "FramePacket",
@@ -131,26 +136,21 @@ __all__ = [
     "PACKET_TYPE_PONG",
     "PACKET_TYPE_EOS",
     "PACKET_TYPE_FRAME",
-    # tcp
-    "TCPSender",
-    "TCPReceiver",
-    # udp
-    "UDPSender",
-    "UDPReceiver",
-    "UDP_MAX_PAYLOAD",
-    # ping
-    "respond_to_ping",
-    "send_ping_and_wait_for_pong",
-    "wait_for_pong",
-    # frame_types
-    "Frame",
-    "NumpyFrame",
+    # videoframe_types
+    "VideoFrame",
+    "NumpyVideoFrame",
+    "Frame",  # backward compat
+    "NumpyFrame",  # backward compat
     "frame_from_any",
     "frames_equal",
-    # frame_address
+    # videoframe_address
     "FrameScheme",
     "FrameAddress",
     "FrameAddressParser",
     "ParseResult",
     "default_port_for_scheme",
+    # ping
+    "respond_to_ping",
+    "send_ping_and_wait_for_pong",
+    "wait_for_pong",
 ]
