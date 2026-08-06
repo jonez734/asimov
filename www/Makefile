@@ -12,7 +12,7 @@ export installfile = install --mode=0660
 export RSYNC = rsync --delete-after --chmod=Dg=rwxs,Fgu=rw,Fo=r --verbose \
 	--archive --update --backup --recursive \
 	--human-readable --rsh=ssh \
-	--no-owner --no-group --checksum --mkpath
+	--no-owner --no-group --times --checksum --mkpath
 
 export PROJECTRELEASEDIR = /srv/repo/$(PROJECT)/
 
