@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel", "asimov"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "asimov-modules"
-version = "0.1.0"
+dynamic = ["version"] 
 description = "Asimov computer vision modules (hand, face, rect, glitch, etc.)"
 requires-python = ">=3.9,<3.13"
 license = "GPL-2.0-or-later"
@@ -30,3 +30,6 @@ packages = ["modules"]
 
 [tool.setuptools.package-dir]
 modules = "."
+
+[tool.setuptools.dynamic]
+version = {attr = "asimov._version.__version__"}

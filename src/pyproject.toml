@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "asimov"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Asimov computer vision and terminal I/O library"
 requires-python = ">=3.9,<3.13"
 license = "GPL-2.0-or-later"
@@ -43,3 +43,6 @@ asimov = "asimov.__main__:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["asimov", "asimov.base", "asimov.io", "asimov.net", "asimov.modules", "asimov.playingcard"]
+
+[tool.setuptools.dynamic]
+version = {attr = "asimov._version.__version__"}

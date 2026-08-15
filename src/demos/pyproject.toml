@@ -1,6 +1,6 @@
 [project]
 name = "asimov-demo"
-version = "0.1.0"
+dynamic = ["version"]
 dependencies = ["asimov"]
 
 [tool.setuptools]
@@ -8,3 +8,6 @@ py-modules = []
 
 [tool.setuptools.package-dir]
 asimov-demo = "."
+
+[tool.setuptools.dynamic]
+version = {attr = "asimov._version.__version__"}
