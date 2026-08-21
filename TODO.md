@@ -75,3 +75,11 @@ from ._version import __version__, __datestamp__
 - `zoid6/src/zoid6/_version.py` — same scheme as `bed`.
 - `bbsengine6/py/src/bbsengine6/_version.py` — uses `__version__`, `githash`, `__datestamp__` (with underscores) after the 2026-06-26 cleanup.
 - `empyre/src/empyre/_version.py` — same as `bed`/`zoid6` (no underscores on `datestamp`).
+
+## Build infrastructure
+
+- [ ] PREPARE_BUILD protection for in-tree `build/` (@since 20260820)
+  - Problem: `asimov/Makefile` `build` target (line 19) runs `python -m build --outdir dist` from the project root. There is no `PREPARE_BUILD` macro before the invocation, so a foreign-owned in-tree `build/` would cause setuptools to EPERM on the `chown` it does when populating `dist-info/`. (Pre-existing, more fundamental bug: asimov has no top-level `pyproject.toml` and no `src/asimov/pyproject.toml` either — `python -m build` from the project root will fail with "no pyproject.toml found" regardless. Fix that layout issue first, then add PREPARE_BUILD.)
+  - Solution: when asimov is migrated to the standard single-pyproject layout, add a `PREPARE_BUILD` macro mirroring `bed/Makefile:163-185` and call it before the `python -m build` line.
+  - Cross-ref: `bed/Makefile:163-185`, `zoid6/TODO.md` "PREPARE_BUILD standardization".
+
