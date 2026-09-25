@@ -18,14 +18,23 @@ define("config\SKINURL", \config\SITEURL . "skin/");
 define("config\JSURL", "/asimov/skin/js/");
 define("config\IMAGESURL", "https://zoidtechnologies.com/static/");
 
-// Define SMARTY* constants before including zoid6config.php so it can create global aliases
-// SMARTYTEMPLATESDIR - array with proper precedence
+// Define URL constants BEFORE zoid6config.php so they're available for templates
+define("config\SHAREDSKINURL", "/shared/skin/");
+define("config\ENGINESKINURL", "/engine/skin/");
+define("config\ENGINEURL", "/engine/");
+
+// @since 2026-09-24 — load zoid6config.php first (transitively
+// loads bbsengine6config.php, defining config\SHAREDTMPLDIR)
+// before the SMARTY* defines that reference it.
+require_once('zoid6config.php');
+
+// SMARTYTEMPLATESDIR - 3-element array (bbsengine6/skin/tmpl/ is
+// auto-appended by bbsengine6config.php as the engine fallback).
+// Search order: 1) Site-specific templates 2) legacy structure 3) shared zoid6 templates
 define("config\SMARTYTEMPLATESDIR", [
-    0 => \config\SKINDIR . "tmpl/",           // New structure: skin/tmpl/
-    1 => \config\DOCUMENTROOT . "tmpl/",      // Legacy structure: tmpl/
-    2 => "/srv/www/vhosts/zoidtechnologies.com/html/shared/skin/tmpl/",  // Shared zoid6 templates (use this first)
-    3 => "/srv/www/vhosts/zoidtechnologies.com/html/shared/skin/tmpl/",         // zoid6 project templates
-    4 => "/srv/www/bbsengine6/skin/tmpl/"    // bbsengine6 framework templates
+    0 => \config\SKINDIR . "tmpl/",
+    1 => \config\DOCUMENTROOT . "tmpl/",
+    2 => \config\SHAREDTMPLDIR,
 ]);
 
 // SMARTYCOMPILEDTEMPLATESDIR - compiled template cache directory
@@ -36,14 +45,6 @@ define("config\SMARTYPLUGINSDIR", [
     0 => \config\VHOSTDIR . "smarty/",
     1 => "/srv/www/zoid6/smarty/"
 ]);
-
-// Define URL constants BEFORE zoid6config.php so they're available for templates
-define("config\SHAREDSKINURL", "/shared/skin/");
-define("config\ENGINESKINURL", "/engine/skin/");
-define("config\ENGINEURL", "/engine/");
-
-// Now include zoid6config.php to create global aliases
-require_once('zoid6config.php');
 
 define("config\LOGENTRYPREFIX", "asimovprod");
 define("config\GOOGLEANALYTICSACCOUNT", "UA-23705021-1");
