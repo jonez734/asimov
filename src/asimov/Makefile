@@ -3,13 +3,13 @@ GITHASH := $(shell git log -1 --format='%H' 2>/dev/null | cut -c 1-16)
 
 all:
 
+# net/ has no Makefile, so it is not cleaned here.
 clean:
 	-rm *~
-	make -C io clean
-	make -C base clean
-	make -C modules clean
-	make -C net clean
-	make -C playingcard clean
+	$(MAKE) -C io clean
+	$(MAKE) -C base clean
+	$(MAKE) -C modules clean
+	$(MAKE) -C playingcard clean
 
 version:
 	@echo '__version__ = "0.0.1.dev$(VERSION)"' > $(CURDIR)/_version.py

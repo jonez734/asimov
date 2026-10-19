@@ -18,8 +18,12 @@ version:
 build: version
 	$(PYTHON) -m build --outdir dist
 
-deploy: build
+# deploy: web tree only. The Python wheel is not needed for the vhost, so
+# `build` is intentionally not a prerequisite here.
+deploy:
 	$(MAKE) -C www prod
 
 backup:
 	rsync --recursive --verbose --exclude=.venv/ --exclude=__pycache__/ . /run/media/jam/AEAB-CF37/projects/$(PROJECT)/
+
+.PHONY: all clean version build deploy backup

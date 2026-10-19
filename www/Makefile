@@ -26,13 +26,16 @@ clean:
 	$(MAKE) -C skin clean
 	$(MAKE) -C php clean
 
-prod:
-#	mkdir -p $(STAGE)templates_c/
-#	chmod g=rwxs $(STAGE)templates_c/
-
+# stage: build the vhost tree under $(STAGE) on this host.
+stage:
 	$(MAKE) -C php stage
 	$(MAKE) -C skin stage
-	-$(MAKE) -C js stage
 	$(RSYNC) config-prod.php $(STAGE)config.php
 	$(RSYNC) htaccess-prod $(STAGE).htaccess
-	$(RSYNC) --delete-after $(STAGE) $(PROD)
+
+# prod: stage, then push the whole tree to $(HOST). RSYNC already carries
+# --delete-after, so the push removes remote files that are not in $(STAGE).
+prod: stage
+	$(RSYNC) $(STAGE) $(PROD)
+
+.PHONY: all clean stage prod

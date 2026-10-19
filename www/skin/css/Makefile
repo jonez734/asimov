@@ -1,12 +1,6 @@
+# CSS is compiled from www/skin/scss into $(SKINDIR)css/ by the scss
+# Makefile; nothing is kept in this directory.
 all:
 
 clean:
 	-rm *~
-
-install:
-	mkdir -p $(DOCROOT)skin/css/
-	-$(installfile) *.css $(DOCROOT)skin/css/
-
-release:
-	mkdir -p $(PROJECTBUILDDIR)skin/css/
-	-$(installfile) Makefile *.css $(PROJECTBUILDDIR)skin/css/

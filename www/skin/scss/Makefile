@@ -1,12 +1,8 @@
 all:
 
-.scss.css:
-	sass --load-path /home/opencode/data/work/zoid6/shared/skin/scss/ \
-	     --load-path /home/opencode/data/work/bbsengine6/skin/scss/ \
-	     --load-path $(CURDIR) \
-	     --sourcemap=none --stop-on-error --trace --style expanded $< $@
-
-stage: 
+# Compile every .scss in this directory into $(SKINDIR)css/. The load path
+# is this directory (not the parent's $(HOME)/projects copy) on purpose.
+stage:
 	sass --load-path /home/opencode/data/work/zoid6/shared/skin/scss/ \
 	     --load-path /home/opencode/data/work/bbsengine6/skin/scss/ \
 	     --load-path $(CURDIR) \
@@ -16,6 +12,4 @@ stage:
 clean:
 	-rm *~ *.css *.css.map
 
-.SUFFIXES: .scss .css
-
-.PHONY: clean stage
+.PHONY: all clean stage
